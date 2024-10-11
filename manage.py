@@ -25,8 +25,8 @@ if __name__ == "__main__":
         raise
 
     # This allows easy placement of apps within the interior
-    # spx_vis directory.
+    # spectrumx_visualization_platform directory.
     current_path = Path(__file__).parent.resolve()
-    sys.path.append(str(current_path / "spx_vis"))
+    sys.path.append(str(current_path / "spectrumx_visualization_platform"))
 
     execute_from_command_line(sys.argv)

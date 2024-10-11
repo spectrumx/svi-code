@@ -10,9 +10,9 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=_source
 set BUILDDIR=_build
-set APP=..\spx_vis
+set APP=..\spectrumx_visualization_platform
 
-if "%1" == "" goto html
+if "%1" == "" goto help
 
 %SPHINXBUILD% >NUL 2>NUL
 if errorlevel 9009 (
@@ -39,8 +39,8 @@ GOTO :EOF
 sphinx-apidoc -o %SOURCEDIR%/api %APP%
 GOTO :EOF
 
-:html
-%SPHINXBUILD% -b html %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+:help
+%SPHINXBUILD% -b help %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
 
 :end
 popd

@@ -28,9 +28,9 @@ django.setup()
 
 # -- Project information -----------------------------------------------------
 
-project = "SpectrumX Visualization"
-copyright = """2024, Notre Dame Center for Research Computing"""
-author = "Notre Dame Center for Research Computing"
+project = "SpectrumX Visualization Platform"
+copyright = """2024, David W Pettifor"""
+author = "David W Pettifor"
 
 
 # -- General configuration ---------------------------------------------------

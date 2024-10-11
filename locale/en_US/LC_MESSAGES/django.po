@@ -1,11 +1,11 @@
-# Translations for the SpectrumX Visualization project
-# Copyright (C) 2024 Notre Dame Center for Research Computing
-# Notre Dame Center for Research Computing <crcsupport@nd.edu>, 2024.
+# Translations for the SpectrumX Visualization Platform project
+# Copyright (C) 2024 David W Pettifor
+# David W Pettifor <dpettifo@nd.edu>, 2024.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: 0.0.1\n"
+"Project-Id-Version: 0.1.0\n"
 "Language: en-US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"

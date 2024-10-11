@@ -1,7 +1,7 @@
 services:
   docs:
-    image: spx_vis_local_docs
-    container_name: spx_vis_local_docs
+    image: spectrumx_visualization_platform_local_docs
+    container_name: spectrumx_visualization_platform_local_docs
     build:
       context: .
       dockerfile: ./compose/local/docs/Dockerfile
@@ -10,7 +10,7 @@ services:
     volumes:
       - ./docs:/docs:z
       - ./config:/app/config:z
-      - ./spx_vis:/app/spx_vis:z
+      - ./spectrumx_visualization_platform:/app/spectrumx_visualization_platform:z
     ports:
       - '9000:9000'
     command: /start-docs

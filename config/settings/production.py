@@ -10,7 +10,7 @@ from .base import env
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["spx-vis.crc.nd.edu"])
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["spectrumx.crc.nd.edu"])
 
 # DATABASES
 # ------------------------------------------------------------------------------
@@ -78,16 +78,15 @@ STORAGES = {
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
 DEFAULT_FROM_EMAIL = env(
     "DJANGO_DEFAULT_FROM_EMAIL",
-    default="SpectrumX Visualization <noreply@spx-vis.crc.nd.edu>",
+    default="SpectrumX Visualization Platform <noreply@spectrumx.crc.nd.edu>",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
 SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
 EMAIL_SUBJECT_PREFIX = env(
     "DJANGO_EMAIL_SUBJECT_PREFIX",
-    default="[SpectrumX Visualization] ",
+    default="[SpectrumX Visualization Platform] ",
 )
-ACCOUNT_EMAIL_SUBJECT_PREFIX = EMAIL_SUBJECT_PREFIX
 
 # ADMIN
 # ------------------------------------------------------------------------------
@@ -157,7 +156,7 @@ LOGGING = {
 # -------------------------------------------------------------------------------
 # Tools that generate code samples can use SERVERS to point to the correct domain
 SPECTACULAR_SETTINGS["SERVERS"] = [
-    {"url": "https://spx-vis.crc.nd.edu", "description": "Production server"},
+    {"url": "https://spectrumx.crc.nd.edu", "description": "Production server"},
 ]
 # Your stuff...
 # ------------------------------------------------------------------------------

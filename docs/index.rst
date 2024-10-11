@@ -1,9 +1,9 @@
-.. SpectrumX Visualization documentation master file, created by
+.. SpectrumX Visualization Platform documentation master file, created by
    sphinx-quickstart.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to SpectrumX Visualization's documentation!
+Welcome to SpectrumX Visualization Platform's documentation!
 ======================================================================
 
 .. toctree::

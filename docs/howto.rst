@@ -4,7 +4,7 @@ How To - Project Documentation
 Get Started
 ----------------------------------------------------------------------
 
-Documentation can be written as rst files in `spx_vis/docs`.
+Documentation can be written as rst files in `spectrumx_visualization_platform/docs`.
 
 
 To build and serve docs, use the commands::

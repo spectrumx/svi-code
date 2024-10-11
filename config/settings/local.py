@@ -2,7 +2,6 @@
 from .base import *  # noqa: F403
 from .base import INSTALLED_APPS
 from .base import MIDDLEWARE
-from .base import WEBPACK_LOADER
 from .base import env
 
 # GENERAL
@@ -12,7 +11,7 @@ DEBUG = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env(
     "DJANGO_SECRET_KEY",
-    default="huXGIyfricZ5ZNTsWxPfFMligXZjvQHLqInJ9MbDbBsm2vtqoeALI3yLUzItXe1E",
+    default="csFqLJVHOGxNQzcGD3LHtT1vt6sEApqFH9dWhyCufvEwiCf74QsUqoQj9SJe87Zv",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]  # noqa: S104
@@ -31,8 +30,7 @@ CACHES = {
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
 EMAIL_BACKEND = env(
-    "DJANGO_EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
+    "DJANGO_EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend",
 )
 
 # WhiteNoise
@@ -64,12 +62,6 @@ if env("USE_DOCKER") == "yes":
 
     hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
     INTERNAL_IPS += [".".join(ip.split(".")[:-1] + ["1"]) for ip in ips]
-    try:
-        _, _, ips = socket.gethostbyname_ex("node")
-        INTERNAL_IPS.extend(ips)
-    except socket.gaierror:
-        # The node container isn't started (yet?)
-        pass
 
 # django-extensions
 # ------------------------------------------------------------------------------
@@ -80,8 +72,5 @@ INSTALLED_APPS += ["django_extensions"]
 
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-eager-propagates
 CELERY_TASK_EAGER_PROPAGATES = True
-# django-webpack-loader
-# ------------------------------------------------------------------------------
-WEBPACK_LOADER["DEFAULT"]["CACHE"] = not DEBUG
 # Your stuff...
 # ------------------------------------------------------------------------------
