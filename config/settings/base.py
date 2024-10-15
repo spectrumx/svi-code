@@ -322,6 +322,22 @@ SOCIALACCOUNT_FORMS = {
     "signup": "spectrumx_visualization_platform.users.forms.UserSocialSignupForm",
 }
 
+# Auth0 Configuration
+SOCIALACCOUNT_PROVIDERS = {
+    "auth0": {
+        "AUTH0_URL": env("AUTH0_DOMAIN"),
+        "OAUTH_PKCE_ENABLED": True,
+        "SCOPE": [
+            "openid",
+            "profile",
+            "email",
+        ],
+    },
+}
+
+# Add 'allauth.socialaccount.providers.auth0' to INSTALLED_APPS
+INSTALLED_APPS += ["allauth.socialaccount.providers.auth0"]
+
 # django-rest-framework
 # -------------------------------------------------------------------------------
 # django-rest-framework - https://www.django-rest-framework.org/api-guide/settings/

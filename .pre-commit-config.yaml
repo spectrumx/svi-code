@@ -25,7 +25,7 @@ repos:
     hooks:
       - id: prettier
         args: ['--tab-width', '2', '--single-quote']
-        exclude: 'spx_vis/templates/'
+        exclude: 'spectrumx_visualization_platform/templates/'
 
   - repo: https://github.com/adamchainz/django-upgrade
     rev: '1.22.1'
