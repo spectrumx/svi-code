@@ -22,6 +22,15 @@ services:
       - '8000:8000'
     command: /start
 
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+    ports:
+      - '3000:3000'
+    depends_on:
+      - django
+
   postgres:
     build:
       context: .
@@ -37,10 +46,9 @@ services:
   redis:
     image: docker.io/redis:6
     # container_name: spectrumx_visualization_platform_local_redis
-    
+
     volumes:
       - spectrumx_visualization_platform_local_redis_data:/data
-    
 
   celeryworker:
     <<: *django
