@@ -79,3 +79,56 @@ The following details how to deploy this application.
 ### Docker
 
 See detailed [cookiecutter-django Docker documentation](http://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html).
+
+## Auth0
+
+See detailed [Auth0 documentation](https://auth0.com/docs).
+
+### Modifications to Code Base
+
+1. Modify the `requirements/base.txt` to include `socialaccount` in `django-allauth`
+
+```
+django-allauth[socialaccount]==65.0.2  # https://github.com/pennersr/django-allauth
+fido2==1.1.3  # https://github.com/Yubico/python-fido2
+```
+
+2. Add Environment Variables to `.envs/.local/.django`
+
+```
+
+# Auth0
+AUTH0_DOMAIN=https://[DOMAIN].us.auth0.com
+```
+
+3. Add Auth0 to `config/settings/base.py`
+
+```
+# Auth0 Configuration
+SOCIALACCOUNT_PROVIDERS = {
+    "auth0": {
+        "AUTH0_URL": env("AUTH0_DOMAIN"),
+        "OAUTH_PKCE_ENABLED": True,
+        "SCOPE": [
+            "openid",
+            "profile",
+            "email",
+        ],
+    }
+}
+
+# Add 'allauth.socialaccount.providers.auth0' to INSTALLED_APPS
+INSTALLED_APPS += ["allauth.socialaccount.providers.auth0"]
+```
+
+4. Add a `Social Application` in the Django Admin for Auth0
+
+- Provider: `Auth0`
+- Provider ID: `auth0`
+- Name: `SpectrumX Auth0 Provider`
+- Client ID: `[CLIENT_ID]`
+- Secret: `[SECRET]`
+- Key: `auth0`
+- Sites: `[CONFIGURED SITE]` (localhost:8000, etc.)
+
+5. Login through the social application by visiting the login page at `/accounts/auth0/login`
