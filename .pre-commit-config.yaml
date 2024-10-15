@@ -49,6 +49,7 @@ repos:
       - id: djlint-reformat-django
         exclude: 'frontend/'
       - id: djlint-django
+        exclude: 'frontend/'
 
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
 ci:
