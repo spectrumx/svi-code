@@ -3,13 +3,12 @@
 {% load i18n %}
 
 {% block bodyclass %}
-  bg-light{%
-  endblock bodyclass %}
-  {% block css %}
-    {{ block.super }}
-  {% endblock css %}
-  {%
-  block title %}
+  bg-light
+{% endblock bodyclass %}
+{% block css %}
+  {{ block.super }}
+{% endblock css %}
+{% block title %}
   {% block head_title %}
     {% trans "Sign In" %}
   {% endblock
