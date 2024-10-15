@@ -94,7 +94,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # MIGRATIONS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#migration-modules
-MIGRATION_MODULES = {"sites": "spectrumx_visualization_platform.contrib.sites.migrations"}
+MIGRATION_MODULES = {
+    "sites": "spectrumx_visualization_platform.contrib.sites.migrations",
+}
 
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
@@ -308,11 +310,17 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "spectrumx_visualization_platform.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
-ACCOUNT_FORMS = {"signup": "spectrumx_visualization_platform.users.forms.UserSignupForm"}
+ACCOUNT_FORMS = {
+    "signup": "spectrumx_visualization_platform.users.forms.UserSignupForm",
+}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_ADAPTER = "spectrumx_visualization_platform.users.adapters.SocialAccountAdapter"
+SOCIALACCOUNT_ADAPTER = (
+    "spectrumx_visualization_platform.users.adapters.SocialAccountAdapter"
+)
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_FORMS = {"signup": "spectrumx_visualization_platform.users.forms.UserSocialSignupForm"}
+SOCIALACCOUNT_FORMS = {
+    "signup": "spectrumx_visualization_platform.users.forms.UserSocialSignupForm",
+}
 
 # Auth0 Configuration
 SOCIALACCOUNT_PROVIDERS = {
