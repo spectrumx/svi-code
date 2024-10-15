@@ -37,10 +37,9 @@ services:
   redis:
     image: docker.io/redis:6
     # container_name: spectrumx_visualization_platform_local_redis
-    
+
     volumes:
       - spectrumx_visualization_platform_local_redis_data:/data
-    
 
   celeryworker:
     <<: *django
