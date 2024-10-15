@@ -332,7 +332,7 @@ SOCIALACCOUNT_PROVIDERS = {
             "profile",
             "email",
         ],
-    }
+    },
 }
 
 # Add 'allauth.socialaccount.providers.auth0' to INSTALLED_APPS
