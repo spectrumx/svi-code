@@ -23,7 +23,9 @@ services:
     command: /start
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: ../compose/local/frontend/Dockerfile
     volumes:
       - ./frontend:/app
     ports:
