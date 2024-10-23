@@ -278,4 +278,4 @@ spectrumx_visualization_platform/media/
 .ipython/
 .env
 .envs/*
-!.envs/.local/
+.envs/.local/*
