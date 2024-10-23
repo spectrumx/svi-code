@@ -1,6 +1,6 @@
 // For format details, see https://containers.dev/implementors/json_reference/
 {
-    "name": "spx_vis_dev",
+    "name": "spectrumx_visualization_platform_dev",
     "dockerComposeFile": [
         "../docker-compose.local.yml"
     ],

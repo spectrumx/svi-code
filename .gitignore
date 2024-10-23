@@ -272,11 +272,10 @@ tags
 dump.rdb
 
 ### Project template
-spx_vis/media/
+spectrumx_visualization_platform/media/
 
 .pytest_cache/
 .ipython/
-spx_vis/static/webpack_bundles/
-webpack-stats.json
 .env
 .envs/*
+!.envs/.local/
