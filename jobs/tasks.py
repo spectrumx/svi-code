@@ -1,9 +1,12 @@
 from celery import shared_task
-import requests
-from django.conf import settings
+from .status import update_job_status
+
+
 @shared_task
 def submit_job(job_id: int, token: str):
     print(f"Submitting job {job_id}")
-    requests.post(f"{settings.API_URL}/api/jobs/update-job-status/{job_id}/", data={'status': 'running', 'token': token})
+    update_job_status(job_id, 'running', token)
+    
+
 
 

@@ -1,0 +1,48 @@
+volumes:
+  spectrumx_celery_postgres_data: {}
+  spectrumx_celery_postgres_data_backups: {}
+  spectrumx_visualization_platform_local_redis_data: {}
+
+services:
+  postgres_celery:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    volumes:
+      - spectrumx_celery_postgres_data:/var/lib/postgresql/data
+      - spectrumx_celery_postgres_data_backups:/backups
+    env_file:
+      - ./.envs/.local/.postgres
+    networks:
+      - spectrumx_celery_network
+
+  celery:
+    env_file:
+      - ./.envs/.local/.celery
+      - ./.envs/.local/.postgres
+      - ./.envs/.local/.django
+    build:
+      context: .
+      dockerfile: ./compose/local/celery/Dockerfile
+    command: celery -A config.celery_app worker -l info
+    depends_on:
+      - redis_celery
+    networks:
+      - spectrumx_celery_network
+
+  redis_celery:
+    image: redis:latest
+    container_name: spectrumx_celery_redis
+    env_file:
+      - path: ./.envs/.local/.celery
+    volumes:
+      - ./compose/production/redis/start:/start
+    command: /start
+    ports:
+      - "6379:6379"
+    networks:
+      - spectrumx_celery_network
+
+networks:
+  spectrumx_celery_network:
+    driver: bridge

@@ -4,21 +4,21 @@ User = get_user_model()
 import uuid
 class JobSubmissionConnection(models.Model):
     PROTOCOL_CHOICES = [
+        ('redis', 'REDIS'),
         ('amqp', 'AMQP'),
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     protocol = models.CharField(max_length=255, choices=PROTOCOL_CHOICES)
     host = models.CharField(max_length=255)
     port = models.IntegerField()
-    username = models.CharField(max_length=255)
     password = models.CharField(max_length=255)
 
     def __str__(self):
-        return f"{self.protocol}://{self.username}:*****@{self.host}:{self.port}"
+        return f"{self.protocol}://:*****@{self.host}:{self.port}"
     
     @property
     def broker_connection(self):
-        return f"{self.protocol}://{self.username}:{self.password}@{self.host}:{self.port}"
+        return f"{self.protocol}://:{self.password}@{self.host}:{self.port}"
 
 
 class Job(models.Model):
@@ -34,7 +34,6 @@ class Job(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    token = models.CharField(max_length=255, default=uuid.uuid4)
     submission_connection = models.ForeignKey(JobSubmissionConnection, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
@@ -42,6 +41,19 @@ class Job(models.Model):
     
     def files(self):
         return JobLocalFile.objects.filter(job=self)
+
+class JobStatusUpdate(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    status = models.CharField(max_length=255, choices=Job.STATUS_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        self.job.status = self.status
+        self.job.save()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.job.type} - {self.status}"
 
 class JobLocalFile(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
