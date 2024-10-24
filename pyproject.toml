@@ -130,7 +130,7 @@ select = [
   "INT",
   # "ARG", # Unused function argument
   "PTH",
-  "ERA",
+  # "ERA", # CH: removing commented-out code rule for now
   "PD",
   "PGH",
   "PL",
