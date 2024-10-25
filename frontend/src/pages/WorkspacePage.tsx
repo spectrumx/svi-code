@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import Button from 'react-bootstrap/Button';
+
+import DatasetTable from '../components/DatasetTable';
 
 const api_host = 'http://localhost:8000';
 
-type SigMFFilePairResponse = {
+export type SigMFFilePairResponse = {
   id: number;
   data_file: string;
   meta_file: string;
@@ -21,15 +24,12 @@ const WorkspacePage = () => {
   }, []);
 
   return (
-    <div>
-      <div>Select a Dataset to Visualize</div>
-      <ul>
-        {datasets.map((dataset) => (
-          <li key={dataset.id}>
-            {dataset.data_file}/{dataset.meta_file}
-          </li>
-        ))}
-      </ul>
+    <div style={{ padding: 20 }}>
+      <h5>Select a Dataset to Visualize</h5>
+      <DatasetTable datasets={datasets} />
+      <br />
+      <h5>Add a New Dataset</h5>
+      <Button variant="primary">Upload Dataset</Button>
     </div>
   );
 };
