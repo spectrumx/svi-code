@@ -1,4 +1,7 @@
+from django.conf import settings
 from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 
 from spectrumx_visualization_platform.spx_vis.api.serializers import (
     SigMFFilePairSerializer,
@@ -15,6 +18,7 @@ from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 
 
 class SigMFFilePairViewSet(viewsets.ModelViewSet):
+    permission_classes = [AllowAny] if settings.DEBUG else [IsAuthenticated]
     queryset = SigMFFilePair.objects.all()
     serializer_class = SigMFFilePairSerializer
     # permission_classes = [permissions.IsAuthenticated]
