@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Button from 'react-bootstrap/Button';
+import axios from 'axios';
 
 import DatasetTable from '../components/DatasetTable';
 import { api_host } from '../App';
@@ -15,13 +16,13 @@ const WorkspacePage = () => {
   const [showModal, setShowModal] = useState(false);
   const [datasets, setDatasets] = useState<SigMFFilePairResponse>([]);
 
+  const syncDatasets = async () => {
+    const response = await axios.get(`${api_host}/api/sigmf-file-pairs/`);
+    setDatasets(response.data as SigMFFilePairResponse);
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      const response = await fetch(`${api_host}/api/sigmf-file-pairs/`);
-      const data = (await response.json()) as SigMFFilePairResponse;
-      setDatasets(data);
-    };
-    fetchData();
+    syncDatasets();
   }, []);
 
   return (
@@ -36,6 +37,7 @@ const WorkspacePage = () => {
       <FileUploadModal
         show={showModal}
         handleClose={() => setShowModal(false)}
+        handleSuccess={syncDatasets}
       />
     </div>
   );
