@@ -2,10 +2,12 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import WorkspacePage from './pages/WorkspacePage';
 import Header from './components/Header';
-
-export const api_host = 'http://localhost:8000';
+import { useFetchTokenAndUserInfo } from './apiClient/apiClient';
+import { useEffect } from 'react';
 
 function App() {
+  useFetchTokenAndUserInfo();
+
   return (
     <div
     // className="App"

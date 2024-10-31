@@ -1,24 +1,16 @@
 import { useEffect, useState } from 'react';
 import Button from 'react-bootstrap/Button';
-import axios from 'axios';
 
 import DatasetTable from '../components/DatasetTable';
-import { api_host } from '../App';
 import FileUploadModal from '../components/FileUploadModal';
-
-export type SigMFFilePairResponse = {
-  id: number;
-  data_file: string;
-  meta_file: string;
-}[];
+import { getDatasets, SigMFFilePairResponse } from '../apiClient/fileService';
 
 const WorkspacePage = () => {
   const [showModal, setShowModal] = useState(false);
   const [datasets, setDatasets] = useState<SigMFFilePairResponse>([]);
 
   const syncDatasets = async () => {
-    const response = await axios.get(`${api_host}/api/sigmf-file-pairs/`);
-    setDatasets(response.data as SigMFFilePairResponse);
+    setDatasets(await getDatasets());
   };
 
   useEffect(() => {

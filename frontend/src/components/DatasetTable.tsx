@@ -1,6 +1,6 @@
 import Table from 'react-bootstrap/Table';
 
-import { SigMFFilePairResponse } from '../pages/WorkspacePage';
+import { SigMFFilePairResponse } from '../apiClient/fileService';
 
 interface DatasetTableProps {
   datasets: SigMFFilePairResponse;

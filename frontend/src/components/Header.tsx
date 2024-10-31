@@ -2,8 +2,13 @@ import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
 import NavDropdown from 'react-bootstrap/NavDropdown';
+import { api_host } from '../apiClient/apiClient';
+import { useAppContext } from '../utils/AppContext';
 
 const Header = () => {
+  const context = useAppContext();
+  console.log('Header context:', context);
+
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
       <Container>
@@ -28,6 +33,20 @@ const Header = () => {
             </NavDropdown>
             <Nav.Link>Search</Nav.Link>
             <Nav.Link>Tutorials</Nav.Link>
+            {context?.username ? (
+              <NavDropdown title={context.username} id="basic-nav-dropdown">
+                <NavDropdown.Item href="#action/3.1">Profile</NavDropdown.Item>
+                <NavDropdown.Item href="#action/3.2">Settings</NavDropdown.Item>
+                <NavDropdown.Divider />
+                <NavDropdown.Item href="/accounts/auth0/logout">
+                  Logout
+                </NavDropdown.Item>
+              </NavDropdown>
+            ) : (
+              <Nav.Link href={api_host + '/accounts/auth0/login'}>
+                Login
+              </Nav.Link>
+            )}
           </Nav>
         </Navbar.Collapse>
       </Container>

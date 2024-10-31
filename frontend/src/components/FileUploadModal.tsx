@@ -1,8 +1,7 @@
-import axios from 'axios';
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
-import { api_host } from '../App';
+import { postDataset } from '../apiClient/fileService';
 
 interface FileUploadModalProps {
   show: boolean;
@@ -19,20 +18,11 @@ const FileUploadModal = ({
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
-    const transformedFormData = new FormData();
-    transformedFormData.append('data_file', formData.get('dataFile') as Blob);
-    transformedFormData.append('meta_file', formData.get('metaFile') as Blob);
+    const dataFile = formData.get('dataFile') as Blob;
+    const metaFile = formData.get('metaFile') as Blob;
 
     try {
-      await axios.post(
-        `${api_host}/api/sigmf-file-pairs/`,
-        transformedFormData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        },
-      );
+      await postDataset(dataFile, metaFile);
       handleSuccess();
     } catch (error) {
       console.error(error);
