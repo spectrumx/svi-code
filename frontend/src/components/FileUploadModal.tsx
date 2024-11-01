@@ -2,6 +2,8 @@ import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
 import { postDataset } from '../apiClient/fileService';
+import { useState } from 'react';
+import { Alert } from 'react-bootstrap';
 
 interface FileUploadModalProps {
   show: boolean;
@@ -14,6 +16,8 @@ const FileUploadModal = ({
   handleClose,
   handleSuccess,
 }: FileUploadModalProps) => {
+  const [showFailedAlert, setShowFailedAlert] = useState(false);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
@@ -24,10 +28,11 @@ const FileUploadModal = ({
     try {
       await postDataset(dataFile, metaFile);
       handleSuccess();
+      handleClose();
     } catch (error) {
       console.error(error);
+      setShowFailedAlert(true);
     }
-    handleClose();
   };
 
   return (
@@ -36,6 +41,15 @@ const FileUploadModal = ({
         <Modal.Title>Upload a New Dataset</Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {showFailedAlert && (
+          <Alert
+            variant="danger"
+            onClose={() => setShowFailedAlert(false)}
+            dismissible
+          >
+            Error: Failed to upload dataset
+          </Alert>
+        )}
         <Form onSubmit={handleSubmit}>
           <Form.Group controlId="dataFile">
             <Form.Label>Data File</Form.Label>
