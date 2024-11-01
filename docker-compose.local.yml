@@ -22,6 +22,17 @@ services:
       - '8000:8000'
     command: /start
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../compose/local/frontend/Dockerfile
+    volumes:
+      - ./frontend:/app
+    ports:
+      - '3000:3000'
+    depends_on:
+      - django
+
   postgres:
     build:
       context: .
