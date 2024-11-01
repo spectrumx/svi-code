@@ -21,7 +21,8 @@ export const useFetchTokenAndUserInfo = async () => {
         context?.setUsername(username);
         console.log('Authentication successful.');
       } else {
-        console.error('Authentication failed.');
+        localStorage.removeItem('authToken');
+        console.log('Authentication failed.');
       }
     };
 

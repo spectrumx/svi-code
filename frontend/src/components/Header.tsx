@@ -38,7 +38,7 @@ const Header = () => {
                 <NavDropdown.Item href="#action/3.1">Profile</NavDropdown.Item>
                 <NavDropdown.Item href="#action/3.2">Settings</NavDropdown.Item>
                 <NavDropdown.Divider />
-                <NavDropdown.Item href="/accounts/auth0/logout">
+                <NavDropdown.Item href={api_host + '/accounts/logout'}>
                   Logout
                 </NavDropdown.Item>
               </NavDropdown>
