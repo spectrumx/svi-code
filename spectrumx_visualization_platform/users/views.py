@@ -38,7 +38,7 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
     permanent = False
 
     def get_redirect_url(self):
-        # Hardcoded redirect to local frontend
+        # Hardcoded redirect to local frontend for now
         return "http://localhost:3000"
 
 
