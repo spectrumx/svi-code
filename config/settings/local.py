@@ -2,7 +2,6 @@
 from .base import *  # noqa: F403
 from .base import INSTALLED_APPS
 from .base import MIDDLEWARE
-from .base import REST_FRAMEWORK
 from .base import env
 
 # GENERAL
@@ -15,11 +14,7 @@ SECRET_KEY = env(
     default="csFqLJVHOGxNQzcGD3LHtT1vt6sEApqFH9dWhyCufvEwiCf74QsUqoQj9SJe87Zv",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1", "172.18.0.1"]  # noqa: S104
-
-# django-rest-framework
-# ------------------------------------------------------------------------------
-REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] += ("rest_framework.permissions.AllowAny",)
+ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]  # noqa: S104
 
 # CACHES
 # ------------------------------------------------------------------------------
