@@ -2,6 +2,39 @@
 
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.db.models.constraints import UniqueConstraint
+
+
+class File(models.Model):
+    """A generic file in the SVI.
+
+    Attributes:
+        owner:              The user who uploaded the file.
+        file:               The file object itself.
+        created_at:         The timestamp when the file was created.
+        expiration_date:    The date when the file will be marked for deletion from SDS.
+        media_type:         The MIME type of the file.
+        name:               The user-defined name for this file.
+        updated_at:         The timestamp when the file was last updated.
+        local_path:         The path to the file on the local filesystem.
+    """
+
+    owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    file = models.FileField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expiration_date = models.DateTimeField(null=True)
+    media_type = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    updated_at = models.DateTimeField(auto_now=True)
+    local_path = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=["owner", "name"], name="unique_filename_for_user"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class SigMFFilePair(models.Model):
@@ -12,10 +45,16 @@ class SigMFFilePair(models.Model):
         meta_file:          The metadata file in the pair.
     """
 
-    data_file = models.FileField(
+    data_file = models.ForeignKey(
+        File,
+        on_delete=models.CASCADE,
+        related_name="data_file",
         validators=[FileExtensionValidator(allowed_extensions=["sigmf-data"])],
     )
-    meta_file = models.FileField(
+    meta_file = models.ForeignKey(
+        File,
+        on_delete=models.CASCADE,
+        related_name="meta_file",
         validators=[FileExtensionValidator(allowed_extensions=["sigmf-meta"])],
     )
 
@@ -36,5 +75,6 @@ class SigMFFilePair(models.Model):
 
 
 __all__ = [
+    "File",
     "SigMFFilePair",
 ]

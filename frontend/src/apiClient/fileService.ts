@@ -2,8 +2,8 @@ import apiClient from './apiClient';
 
 export type SigMFFilePairResponse = {
   id: number;
-  data_file: string;
-  meta_file: string;
+  data_file_name: string;
+  meta_file_name: string;
 }[];
 
 export const getDatasets = async () => {

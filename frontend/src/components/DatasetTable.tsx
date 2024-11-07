@@ -20,8 +20,8 @@ const DatasetTable = ({ datasets }: DatasetTableProps) => {
         {datasets.map((dataset) => (
           <tr key={dataset.id}>
             <td>{dataset.id}</td>
-            <td>{dataset.data_file}</td>
-            <td>{dataset.meta_file}</td>
+            <td>{dataset.data_file_name}</td>
+            <td>{dataset.meta_file_name}</td>
           </tr>
         ))}
       </tbody>
