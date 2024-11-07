@@ -2,7 +2,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 
 interface AppContextModel {
   username?: string;
-  setUsername: (value: string) => void;
+  setUsername: (value: string | undefined) => void;
 }
 
 const AppContext = createContext<AppContextModel | undefined>(undefined);

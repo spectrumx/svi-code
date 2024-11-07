@@ -10,7 +10,7 @@ from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 
-from spectrumx_visualization_platform.users.api.views import get_token_and_user_info
+from spectrumx_visualization_platform.users.api.views import get_session_info
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
@@ -39,7 +39,7 @@ urlpatterns += [
     path("api/", include("config.api_router")),
     # DRF auth token
     path("api/auth-token/", obtain_auth_token),
-    path("api/get-token-and-user-info/", get_token_and_user_info),
+    path("api/session-info/", get_session_info),
     path("api/schema/", SpectacularAPIView.as_view(), name="api-schema"),
     path(
         "api/docs/",

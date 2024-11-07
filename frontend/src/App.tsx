@@ -2,11 +2,10 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import WorkspacePage from './pages/WorkspacePage';
 import Header from './components/Header';
-import { useFetchTokenAndUserInfo } from './apiClient/apiClient';
-import { useEffect } from 'react';
+import { useFetchSessionInfo } from './apiClient/apiClient';
 
 function App() {
-  useFetchTokenAndUserInfo();
+  useFetchSessionInfo();
 
   return (
     <div

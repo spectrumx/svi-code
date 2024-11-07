@@ -1,15 +1,19 @@
 import axios from 'axios';
 import { useAppContext } from '../utils/AppContext';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-export const api_host = 'http://localhost:8000';
+export const api_host = process.env.REACT_APP_API_HOST;
 
-export const useFetchTokenAndUserInfo = async () => {
+export const useFetchSessionInfo = async () => {
   const context = useAppContext();
+  // For now, we just want to run this on the first page load
+  const hasRunRef = useRef(false);
 
   useEffect(() => {
-    const fetchTokenAndUserInfo = async () => {
-      const response = await fetch(api_host + '/api/get-token-and-user-info', {
+    if (hasRunRef.current) return;
+
+    const fetchSessionInfo = async () => {
+      const response = await fetch(api_host + '/api/session-info', {
         // Important for session-based authentication
         credentials: 'include',
       });
@@ -19,15 +23,15 @@ export const useFetchTokenAndUserInfo = async () => {
         localStorage.setItem('authToken', data.access_token);
         const username = data.user.username;
         context?.setUsername(username);
-        console.log('Authentication successful.');
       } else {
         localStorage.removeItem('authToken');
-        console.log('Authentication failed.');
+        context?.setUsername(undefined);
       }
     };
 
-    fetchTokenAndUserInfo();
-  }, []);
+    fetchSessionInfo();
+    hasRunRef.current = true;
+  }, [context]);
 };
 
 const apiClient = axios.create({
@@ -37,7 +41,7 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
-  console.log('Token:', token);
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

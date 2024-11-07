@@ -29,7 +29,7 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
 
 
 @api_view(["GET"])
-def get_token_and_user_info(request):
+def get_session_info(request):
     if request.user.is_authenticated:
         refresh = RefreshToken.for_user(request.user)
         return Response(
@@ -39,7 +39,6 @@ def get_token_and_user_info(request):
                 "user": {
                     "id": request.user.id,
                     "username": request.user.username,
-                    # Add other relevant fields
                 },
             },
         )
