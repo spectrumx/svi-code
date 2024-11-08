@@ -171,3 +171,6 @@ line-ending = "auto"
 
 [tool.ruff.lint.isort]
 force-single-line = true
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = true

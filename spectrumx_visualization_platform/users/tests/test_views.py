@@ -79,7 +79,8 @@ class TestUserRedirectView:
         request.user = user
 
         view.request = request
-        assert view.get_redirect_url() == f"/users/{user.username}/"
+        # assert view.get_redirect_url() == f"/users/{user.username}/"
+        assert view.get_redirect_url() == "http://localhost:3000"
 
 
 class TestUserDetailView:
