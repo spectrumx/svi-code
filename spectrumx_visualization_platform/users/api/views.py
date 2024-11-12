@@ -1,10 +1,12 @@
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.decorators import api_view
 from rest_framework.mixins import ListModelMixin
 from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from spectrumx_visualization_platform.users.models import User
 
@@ -24,3 +26,20 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
     def me(self, request):
         serializer = UserSerializer(request.user, context={"request": request})
         return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+
+@api_view(["GET"])
+def get_session_info(request):
+    if request.user.is_authenticated:
+        refresh = RefreshToken.for_user(request.user)
+        return Response(
+            {
+                "access_token": str(refresh.access_token),
+                "refresh_token": str(refresh),
+                "user": {
+                    "id": request.user.id,
+                    "username": request.user.username,
+                },
+            },
+        )
+    return Response({"error": "User not authenticated"}, status=401)
