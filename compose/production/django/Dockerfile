@@ -88,9 +88,12 @@ RUN chown -R django:django ${APP_HOME}
 
 USER django
 
+# Any environment variables needed by our Django settings Python files should
+# be set here. They don't need values though
 RUN DATABASE_URL="" \
   CELERY_BROKER_URL="" \
   DJANGO_SETTINGS_MODULE="config.settings.test" \
+  AUTH0_DOMAIN="" \
   python manage.py compilemessages
 
 ENTRYPOINT ["/entrypoint"]
