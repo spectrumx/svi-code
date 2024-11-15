@@ -96,11 +96,12 @@ http:
         certResolver: letsencrypt
 
     api-secure-router:
-      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/api`) )'
+      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/service`) )'
       entryPoints:
         - web-secure
       middlewares:
         - csrf
+        - strip-prefix-service
       service: django
       tls:
         # https://doc.traefik.io/traefik/routing/routers/#certresolver
@@ -140,6 +141,11 @@ http:
         #     $ e.g. curl -u your-user-name:your-password http://your-sds-hostname/dashboard/
         # https://doc.traefik.io/traefik/middlewares/http/basicauth/#usersfile
         usersFile: /etc/traefik/dashboard/credentials.htpasswd
+    strip-prefix-service:
+      # https://doc.traefik.io/traefik/middlewares/striprefix/
+      stripPrefix:
+        prefixes:
+          - /service
 
   services:
     # These must match the compose service name and port
