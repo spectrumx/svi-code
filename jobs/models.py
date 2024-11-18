@@ -57,7 +57,7 @@ class JobStatusUpdate(models.Model):
 
 class JobLocalFile(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
-    file = models.FileField(upload_to='media/')
+    file = models.FileField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,3 +67,8 @@ class JobRemoteFile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+class JobData(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    file = models.FileField(blank=True, null=True)
+    data = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
