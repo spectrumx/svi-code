@@ -42,6 +42,10 @@ def create_job_status_update(request):
 def get_job_metadata(request, id):
     try:
         job = Job.objects.get(id=id)
+
+        # make sure the owner of this job is the person requesting it
+        if job.owner != request.user:
+            raise Job.DoesNotExist
         
         # Get associated files
         local_files = [{'name': file.file.name, 'id': file.id} for file in JobLocalFile.objects.filter(job=job)]
@@ -107,8 +111,6 @@ def get_job_data(request, id):
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def save_job_data(request, job_id):
-    parser_classes = (MultiPartParser, FormParser)
-
     # look up the job based on the Job ID
     try:
         job_obj = Job.objects.get(id=job_id)
@@ -129,23 +131,17 @@ def save_job_data(request, job_id):
     data = {}
     if request.data.get('json_data'):
         data.update(request.data.get('json_data'))
-        
+        JobData.objects.create(job=job_obj, data=data)
     # Handle files if present
     files = request.FILES
-    data_files = []
     if files:
         # Store file paths/references in data
         file_paths = {}
         for file_key, file_obj in files.items():
             # Save file and store path
-            # You may want to customize the file saving logic
             file_paths[file_key] = f'media/{file_obj.name}'
             
             JobData.objects.create(job=job_obj, file=file_obj)
-        
-    # Here you would typically save data to your model
-    # Example:
-    job_data = JobData.objects.create(job=job_obj, data=data)
     
     return Response({
         'status': 'success',

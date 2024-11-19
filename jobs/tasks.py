@@ -14,11 +14,15 @@ def submit_job(job_id: int, token: str):
 
     print(f"Getting job information")
     job_data = get_job_meta(job_id, token)
+    if job_data is None:
+        update_job_status(job_id, 'failed', token, info='Could not get job information.')
     print(job_data)
 
     print("Fetching file data...")
     for f in job_data['data']['local_files']:
         data = get_job_file(f['id'], token, 'local')
+        if data is None:
+            update_job_status(job_id, 'failed', token, info='Could not fetch local file.')
         #.. store data in some way to access it later in the code,
         #.. either in memory or locally to disk
 
@@ -27,8 +31,9 @@ def submit_job(job_id: int, token: str):
     print(f"Submitting results")
     # submit JSON data
     f = open('spectrumx_visualization_platform/media/data.csv', 'r').read()
-    post_results(job_id, token, json_data={'header': '1,2,3', 'data': 'a,b,c'}, file_data=f)
-
+    success = post_results(job_id, token, json_data={'header': '1,2,3', 'data': 'a,b,c'}, file_data=f, file_name='results.csv')
+    if not success:
+        update_job_status(job_id, 'failed', token, info='Could not post results.')
     # update the job as complete
     update_job_status(job_id, 'completed', token)
 

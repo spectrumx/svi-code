@@ -46,6 +46,7 @@ class JobStatusUpdate(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
     status = models.CharField(max_length=255, choices=Job.STATUS_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
+    info = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
         self.job.status = self.status
@@ -72,3 +73,11 @@ class JobData(models.Model):
     file = models.FileField(blank=True, null=True)
     data = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        name = f"{self.job.id}: {self.job.type}"
+        if self.file:
+            name += f" {self.file.name}"
+        if self.data:
+            name += f" JSON"
+        return name

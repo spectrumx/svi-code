@@ -11,7 +11,7 @@ urlpatterns = [
     # update status of job
     path('update-job-status/', views.create_job_status_update, name='update_job_status'),
 
-    # get job data
+    # get job info
     path('job-data/<int:id>/', views.get_job_metadata, name='get_job_meta'),
 
     # get job file data

@@ -1,4 +1,4 @@
-from .models import JobSubmissionConnection, Job, JobLocalFile
+from .models import JobStatusUpdate, Job, JobLocalFile
 from .tasks import submit_job
 from rest_framework.authtoken.models import Token
 from kombu import Connection
@@ -12,10 +12,6 @@ def request_job_submission(visualization_type: str, owner: User, local_files: li
     token, created = Token.objects.get_or_create(user=owner)
 
     job = Job.objects.create(type=visualization_type, owner=owner)
-
-    # connection = JobSubmissionConnection.objects.filter(user=owner).first()
-    # job.submission_connection = connection
-    # job.save()
     
     for local_file in local_files:
         JobLocalFile.objects.create(job=job, file=local_file)
@@ -30,3 +26,8 @@ def request_job_submission(visualization_type: str, owner: User, local_files: li
         )
     else:
         submit_job.delay(job.id, token.key)
+
+    JobStatusUpdate.objects.create(
+        job=job,
+        status='submitted'
+    )
