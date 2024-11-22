@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from '.';
 
 export type SigMFFilePairResponse = {
   id: number;
