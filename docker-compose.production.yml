@@ -71,12 +71,12 @@ services:
   # whoami service to test traefik reachability
   # curl --insecure https://whoami.spectrumx.crc.nd.edu
   whoami:
-      image: traefik/whoami
-      command:
-          - --port=2001   # must match port in traefik.yml
-          # - --name=sds-01
-      # networks:
-      #     - sds-network-local
+    image: traefik/whoami
+    command:
+      - --port=2001 # must match port in traefik.yml
+      # - --name=sds-01
+    # networks:
+    #     - sds-network-local
 
   redis:
     image: docker.io/redis:6
