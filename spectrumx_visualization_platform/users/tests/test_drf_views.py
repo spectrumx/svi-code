@@ -6,7 +6,7 @@ from spectrumx_visualization_platform.users.models import User
 
 
 class TestUserViewSet:
-    @pytest.fixture
+    @pytest.fixture()
     def api_rf(self) -> APIRequestFactory:
         return APIRequestFactory()
 

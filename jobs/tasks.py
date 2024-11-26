@@ -1,47 +1,65 @@
+from pathlib import Path
+
 from celery import shared_task
-from .io import (
-    update_job_status,
-    get_job_meta,
-    get_job_file,
-    post_results
-)
+
+from .io import get_job_file
+from .io import get_job_meta
+from .io import post_results
+from .io import update_job_status
 
 
 @shared_task
 def submit_job(job_id: int, token: str):
     # the very first thing we should do is update the Job status to "running"
-    update_job_status(job_id, 'running', token)
+    update_job_status(job_id, "running", token)
 
     # the next thing we do is get the job information. This will tell us:
     # 1. What type of visualization we should do
     # 2. A list of files we'll need
     job_data = get_job_meta(job_id, token)
     if job_data is None:
-        update_job_status(job_id, 'failed', token, info='Could not get job information.')
-    
+        update_job_status(
+            job_id,
+            "failed",
+            token,
+            info="Could not get job information.",
+        )
+
     # Next, run through the local files and download them from the SVI main system.
-    for f in job_data['data']['local_files']:
-        data = get_job_file(f['id'], token, 'local')
+    for f in job_data["data"]["local_files"]:
+        data = get_job_file(f["id"], token, "local")
         if data is None:
-            update_job_status(job_id, 'failed', token, info='Could not fetch local file.')
-        #.. store data in some way to access it later in the code,
-        #.. either in memory or locally to disk
+            update_job_status(
+                job_id,
+                "failed",
+                token,
+                info="Could not fetch local file.",
+            )
+        # .. store data in some way to access it later in the code,
+        # .. either in memory or locally to disk
 
     # DO CODE TO MAKE VIZ HERE
 
     # Let's say the code dumped to a local file and we want to upload that.
-    # We can do either that, or have an in-memory file. Either way, "f" will be our file contents (byte format)
-    f = open('spectrumx_visualization_platform/media/data.csv', 'r').read()
+    # We can do either that, or have an in-memory file. Either way, "f" will be
+    # our file contents (byte format)
+    with Path.open("spectrumx_visualization_platform/media/data.csv").read() as f:
+        # post results -- we can make this call as many times as needed to get
+        # results to send to the main system.
+        # We can also mix JSON data and a file. It will save 2 records of
+        # "JobData", one for the JSON and one for the file.
+        # Remember that "json_data" should be a dictionary, and if we use a
+        # file upload, to provide it a name.
+        success = post_results(
+            job_id,
+            token,
+            json_data={"header": "1,2,3", "data": "a,b,c"},
+            file_data=f,
+            file_name="results.csv",
+        )
 
-    # post results -- we can make this call as many times as needed to get results to send to the main system.
-    # We can also mix JSON data and a file. It will save 2 records of "JobData", one for the JSON and one for the file.
-    # Remember that "json_data" should be a dictionary, and if we use a file upload, to provide it a name.
-    success = post_results(job_id, token, json_data={'header': '1,2,3', 'data': 'a,b,c'}, file_data=f, file_name='results.csv')
     if not success:
-        update_job_status(job_id, 'failed', token, info='Could not post results.')
-    
+        update_job_status(job_id, "failed", token, info="Could not post results.")
+
     # update the job as complete
-    update_job_status(job_id, 'completed', token)
-
-
-
+    update_job_status(job_id, "completed", token)

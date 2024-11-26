@@ -19,4 +19,3 @@ COPY . .
 
 # Define the command to run your Celery worker
 CMD ["celery", "-A", "celery_app", "worker", "-l", "info"]
-
