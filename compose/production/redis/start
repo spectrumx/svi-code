@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Get the Redis password from environment variable or use a default
+REDIS_PASSWORD=${REDIS_PASSWORD:-default_password}
+
+# Get the Redis port from environment variable or use the default 6379
+REDIS_PORT=${REDIS_PORT:-6379}
+
+# Start Redis server with the specified password and port
+redis-server --requirepass $REDIS_PASSWORD --port $REDIS_PORT
