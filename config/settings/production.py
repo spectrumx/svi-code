@@ -3,6 +3,7 @@ from .base import *  # noqa: F403
 from .base import DATABASES
 from .base import INSTALLED_APPS
 from .base import SPECTACULAR_SETTINGS
+from .base import STATIC_URL
 from .base import env
 
 # GENERAL
@@ -160,3 +161,7 @@ SPECTACULAR_SETTINGS["SERVERS"] = [
 ]
 # Your stuff...
 # ------------------------------------------------------------------------------
+FORCE_SCRIPT_NAME = "/service"
+
+WHITENOISE_STATIC_PREFIX = STATIC_URL
+STATIC_URL = "/service" + STATIC_URL

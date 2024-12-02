@@ -21,10 +21,15 @@ export const useFetchSessionInfo = async () => {
 
       if (data.access_token) {
         localStorage.setItem('authToken', data.access_token);
+        localStorage.setItem('refreshToken', data.refresh_token);
+        localStorage.setItem('csrfToken', data.csrf_token);
+
         const username = data.user.username;
         context?.setUsername(username);
       } else {
         localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('csrfToken');
         context?.setUsername(undefined);
       }
     };
@@ -40,11 +45,17 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
+  const authToken = localStorage.getItem('authToken');
+  const csrfToken = localStorage.getItem('csrfToken');
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (authToken) {
+    config.headers.Authorization = `Bearer ${authToken}`;
   }
+
+  if (csrfToken) {
+    config.headers['X-CSRFToken'] = csrfToken;
+  }
+
   return config;
 });
 

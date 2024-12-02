@@ -1,5 +1,48 @@
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+# https://doc.traefik.io/traefik/operations/dashboard/
+api:
+  # e.g. curl --insecure https://localhost/dashboard/
+  dashboard: true
+  # insecure: true
+
+providers:
+  # https://doc.traefik.io/traefik/master/providers/file/
+  file:
+    filename: /etc/traefik/traefik.yml
+    watch: true
+
+accesslog:
+  addInternals: true
+  filters:
+    minDuration: 10ms
+    retryAttempts: true
+    # statusCodes: '200,300-302' # switch to this if the one below is too verbose
+    statusCodes: '200,300-302,400-404,500-504'
+
 log:
-  level: INFO
+  level: DEBUG
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/public_key.crt
+      keyFile: /etc/traefik/certs/private_key.pem
+      stores:
+        - default
+  options:
+    default:
+      minVersion: VersionTLS12
+  stores:
+    # these self-signed certs will be used by default if let's encrypt
+    #   fails due to e.g. the domain not being publicly reachable.
+    # you might need --insecure flag in curl; and to manually bypass
+    #   the browser's security warning if this is the case.
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/public_key.crt
+        keyFile: /etc/traefik/certs/private_key.pem
 
 entryPoints:
   web:
@@ -14,6 +57,9 @@ entryPoints:
   web-secure:
     # https
     address: ':443'
+    asDefault: true
+    http2:
+      maxConcurrentStreams: 250
 
   flower:
     address: ':5555'
@@ -30,19 +76,39 @@ certificatesResolvers:
 
 http:
   routers:
+    traefik-api:
+      middlewares:
+        - auth
+      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/dashboard`) )'
+      service: api@internal
+      tls:
+        certResolver: letsencrypt
+
     web-secure-router:
       rule: 'Host(`spectrumx.crc.nd.edu`)'
       entryPoints:
         - web-secure
+      service: frontend
       middlewares:
         - csrf
+      tls:
+        # https://doc.traefik.io/traefik/routing/routers/#certresolver
+        certResolver: letsencrypt
+
+    api-secure-router:
+      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/service`) )'
+      entryPoints:
+        - web-secure
+      middlewares:
+        - csrf
+        - strip-prefix-service
       service: django
       tls:
         # https://doc.traefik.io/traefik/routing/routers/#certresolver
         certResolver: letsencrypt
 
     flower-secure-router:
-      rule: 'Host(`spectrumx.crc.nd.edu`)'
+      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/flower`) )'
       entryPoints:
         - flower
       service: flower
@@ -66,12 +132,32 @@ http:
       # https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
       headers:
         hostsProxyHeaders: ['X-CSRFToken']
+    auth:
+      # This is a basic auth for the Traefik dashboard
+      basicAuth:
+        # Generate the credentials file with bcrypt hashes for the users:
+        #     $ htpasswd -nB your-user-name >> traefik/credentials.htpasswd
+        # Try it out:
+        #     $ e.g. curl -u your-user-name:your-password http://your-sds-hostname/dashboard/
+        # https://doc.traefik.io/traefik/middlewares/http/basicauth/#usersfile
+        usersFile: /etc/traefik/dashboard/credentials.htpasswd
+    strip-prefix-service:
+      # https://doc.traefik.io/traefik/middlewares/striprefix/
+      stripPrefix:
+        prefixes:
+          - /service
 
   services:
+    # These must match the compose service name and port
     django:
       loadBalancer:
         servers:
           - url: http://django:5000
+
+    frontend:
+      loadBalancer:
+        servers:
+          - url: http://frontend:80
 
     flower:
       loadBalancer:
@@ -83,8 +169,7 @@ http:
         servers:
           - url: http://nginx:80
 
-providers:
-  # https://doc.traefik.io/traefik/master/providers/file/
-  file:
-    filename: /etc/traefik/traefik.yml
-    watch: true
+    whoami:
+      loadBalancer:
+        servers:
+          - url: http://whoami:2001

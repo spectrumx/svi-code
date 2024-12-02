@@ -23,6 +23,15 @@ services:
       - ./.envs/.production/.postgres
     command: /start
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../compose/production/frontend/Dockerfile
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - django
+
   postgres:
     build:
       context: .
@@ -42,11 +51,32 @@ services:
     depends_on:
       - django
     volumes:
-      - production_traefik:/etc/traefik/acme
+      - source: ./compose/production/traefik/data/certs
+        target: /etc/traefik/certs
+        type: bind
+        read_only: true
+      - source: ./compose/production/traefik/traefik.yml
+        target: /etc/traefik/traefik.yml
+        type: bind
+        read_only: true
+      - source: ./compose/production/traefik/credentials.htpasswd
+        target: /etc/traefik/dashboard/credentials.htpasswd
+        type: bind
+        read_only: true
     ports:
       - '0.0.0.0:80:80'
       - '0.0.0.0:443:443'
       - '0.0.0.0:5555:5555'
+
+  # whoami service to test traefik reachability
+  # curl --insecure https://whoami.spectrumx.crc.nd.edu
+  whoami:
+    image: traefik/whoami
+    command:
+      - --port=2001 # must match port in traefik.yml
+      # - --name=sds-01
+    # networks:
+    #     - sds-network-local
 
   redis:
     image: docker.io/redis:6

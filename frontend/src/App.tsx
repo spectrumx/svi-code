@@ -2,7 +2,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import WorkspacePage from './pages/WorkspacePage';
 import Header from './components/Header';
-import { useFetchSessionInfo } from './apiClient/apiClient';
+import { useFetchSessionInfo } from './apiClient';
 
 function App() {
   useFetchSessionInfo();
