@@ -13,25 +13,30 @@ export const useFetchSessionInfo = async () => {
     if (hasRunRef.current) return;
 
     const fetchSessionInfo = async () => {
-      const response = await fetch(api_host + '/api/session-info', {
-        // Important for session-based authentication
-        credentials: 'include',
-      });
-      const data = await response.json();
+      try {
+        const response = await fetch(api_host + '/api/session-info', {
+          // Important for session-based authentication
+          credentials: 'include',
+        });
 
-      if (data.access_token) {
-        localStorage.setItem('authToken', data.access_token);
-        localStorage.setItem('refreshToken', data.refresh_token);
-        localStorage.setItem('csrfToken', data.csrf_token);
+        if (response.ok) {
+          const data = await response.json();
 
-        const username = data.user.username;
-        context?.setUsername(username);
-      } else {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('csrfToken');
-        context?.setUsername(undefined);
-      }
+          localStorage.setItem('authToken', data.access_token);
+          localStorage.setItem('refreshToken', data.refresh_token);
+          localStorage.setItem('csrfToken', data.csrf_token);
+
+          const username = data.user.username;
+          context?.setUsername(username);
+
+          return;
+        }
+      } catch (error) {}
+
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('csrfToken');
+      context?.setUsername(undefined);
     };
 
     fetchSessionInfo();
