@@ -23,6 +23,11 @@ ALLOWED_HOSTS = [
     "spectrumx.crc.nd.edu",
 ]
 
+# django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+
 # CACHES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
