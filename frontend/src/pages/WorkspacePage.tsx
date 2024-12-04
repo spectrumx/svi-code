@@ -20,7 +20,7 @@ const WorkspacePage = () => {
   }, []);
 
   return (
-    <div style={{ padding: 20 }}>
+    <>
       <h5>Select a Dataset to Visualize</h5>
       <DatasetTable datasets={datasets} />
       <br />
@@ -38,7 +38,7 @@ const WorkspacePage = () => {
         handleClose={() => setShowModal(false)}
         handleSuccess={syncDatasets}
       />
-    </div>
+    </>
   );
 };
 

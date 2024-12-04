@@ -1,3 +1,4 @@
+import { Routes, Route } from 'react-router';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import WorkspacePage from './pages/WorkspacePage';
@@ -12,7 +13,16 @@ function App() {
     // className="App"
     >
       <Header />
-      <WorkspacePage />
+      <div style={{ padding: 20 }}>
+        <Routes>
+          {/* Div elements are placeholders until pages are implemented */}
+          <Route path="/" element={<div>Home/Dashboard</div>} />
+          <Route path="workspace" element={<WorkspacePage />} />
+          <Route path="mydata" element={<div>My Data</div>} />
+          <Route path="search" element={<div>Search</div>} />
+          <Route path="tutorials" element={<div>Tutorials</div>} />
+        </Routes>
+      </div>
     </div>
   );
 }
