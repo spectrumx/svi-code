@@ -11,6 +11,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   // Fetch the current token on page load
   useEffect(() => {
@@ -41,6 +42,20 @@ export default function ProfilePage() {
       setError('Failed to update API token');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const testConnection = async () => {
+    try {
+      setTestingConnection(true);
+      setError(null);
+      await axios.post('/api/test-sdk-connection/');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError('Failed to connect to the SDK');
+    } finally {
+      setTestingConnection(false);
     }
   };
 
@@ -84,8 +99,18 @@ export default function ProfilePage() {
           loading={loading}
           color="blue"
           fullWidth
+          mb="md"
         >
           Update Token
+        </Button>
+
+        <Button
+          onClick={testConnection}
+          loading={testingConnection}
+          color="green"
+          fullWidth
+        >
+          Test Connection
         </Button>
       </Card>
     </Container>

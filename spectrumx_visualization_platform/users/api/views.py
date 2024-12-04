@@ -15,6 +15,8 @@ from spectrumx_visualization_platform.users.models import User
 
 from .serializers import UserSerializer
 
+from spectrumx import Client as SpectrumClient  # Adjust import based on actual SDK package name
+
 
 class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericViewSet):
     serializer_class = UserSerializer
@@ -73,4 +75,34 @@ def api_token(request):
         {"message": "API token saved successfully"},
         status=status.HTTP_200_OK
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def test_sdk_connection(request):
+    if not request.user.api_token:
+        return Response(
+            {"error": "No API token found. Please set your API token first."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Initialize SDK client with user's API token
+        client = SpectrumClient(
+            host="sds.crc.nd.edu",
+            env_config={"SDS_SECRET_TOKEN": request.user.api_token}
+        )
+        
+        # Attempt to make a test connection
+        client.authenticate() 
+        
+        return Response(
+            {"message": "SDK connection successful"},
+            status=status.HTTP_200_OK
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Failed to connect to SDK: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 

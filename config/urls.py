@@ -11,7 +11,7 @@ from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 from jobs import urls as jobs_urls
 
-from spectrumx_visualization_platform.users.api.views import get_session_info, api_token
+from spectrumx_visualization_platform.users.api.views import get_session_info, api_token, test_sdk_connection
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
@@ -48,6 +48,7 @@ urlpatterns += [
         SpectacularSwaggerView.as_view(url_name="api-schema"),
         name="api-docs",
     ),
+    path("api/test-sdk-connection/", test_sdk_connection),
 ]
 
 if settings.DEBUG:
