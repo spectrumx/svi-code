@@ -2,9 +2,11 @@ from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
 from rest_framework.mixins import ListModelMixin
 from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.mixins import UpdateModelMixin
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -47,3 +49,28 @@ def get_session_info(request):
             },
         )
     return Response({"error": "User not authenticated"}, status=401)
+
+
+@api_view(["POST", "GET"])
+@permission_classes([IsAuthenticated])
+def api_token(request):
+    if request.method == "GET":
+        return Response(
+            {"api_token": request.user.api_token},
+            status=status.HTTP_200_OK
+        )
+    if not request.data.get("api_token"):
+        return Response(
+            {"error": "API token is required"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    user = request.user
+    user.api_token = request.data["api_token"]
+    user.save()
+    
+    return Response(
+        {"message": "API token saved successfully"},
+        status=status.HTTP_200_OK
+    )
+
