@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import WorkspacePage from './pages/WorkspacePage';
-import TokenPage from './pages/token';
+import TokenPage from './pages/TokenPage';
 import Header from './components/Header';
 import { useFetchSessionInfo } from './apiClient';
 

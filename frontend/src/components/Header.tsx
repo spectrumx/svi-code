@@ -1,7 +1,7 @@
 import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
-import NavDropdown from 'react-bootstrap/NavDropdown';
+import Dropdown from 'react-bootstrap/Dropdown';
 import { NavLink } from 'react-router';
 import { api_host } from '../apiClient';
 import { useAppContext } from '../utils/AppContext';
@@ -34,14 +34,20 @@ const Header = () => {
               Tutorials
             </NavLink>
             {context?.username ? (
-              <NavDropdown title={context.username} id="basic-nav-dropdown">
-                <NavDropdown.Item href="/token">API Token</NavDropdown.Item>
-                <NavDropdown.Item href="#action/3.2">Settings</NavDropdown.Item>
-                <NavDropdown.Divider />
-                <NavDropdown.Item href={api_host + '/accounts/logout'}>
-                  Logout
-                </NavDropdown.Item>
-              </NavDropdown>
+              <Dropdown className="nav-item-dropdown">
+                <Dropdown.Toggle id="dropdown-basic" className="nav-link">
+                  {context.username}
+                </Dropdown.Toggle>
+                <Dropdown.Menu>
+                  <NavLink to="/token" className="dropdown-item">
+                    API Token
+                  </NavLink>
+                  <Dropdown.Divider />
+                  <Dropdown.Item href={api_host + '/accounts/logout'}>
+                    Logout
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
             ) : (
               <Nav.Link href={api_host + '/accounts/auth0/login'}>
                 Login

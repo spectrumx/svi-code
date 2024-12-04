@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'react';
-import apiClient from '../../apiClient';
+import apiClient from '../apiClient';
 
-interface TokenResponse {
-  token: string;
-}
-
-export default function ProfilePage() {
+export default function TokenPage() {
   const [apiToken, setApiToken] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +19,7 @@ export default function ProfilePage() {
       setLoading(true);
       const response = await apiClient.get('/api/api-token/');
       console.log(response.data);
-      setApiToken(response.data.api_token);
+      setApiToken(response.data.api_token ?? '');
     } catch (err) {
       setError('Failed to fetch API token');
     } finally {
