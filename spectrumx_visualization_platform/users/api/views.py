@@ -10,12 +10,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
+from spectrumx import (
+    Client as SpectrumClient,  # Adjust import based on actual SDK package name
+)
 
 from spectrumx_visualization_platform.users.models import User
 
 from .serializers import UserSerializer
-
-from spectrumx import Client as SpectrumClient  # Adjust import based on actual SDK package name
 
 
 class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericViewSet):
@@ -59,21 +60,21 @@ def api_token(request):
     if request.method == "GET":
         return Response(
             {"api_token": request.user.api_token},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
     if not request.data.get("api_token"):
         return Response(
-            {"error": "API token is required"}, 
-            status=status.HTTP_400_BAD_REQUEST
+            {"error": "API token is required"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     user = request.user
     user.api_token = request.data["api_token"]
     user.save()
-    
+
     return Response(
         {"message": "API token saved successfully"},
-        status=status.HTTP_200_OK
+        status=status.HTTP_200_OK,
     )
 
 
@@ -83,26 +84,27 @@ def test_sdk_connection(request):
     if not request.user.api_token:
         return Response(
             {"error": "No API token found. Please set your API token first."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         # Initialize SDK client with user's API token
         client = SpectrumClient(
             host="sds.crc.nd.edu",
-            env_config={"SDS_SECRET_TOKEN": request.user.api_token}
+            env_config={"SDS_SECRET_TOKEN": request.user.api_token},
         )
-        
+
+        client.dry_run = False
+
         # Attempt to make a test connection
-        client.authenticate() 
-        
+        client.authenticate()
+
         return Response(
             {"message": "SDK connection successful"},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
     except Exception as e:
         return Response(
-            {"error": f"Failed to connect to SDK: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": f"Failed to connect to SDK: {e!s}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-

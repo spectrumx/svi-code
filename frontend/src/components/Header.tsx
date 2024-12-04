@@ -35,7 +35,7 @@ const Header = () => {
             </NavLink>
             {context?.username ? (
               <NavDropdown title={context.username} id="basic-nav-dropdown">
-                <NavDropdown.Item href="#action/3.1">Profile</NavDropdown.Item>
+                <NavDropdown.Item href="/token">API Token</NavDropdown.Item>
                 <NavDropdown.Item href="#action/3.2">Settings</NavDropdown.Item>
                 <NavDropdown.Divider />
                 <NavDropdown.Item href={api_host + '/accounts/logout'}>
