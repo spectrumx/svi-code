@@ -1,4 +1,5 @@
 import Table from 'react-bootstrap/Table';
+import { Link } from 'react-router';
 
 import { SigMFFilePairResponse } from '../apiClient/fileService';
 
@@ -14,6 +15,7 @@ const DatasetTable = ({ datasets }: DatasetTableProps) => {
           <th>ID</th>
           <th>Data File</th>
           <th>Meta File</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -22,6 +24,11 @@ const DatasetTable = ({ datasets }: DatasetTableProps) => {
             <td>{dataset.id}</td>
             <td>{dataset.data_file_name}</td>
             <td>{dataset.meta_file_name}</td>
+            <td>
+              <Link to={`/visualize/${dataset.id}`} className="btn btn-primary">
+                Visualize
+              </Link>
+            </td>
           </tr>
         ))}
       </tbody>
