@@ -14,6 +14,7 @@ from spectrumx import (
     Client as SpectrumClient,  # Adjust import based on actual SDK package name
 )
 
+from config import settings
 from spectrumx_visualization_platform.users.models import User
 
 from .serializers import UserSerializer
@@ -90,7 +91,7 @@ def test_sdk_connection(request):
     try:
         # Initialize SDK client with user's API token
         client = SpectrumClient(
-            host="sds.crc.nd.edu",
+            host=settings.SPECTRUMX_HOST,
             env_config={"SDS_SECRET_TOKEN": request.user.api_token},
         )
 
