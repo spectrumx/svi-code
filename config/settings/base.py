@@ -369,3 +369,4 @@ SPECTACULAR_SETTINGS = {
 # Your stuff...
 # ------------------------------------------------------------------------------
 API_URL = env("API_URL", default="http://django:8000")
+SPECTRUMX_HOST = env("SPECTRUMX_HOST", default="sds.crc.nd.edu")
