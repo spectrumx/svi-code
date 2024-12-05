@@ -2,12 +2,17 @@ from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
 from rest_framework.mixins import ListModelMixin
 from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.mixins import UpdateModelMixin
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
+from spectrumx import (
+    Client as SpectrumClient,  # Adjust import based on actual SDK package name
+)
 
 from spectrumx_visualization_platform.users.models import User
 
@@ -47,3 +52,59 @@ def get_session_info(request):
             },
         )
     return Response({"error": "User not authenticated"}, status=401)
+
+
+@api_view(["POST", "GET"])
+@permission_classes([IsAuthenticated])
+def api_token(request):
+    if request.method == "GET":
+        return Response(
+            {"api_token": request.user.api_token},
+            status=status.HTTP_200_OK,
+        )
+    if not request.data.get("api_token"):
+        return Response(
+            {"error": "API token is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = request.user
+    user.api_token = request.data["api_token"]
+    user.save()
+
+    return Response(
+        {"message": "API token saved successfully"},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def test_sdk_connection(request):
+    if not request.user.api_token:
+        return Response(
+            {"error": "No API token found. Please set your API token first."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        # Initialize SDK client with user's API token
+        client = SpectrumClient(
+            host="sds.crc.nd.edu",
+            env_config={"SDS_SECRET_TOKEN": request.user.api_token},
+        )
+
+        client.dry_run = False
+
+        # Attempt to make a test connection
+        client.authenticate()
+
+        return Response(
+            {"message": "SDK connection successful"},
+            status=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Failed to connect to SDK: {e!s}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
