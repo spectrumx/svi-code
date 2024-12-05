@@ -148,6 +148,7 @@ ignore = [
   "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
   "SIM102", # sometimes it's better to nest
   "BLE001", # This is dumb and I don't like it
+  "DJ001", # null=True is required for fields that are added after the model is created
   "UP038" # Checks for uses of isinstance/issubclass that take a tuple
           # of types for comparison.
           # Deactivated because it can make the code slow:
