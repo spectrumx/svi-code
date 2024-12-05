@@ -24,12 +24,16 @@ def update_job_status(job_id: int, status: str, token: str, info=None):
     }
     if info:
         data["info"] = info
+
+    print(f"Data (io.py:update_job_status): {data}")
+
     response = requests.post(
         f"{settings.API_URL}/api/jobs/update-job-status/",
-        data=info,
+        data=data,
         headers=headers,
         timeout=10,
     )
+    print(f"Response (io.py:update_job_status): {response}")
     return response.status_code == requests.codes.created
 
 
@@ -76,8 +80,9 @@ def get_job_file(file_id, token: str, file_type: str):
         f"{settings.API_URL}/api/jobs/job-file/{file_id}",
         params={"file_type": file_type},
         headers=headers,
-        timeout=10,
+        timeout=60,
     )
+    print(f"Response (io.py:get_job_file): {response}")
     if response.status_code != requests.codes.ok:
         return None
     return response.content

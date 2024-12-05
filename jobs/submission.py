@@ -15,13 +15,20 @@ def request_job_submission(
     owner: User,
     local_files: list[str],
 ):
+    print(
+        f"Requesting job submission for {visualization_type}"
+        f" with owner {owner.username}",
+    )
+
     # check if there is already a token for this user
     token, created = Token.objects.get_or_create(user=owner)
 
     job = Job.objects.create(type=visualization_type, owner=owner)
+    print(f"Job (submission.py): {job}")
 
     for local_file in local_files:
-        JobLocalFile.objects.create(job=job, file=local_file)
+        file_obj = JobLocalFile.objects.create(job=job, file=local_file)
+        print(f"File created (submission.py): {file_obj}")
 
     # does this job have a specific submission connection?
     if job.submission_connection:
@@ -38,3 +45,5 @@ def request_job_submission(
         job=job,
         status="submitted",
     )
+
+    return job

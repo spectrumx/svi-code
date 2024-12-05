@@ -22,8 +22,8 @@ export const useFetchSessionInfo = async () => {
         if (response.ok) {
           const data = await response.json();
 
-          localStorage.setItem('authToken', data.access_token);
-          localStorage.setItem('refreshToken', data.refresh_token);
+          localStorage.setItem('authToken', data.auth_token);
+          // localStorage.setItem('refreshToken', data.refresh_token);
           localStorage.setItem('csrfToken', data.csrf_token);
 
           const username = data.user.username;
@@ -34,7 +34,7 @@ export const useFetchSessionInfo = async () => {
       } catch (error) {}
 
       localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
+      // localStorage.removeItem('refreshToken');
       localStorage.removeItem('csrfToken');
       context?.setUsername(undefined);
     };
@@ -54,7 +54,7 @@ apiClient.interceptors.request.use((config) => {
   const csrfToken = localStorage.getItem('csrfToken');
 
   if (authToken) {
-    config.headers.Authorization = `Bearer ${authToken}`;
+    config.headers.Authorization = `Token ${authToken}`;
   }
 
   if (csrfToken) {

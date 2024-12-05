@@ -35,7 +35,7 @@ def submit_job(request):
     Returns:
         Response: JSON response indicating submission status
     """
-    request_job_submission("waterfall", request.user, ["data.csv"])
+    request_job_submission("spectrogram", request.user, ["data.csv"])
     return Response({"status": "success"})
 
 
