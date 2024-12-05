@@ -1,47 +1,42 @@
-import { useState } from 'react';
-import { Form, Row, Col } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
+import { SpectrogramSettings } from '../../pages/SpectrogramPage';
 
-const SpectrogramControls = () => {
-  const [settings, setSettings] = useState({
-    minFreq: 0,
-    maxFreq: 8000,
-    windowSize: 2048,
-  });
+// Powers of 2 from 64 to 65536
+const fftSizeOptions = Array.from({ length: 11 }, (_, i) => Math.pow(2, i + 6));
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+interface SpectrogramControlsProps {
+  settings: SpectrogramSettings;
+  setSettings: (settings: SpectrogramSettings) => void;
+}
+
+const SpectrogramControls = ({
+  settings,
+  setSettings,
+}: SpectrogramControlsProps) => {
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setSettings((prev) => ({
-      ...prev,
+    setSettings({
+      ...settings,
       [name]: Number(value),
-    }));
+    });
   };
 
   return (
     <Form>
-      <Row className="mb-3">
-        <Col>
-          <Form.Group>
-            <Form.Label>Min Frequency (Hz)</Form.Label>
-            <Form.Control
-              type="number"
-              name="minFreq"
-              value={settings.minFreq}
-              onChange={handleChange}
-            />
-          </Form.Group>
-        </Col>
-        <Col>
-          <Form.Group>
-            <Form.Label>Max Frequency (Hz)</Form.Label>
-            <Form.Control
-              type="number"
-              name="maxFreq"
-              value={settings.maxFreq}
-              onChange={handleChange}
-            />
-          </Form.Group>
-        </Col>
-      </Row>
+      <Form.Group>
+        <Form.Label>FFT Size</Form.Label>
+        <Form.Select
+          name="fftSize"
+          value={settings.fftSize}
+          onChange={handleChange}
+        >
+          {fftSizeOptions.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </Form.Select>
+      </Form.Group>
     </Form>
   );
 };
