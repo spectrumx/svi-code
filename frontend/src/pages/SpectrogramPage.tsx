@@ -76,7 +76,7 @@ const SpectrogramPage = () => {
           console.error('Error fetching job status:', error);
           clearInterval(interval);
         }
-      }, 1000);
+      }, 2000);
     }
 
     return () => {
@@ -121,7 +121,7 @@ const SpectrogramPage = () => {
               'Creating spectrogram job...'
             ) : (
               <>
-                Job Status: {_.capitalize(jobStatus.status || 'Status missing')}
+                Job status: {_.capitalize(jobStatus.status || 'Status missing')}
                 {jobStatus.message && <div>Info: {jobStatus.message}</div>}
               </>
             )}

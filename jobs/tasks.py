@@ -1,9 +1,12 @@
+from pathlib import Path
+
 from celery import shared_task
 
 from .io import get_job_file
 from .io import get_job_meta
 from .io import post_results
 from .io import update_job_status
+from .visualizations.spectrogram import make_spectrogram
 
 
 @shared_task
@@ -42,31 +45,29 @@ def submit_job(job_id: int, token: str):
         print(f"File {f['id']} downloaded successfully.")
 
     # DO CODE TO MAKE VIZ HERE
-    print("Job is running!")
+    figure = make_spectrogram(
+        job_data["data"]["local_files"][0]["path"],
+        job_data["data"]["local_files"][1]["path"],
+        1024,
+    )
+    figure.savefig("spectrogram.png")
 
     # Let's say the code dumped to a local file and we want to upload that.
     # We can do either that, or have an in-memory file. Either way, "f" will be
     # our file contents (byte format)
-    # with Path.open("spectrumx_visualization_platform/media/data.csv").read() as f:
-    #     # post results -- we can make this call as many times as needed to get
-    #     # results to send to the main system.
-    #     # We can also mix JSON data and a file. It will save 2 records of
-    #     # "JobData", one for the JSON and one for the file.
-    #     # Remember that "json_data" should be a dictionary, and if we use a
-    #     # file upload, to provide it a name.
-    #     success = post_results(
-    #         job_id,
-    #         token,
-    #         json_data={"header": "1,2,3", "data": "a,b,c"},
-    #         file_data=f,
-    #         file_name="results.csv",
-    #     )
-
-    success = post_results(
-        job_id,
-        token,
-        json_data={"header": "1,2,3", "data": "a,b,c"},
-    )
+    with Path.open("spectrogram.png").read() as results_file:
+        # post results -- we can make this call as many times as needed to get
+        # results to send to the main system.
+        # We can also mix JSON data and a file. It will save 2 records of
+        # "JobData", one for the JSON and one for the file.
+        # Remember that "json_data" should be a dictionary, and if we use a
+        # file upload, to provide it a name.
+        success = post_results(
+            job_id,
+            token,
+            file_data=results_file,
+            file_name="spectrogram.png",
+        )
 
     if not success:
         update_job_status(job_id, "failed", token, info="Could not post results.")
