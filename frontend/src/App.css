@@ -32,7 +32,41 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
+}
+
+.sx-navbar {
+  background-color: #1c4688 !important;
+  color: #ffffff !important;
+}
+
+.sx-navbar-brand {
+  color: #ffffff !important;
+  font-weight: bold;
+}
+
+.sx-navbar .nav-link {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+.nav-link {
+  /* color: #ffffff !important; */
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+.rainbow-bar {
+  height: 10px;
+  background: url(./img/rule-rainbow.svg) 0 0 / cover no-repeat;
+}
+
+.content-container {
+  padding-top: 2.5rem;
+  padding-left: 5rem;
+  padding-right: 5rem;
+  padding-bottom: 2.5rem;
 }
