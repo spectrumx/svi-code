@@ -15,7 +15,7 @@ function App() {
     // className="App"
     >
       <Header />
-      <div style={{ padding: 20 }}>
+      <div className="content-container">
         <Routes>
           {/* Div elements are placeholders until pages are implemented */}
           <Route path="/" element={<div>Home/Dashboard</div>} />
