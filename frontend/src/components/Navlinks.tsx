@@ -1,14 +1,9 @@
 import Nav from 'react-bootstrap/Nav';
 import Container from 'react-bootstrap/Container';
-import Dropdown from 'react-bootstrap/Dropdown';
-import { api_host } from '../apiClient';
-import { useAppContext } from '../utils/AppContext';
 import { NavLink } from 'react-router';
 import Navbar from 'react-bootstrap/esm/Navbar';
 
 const Navlinks = () => {
-  const context = useAppContext();
-
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
       <Container>
