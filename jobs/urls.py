@@ -13,9 +13,11 @@ urlpatterns = [
         name="update_job_status",
     ),
     # get job info
-    path("job-data/<int:job_id>/", views.get_job_metadata, name="get_job_meta"),
-    # get job file data
-    path("job-file/<int:job_id>", views.get_job_data, name="get_job_meta"),
+    path("job-metadata/<int:job_id>/", views.get_job_metadata, name="get_job_meta"),
+    # get job file
+    path("job-file/<int:file_id>", views.get_job_file, name="get_job_file"),
+    # get job data
+    path("job-data/<int:job_data_id>", views.get_job_data, name="get_job_data"),
     # save job data
     path("save-job-data/<int:job_id>/", views.save_job_data, name="save_job_data"),
     # test the connection

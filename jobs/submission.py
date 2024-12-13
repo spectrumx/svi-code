@@ -5,6 +5,7 @@ from rest_framework.authtoken.models import Token
 from .models import Job
 from .models import JobLocalFile
 from .models import JobStatusUpdate
+from .tasks import error_handler
 from .tasks import submit_job
 
 User = get_user_model()
@@ -37,6 +38,7 @@ def request_job_submission(
         submit_job.apply_async(
             args=[job.id, token.key],
             connection=connection,
+            link_error=error_handler.s(),
         )
     else:
         submit_job.delay(job.id, token.key)

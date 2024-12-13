@@ -21,56 +21,90 @@ def submit_job(job_id: int, token: str):
     # 2. A list of files we'll need
     job_data = get_job_meta(job_id, token)
     if job_data is None:
+        error_msg = "Could not get job information."
         update_job_status(
             job_id,
             "failed",
             token,
-            info="Could not get job information.",
+            info=error_msg,
         )
+        raise ValueError(error_msg)
 
     # Next, run through the local files and download them from the SVI main system.
-    for f in job_data["data"]["local_files"]:
+    # Create a directory for the job files
+    Path("job_files").mkdir(parents=True, exist_ok=True)
+    for _i, f in enumerate(job_data["data"]["local_files"]):
         print(f"Getting file (tasks.py): {f}")
         data = get_job_file(f["id"], token, "local")
+
         if data is None:
             print(f"File {f['id']} not found.")
+            error_msg = "Could not fetch local file."
             update_job_status(
                 job_id,
                 "failed",
                 token,
                 info="Could not fetch local file.",
             )
+            raise ValueError(error_msg)
         # .. store data in some way to access it later in the code,
         # .. either in memory or locally to disk
+        with Path.open(f"job_files/{f['name']}", "wb") as new_file:
+            new_file.write(data)
         print(f"File {f['id']} downloaded successfully.")
 
     # DO CODE TO MAKE VIZ HERE
-    figure = make_spectrogram(
-        job_data["data"]["local_files"][0]["path"],
-        job_data["data"]["local_files"][1]["path"],
-        1024,
-    )
-    figure.savefig("spectrogram.png")
+    if job_data["data"]["type"] == "spectrogram":
+        try:
+            figure = make_spectrogram(job_data, files_dir="job_files/")
+            figure.savefig("figure.png")
+        except Exception as e:
+            update_job_status(
+                job_id,
+                "failed",
+                token,
+                info=f"Could not make spectrogram: {e}",
+            )
+            raise
+    else:
+        error_msg = f"Unknown job type: {job_data['data']['type']}"
+        update_job_status(
+            job_id,
+            "failed",
+            token,
+            info=error_msg,
+        )
+        raise ValueError(error_msg)
 
     # Let's say the code dumped to a local file and we want to upload that.
     # We can do either that, or have an in-memory file. Either way, "f" will be
     # our file contents (byte format)
-    with Path.open("spectrogram.png").read() as results_file:
+    with Path.open("figure.png", "rb") as results_file:
         # post results -- we can make this call as many times as needed to get
         # results to send to the main system.
         # We can also mix JSON data and a file. It will save 2 records of
         # "JobData", one for the JSON and one for the file.
         # Remember that "json_data" should be a dictionary, and if we use a
         # file upload, to provide it a name.
-        success = post_results(
+        response = post_results(
             job_id,
             token,
-            file_data=results_file,
-            file_name="spectrogram.png",
+            file_data=results_file.read(),
+            file_name="figure.png",
         )
 
-    if not success:
-        update_job_status(job_id, "failed", token, info="Could not post results.")
+    if not response:
+        error_msg = "Could not post results."
+        update_job_status(job_id, "failed", token, info=error_msg)
+        raise ValueError(error_msg)
 
     # update the job as complete
-    update_job_status(job_id, "completed", token)
+    info = {
+        "results_id": response["file_ids"]["figure.png"],
+    }
+    update_job_status(job_id, "completed", token, info=info)
+
+
+@shared_task
+def error_handler(request, exc, traceback):
+    update_job_status(request.job_id, "failed", request.token, info=str(exc))

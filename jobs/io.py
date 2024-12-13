@@ -1,3 +1,5 @@
+import json
+
 import requests
 from django.conf import settings
 
@@ -17,13 +19,14 @@ def update_job_status(job_id: int, status: str, token: str, info=None):
     """
     headers = {
         "Authorization": f"Token {token}",
+        # "Content-Type": "application/json",
     }
     data = {
         "status": status,
         "job": job_id,
     }
     if info:
-        data["info"] = info
+        data["info"] = json.dumps(info)
 
     print(f"Data (io.py:update_job_status): {data}")
 
@@ -52,7 +55,7 @@ def get_job_meta(job_id: int, token: str):
         "Authorization": f"Token {token}",
     }
     response = requests.get(
-        f"{settings.API_URL}/api/jobs/job-data/{job_id}/",
+        f"{settings.API_URL}/api/jobs/job-metadata/{job_id}/",
         headers=headers,
         timeout=10,
     )
@@ -102,12 +105,16 @@ def post_results(job_id, token: str, json_data=None, file_data=None, file_name=N
     Returns:
         bool: True if all uploads were successful, False if any upload failed
     """
+    if not json_data and not file_data:
+        return False
+
+    headers = {
+        "Authorization": f"Token {token}",
+    }
     fail = False
+
     # do we have JSON data?
     if json_data:
-        headers = {
-            "Authorization": f"Token {token}",
-        }
         response = requests.post(
             f"{settings.API_URL}/api/jobs/save-job-data/{job_id}/",
             json={"json_data": json_data},
@@ -117,9 +124,6 @@ def post_results(job_id, token: str, json_data=None, file_data=None, file_name=N
         if response.status_code != requests.codes.created:
             fail = True
     if file_data:
-        headers = {
-            "Authorization": f"Token {token}",
-        }
         if not file_name:
             file_name = job_id
         files = {file_name: file_data}
@@ -131,4 +135,7 @@ def post_results(job_id, token: str, json_data=None, file_data=None, file_name=N
         )
         if response.status_code != requests.codes.created:
             fail = True
-    return not fail
+
+    if fail:
+        return False
+    return response.json()["data"]

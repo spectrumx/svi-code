@@ -1,47 +1,121 @@
+# import tarfile
+import argparse
+import json
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import ShortTimeFFT
 from scipy.signal.windows import gaussian
-from sigmf import SigMFFile
+
+# from sigmf import SigMFArchiveReader
 
 
-def make_spectrogram(
-    data_file_path: str,
-    metadata_file_path: str,
-    fft_size: int = 1024,
-):
-    # Load a SigMF file
-    sigmf = SigMFFile(metadata_file_path, data_file_path)
+def make_spectrogram(job_data, files_dir=""):
+    print("Making spectrogram...")
 
-    # Access metadata
-    metadata = sigmf._metadata
-    print(metadata["global"])
+    # Get the data and metadata files by looking for the appropriate file extensions
+    data_file = None
+    metadata_file = None
 
-    # Access associated signal data
-    signal_data = np.fromfile(
-        data_file_path,
-        dtype=np.complex64,
-    )  # Assuming complex data
+    for f in job_data["data"]["local_files"]:
+        if f["name"].endswith(".sigmf-data"):
+            data_file = f
+        elif f["name"].endswith(".sigmf-meta"):
+            metadata_file = f
 
-    fs = metadata["global"]["core:sample_rate"]
-    x = signal_data
-    N = len(x)
+    if not data_file or not metadata_file:
+        msg = "Data or metadata file not found in job data"
+        raise ValueError(msg)
 
-    fig, ax1 = plt.subplots()
+    # # Create tar from both files
+    # sigmf_filename = data_file["name"].replace(".sigmf-data", ".sigmf")
+    # with tarfile.open(sigmf_filename, "w") as tar:
+    #     tar.add(data_file["name"])
+    #     tar.add(metadata_file["name"])
 
-    g_std = 12  # standard deviation for Gaussian window in samples
-    win = gaussian(50, std=g_std, sym=True)  # symmetric Gaussian window
-    SFT = ShortTimeFFT(win, hop=2, fs=fs, mfft=800, scale_to="psd")
-    Sx2 = SFT.spectrogram(x)  # calculate absolute square of STFT
+    # # Load a SigMF file
+    # sigmf = SigMFArchiveReader(sigmf_filename)
 
-    Sx_dB = 10 * np.log10(np.fmax(Sx2, 1e-4))  # convert to dB
-    im1 = ax1.imshow(
-        Sx_dB,
-        origin="lower",
-        aspect="auto",
-        extent=SFT.extent(N),
-        cmap="magma",
+    # # Access metadata
+    # metadata = sigmf._metadata
+    # print(metadata["global"])
+
+    # fs = metadata["global"]["core:sample_rate"]
+    # x = sigmf.read_samples()
+
+    # Get sample rate from metadata file
+    with Path.open(f"{files_dir}{metadata_file['name']}") as f:
+        metadata = json.load(f)
+    sample_rate = metadata["global"]["core:sample_rate"]
+
+    data_array = np.fromfile(f"{files_dir}{data_file['name']}", dtype=np.complex64)
+    sample_count = len(data_array)
+    # t_x = np.arange(sample_count) * 1/sample_rate  # time indexes for signal
+    print(f"Loaded {sample_count} samples")
+
+    std_dev = 100  # standard deviation for Gaussian window in samples
+    guassian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
+    fft_size = 1024
+    short_time_fft = ShortTimeFFT(
+        guassian_window,
+        hop=500,
+        fs=sample_rate,
+        mfft=fft_size,
+        fft_mode="centered",
     )
 
-    # Return plot as image
-    return fig
+    print("Calculating spectrogram")
+    spectrogram = short_time_fft.spectrogram(
+        data_array,
+    )  # calculate absolute square of STFT
+    print("Spectrogram calculated")
+
+    figure, axes = plt.subplots(figsize=(6.0, 4.0))  # enlarge plot a bit
+    extent = short_time_fft.extent(sample_count)
+    time_min, time_max = extent[:2]  # time range of plot
+    axes.set_title(
+        rf"Spectrogram ({short_time_fft.m_num*short_time_fft.T:g}$\,s$ Gaussian "
+        rf"window, $\sigma_t={std_dev*short_time_fft.T:g}\,$s)",
+    )
+    axes.set(
+        xlabel=f"Time $t$ in seconds ({short_time_fft.p_num(sample_count)} slices, "
+        rf"$\Delta t = {short_time_fft.delta_t:g}\,$s)",
+        ylabel=f"Freq. $f$ in Hz ({short_time_fft.f_pts} bins, "
+        rf"$\Delta f = {short_time_fft.delta_f:g}\,$Hz)",
+        xlim=(time_min, time_max),
+    )
+    spectrogram_db_limited = 10 * np.log10(
+        np.fmax(spectrogram, 1e-4),
+    )  # limit range to -40 dB
+    print("Creating image")
+    image = axes.imshow(
+        spectrogram_db_limited,
+        origin="lower",
+        aspect="auto",
+        extent=extent,
+        cmap="magma",
+    )
+    figure.colorbar(
+        image,
+        label="Power Spectral Density " + r"$20\,\log_{10}|S_x(t, f)|$ in dB",
+    )
+    axes.legend()
+    figure.tight_layout()
+
+    return figure
+
+
+if __name__ == "__main__":
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--data", type=str, required=True)
+    arg_parser.add_argument("--meta", type=str, required=True)
+    args = arg_parser.parse_args()
+
+    job_data = {
+        "data": {"local_files": [{"name": args.data}, {"name": args.meta}]},
+    }
+    fig = make_spectrogram(job_data)
+    print("Saving figure to spectrogram.png")
+    fig.savefig("spectrogram.png")
+    print("Done")

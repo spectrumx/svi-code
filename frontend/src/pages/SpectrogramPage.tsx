@@ -14,10 +14,21 @@ export interface SpectrogramSettings {
   fftSize: number;
 }
 
+interface JobData {
+  status: string;
+  results_id?: string;
+}
+
+interface JobResponse {
+  data?: JobData;
+  message?: string;
+}
+
 interface JobStatus {
   job_id: number | null;
   status: string | null;
   message?: string;
+  results_id?: string;
 }
 
 const SpectrogramPage = () => {
@@ -31,6 +42,7 @@ const SpectrogramPage = () => {
     status: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
 
   const createSpectrogramJob = async () => {
     setIsSubmitting(true);
@@ -53,23 +65,51 @@ const SpectrogramPage = () => {
     }
   };
 
+  const fetchSpectrogramImage = async (resultsId: string) => {
+    console.log('Fetching spectrogram image:', resultsId);
+    try {
+      const response = await apiClient.get(`/api/jobs/job-data/${resultsId}/`, {
+        responseType: 'blob',
+      });
+      const imageBlob = new Blob([response.data], { type: 'image/png' });
+      const imageUrl = URL.createObjectURL(imageBlob);
+      setSpectrogramUrl(imageUrl);
+    } catch (error) {
+      console.error('Error fetching spectrogram image:', error);
+    }
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     if (jobStatus.job_id) {
       interval = setInterval(async () => {
         try {
-          const response = await apiClient.get(
-            `/api/jobs/job-data/${jobStatus.job_id}/`,
+          const response = await apiClient.get<JobResponse>(
+            `/api/jobs/job-metadata/${jobStatus.job_id}/`,
           );
+
+          const newStatus = response.data.data?.status ?? null;
+          const resultsId = response.data.data?.results_id;
+
+          console.log('New status:', newStatus);
+          console.log('Results ID:', resultsId);
+
           setJobStatus((prevStatus) => ({
             ...prevStatus,
-            status: response.data.data?.status,
+            status: newStatus,
             message: response.data.message,
+            results_id: resultsId,
           }));
 
+          // If job is completed and we have a results_id, fetch the spectrogram
+          if (newStatus === 'completed' && resultsId) {
+            await fetchSpectrogramImage(resultsId);
+          }
+
           // Clear interval if job is completed or failed
-          if (['completed', 'failed'].includes(response.data.data?.status)) {
+          if (newStatus && ['completed', 'failed'].includes(newStatus)) {
+            console.log('Clearing interval');
             clearInterval(interval);
           }
         } catch (error) {
@@ -79,9 +119,13 @@ const SpectrogramPage = () => {
       }, 2000);
     }
 
+    // Clean up function to clear interval and revoke object URL
     return () => {
       if (interval) {
         clearInterval(interval);
+      }
+      if (spectrogramUrl) {
+        URL.revokeObjectURL(spectrogramUrl);
       }
     };
   }, [jobStatus.job_id]);
@@ -152,7 +196,26 @@ const SpectrogramPage = () => {
             {renderJobStatus()}
           </Stack>
         </div>
-        <Spectrogram />
+        {spectrogramUrl ? (
+          <div>
+            <img
+              src={spectrogramUrl}
+              alt="Spectrogram visualization"
+              style={{ maxWidth: '100%', height: 'auto' }}
+            />
+          </div>
+        ) : (
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ minHeight: '400px' }}
+          >
+            <p className="text-muted">
+              {jobStatus.status === 'failed'
+                ? 'Failed to generate spectrogram'
+                : 'Generate a spectrogram using the controls'}
+            </p>
+          </div>
+        )}
       </Stack>
     </>
   );

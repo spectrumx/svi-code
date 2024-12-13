@@ -53,7 +53,7 @@ class JobStatusUpdate(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
     status = models.CharField(max_length=255, choices=Job.STATUS_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
-    info = models.TextField(blank=True)
+    info = models.JSONField(blank=True, null=True, default=dict)
 
     def __str__(self):
         return f"{self.job.type} - {self.status}"
