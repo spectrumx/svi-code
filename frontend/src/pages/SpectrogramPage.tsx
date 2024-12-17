@@ -1,27 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
-import { Row, Col, Alert, Spinner, Button } from 'react-bootstrap';
-import _ from 'lodash';
+import { Row, Col, Button } from 'react-bootstrap';
 
-import apiClient from '../apiClient';
 import Spectrogram from '../components/spectrogram';
 import SpectrogramControls from '../components/spectrogram/SpectrogramControls';
+import { JobStatus } from '../components/JobStatus';
+import {
+  postSpectrogramJob,
+  getJobMetadata,
+  getJobResults,
+} from '../apiClient/jobService';
 
 export interface SpectrogramSettings {
   fftSize: number;
 }
 
-interface JobData {
-  status: string;
-  results_id?: string;
-}
-
-interface JobResponse {
-  data?: JobData;
-  message?: string;
-}
-
-interface JobStatus {
+export interface JobInfo {
   job_id: number | null;
   status: string | null;
   message?: string;
@@ -30,57 +24,55 @@ interface JobStatus {
 
 const SpectrogramPage = () => {
   const { datasetId } = useParams();
+
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
     });
-  const [jobStatus, setJobStatus] = useState<JobStatus>({
+  const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
+
+  const [jobInfo, setJobInfo] = useState<JobInfo>({
     job_id: null,
     status: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
 
   const createSpectrogramJob = async () => {
     setIsSubmitting(true);
+
     try {
-      const response = await apiClient.post(
-        `/api/sigmf-file-pairs/${datasetId}/create_spectrogram/`,
-        {
-          fft_size: spectrogramSettings.fftSize,
-        },
+      const response = await postSpectrogramJob(
+        datasetId as string,
+        spectrogramSettings.fftSize,
       );
-      setJobStatus({
-        job_id: response.data.job_id,
-        status: response.data.status,
+      setJobInfo({
+        job_id: response.job_id ?? null,
+        status: response.data?.status ?? null,
       });
-      console.log('Job created:', response.data);
     } catch (error) {
       console.error('Error creating spectrogram job:', error);
+      setJobInfo((prevStatus) => ({
+        ...prevStatus,
+        status: 'failed',
+        message: 'Failed to create spectrogram job',
+      }));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const fetchSpectrogramImage = async (resultsId: string) => {
-    console.log('Fetching spectrogram image:', resultsId);
     try {
-      const response = await apiClient.get(
-        `/api/jobs/job-data/${resultsId}/?download=true`,
-        {
-          responseType: 'blob',
-        },
-      );
-      const imageBlob = new Blob([response.data], { type: 'image/png' });
+      const imageBlob = await getJobResults(resultsId);
       const imageUrl = URL.createObjectURL(imageBlob);
       setSpectrogramUrl(imageUrl);
-      setJobStatus({
+      setJobInfo({
         job_id: null,
         status: null,
       });
     } catch (error) {
       console.error('Error fetching spectrogram image:', error);
-      setJobStatus((prevStatus) => ({
+      setJobInfo((prevStatus) => ({
         ...prevStatus,
         status: 'failed',
         message: 'Failed to fetch spectrogram results',
@@ -91,22 +83,22 @@ const SpectrogramPage = () => {
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (jobStatus.job_id) {
+    if (jobInfo.job_id) {
       interval = setInterval(async () => {
         try {
-          const response = await apiClient.get<JobResponse>(
-            `/api/jobs/job-metadata/${jobStatus.job_id}/`,
-          );
+          if (jobInfo.job_id === null) {
+            clearInterval(interval);
+            return;
+          }
 
-          const newStatus = response.data.data?.status ?? null;
-          const resultsId = response.data.data?.results_id;
+          const response = await getJobMetadata(jobInfo.job_id);
 
-          console.log('New status:', newStatus);
-          console.log('Results ID:', resultsId);
+          const newStatus = response.data?.status ?? null;
+          const resultsId = response.data?.results_id;
 
           if (newStatus === 'completed' && resultsId) {
             clearInterval(interval);
-            setJobStatus((prevStatus) => ({
+            setJobInfo((prevStatus) => ({
               ...prevStatus,
               status: 'fetching_results',
               message: 'Fetching spectrogram results...',
@@ -114,16 +106,15 @@ const SpectrogramPage = () => {
             }));
             await fetchSpectrogramImage(resultsId);
           } else {
-            setJobStatus((prevStatus) => ({
+            setJobInfo((prevStatus) => ({
               ...prevStatus,
               status: newStatus,
-              message: response.data.message,
+              message: response.message,
               results_id: resultsId,
             }));
           }
 
           if (newStatus === 'failed') {
-            console.log('Clearing interval');
             clearInterval(interval);
           }
         } catch (error) {
@@ -141,58 +132,7 @@ const SpectrogramPage = () => {
         URL.revokeObjectURL(spectrogramUrl);
       }
     };
-  }, [jobStatus.job_id]);
-
-  const renderJobStatus = () => {
-    if (!isSubmitting && !jobStatus.job_id) return null;
-
-    const variants: { [key: string]: string } = {
-      pending: 'info',
-      submitted: 'info',
-      running: 'primary',
-      fetching_results: 'info',
-      completed: 'success',
-      failed: 'danger',
-    };
-
-    const isActive =
-      isSubmitting ||
-      ['pending', 'submitted', 'running', 'fetching_results'].includes(
-        jobStatus.status || '',
-      );
-
-    return (
-      <Alert
-        variant={isSubmitting ? 'info' : variants[jobStatus.status || 'info']}
-      >
-        <div className="d-flex align-items-center">
-          {isActive && (
-            <Spinner
-              animation="border"
-              size="sm"
-              className="me-2"
-              variant={
-                isSubmitting ? 'info' : variants[jobStatus.status || 'info']
-              }
-            />
-          )}
-          <div>
-            {isSubmitting ? (
-              'Creating spectrogram job...'
-            ) : (
-              <>
-                Job status:{' '}
-                {_.capitalize(
-                  jobStatus.status?.replace('_', ' ') || 'Status missing',
-                )}
-                {jobStatus.message && <div>Info: {jobStatus.message}</div>}
-              </>
-            )}
-          </div>
-        </div>
-      </Alert>
-    );
-  };
+  }, [jobInfo.job_id, spectrogramUrl]);
 
   return (
     <>
@@ -208,13 +148,13 @@ const SpectrogramPage = () => {
             <Button onClick={createSpectrogramJob} disabled={isSubmitting}>
               Generate Spectrogram
             </Button>
-            {renderJobStatus()}
+            <JobStatus isSubmitting={isSubmitting} jobInfo={jobInfo} />
           </div>
         </Col>
         <Col>
           <Spectrogram
             imageUrl={spectrogramUrl}
-            hasError={jobStatus.status === 'failed'}
+            hasError={jobInfo.status === 'failed'}
           />
         </Col>
       </Row>
