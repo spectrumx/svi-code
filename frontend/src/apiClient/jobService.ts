@@ -6,10 +6,7 @@ export interface JobMetadata {
 }
 
 export interface JobResponse {
-  data?: {
-    status: string;
-    results_id?: string;
-  };
+  data?: JobMetadata;
   message?: string;
   job_id?: number;
 }
