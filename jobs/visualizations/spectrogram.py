@@ -12,8 +12,6 @@ from scipy.signal.windows import gaussian
 
 
 def make_spectrogram(job_data, files_dir=""):
-    print("Making spectrogram...")
-
     # Get the data and metadata files by looking for the appropriate file extensions
     data_file = None
     metadata_file = None
@@ -41,8 +39,8 @@ def make_spectrogram(job_data, files_dir=""):
     # metadata = sigmf._metadata
     # print(metadata["global"])
 
-    # fs = metadata["global"]["core:sample_rate"]
-    # x = sigmf.read_samples()
+    # sample_rate = metadata["global"]["core:sample_rate"]
+    # data_array = sigmf.read_samples()
 
     # Get sample rate from metadata file
     with Path.open(f"{files_dir}{metadata_file['name']}") as f:
@@ -51,8 +49,6 @@ def make_spectrogram(job_data, files_dir=""):
 
     data_array = np.fromfile(f"{files_dir}{data_file['name']}", dtype=np.complex64)
     sample_count = len(data_array)
-    # t_x = np.arange(sample_count) * 1/sample_rate  # time indexes for signal
-    print(f"Loaded {sample_count} samples")
 
     std_dev = 100  # standard deviation for Gaussian window in samples
     guassian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
@@ -65,11 +61,9 @@ def make_spectrogram(job_data, files_dir=""):
         fft_mode="centered",
     )
 
-    print("Calculating spectrogram")
     spectrogram = short_time_fft.spectrogram(
         data_array,
     )  # calculate absolute square of STFT
-    print("Spectrogram calculated")
 
     figure, axes = plt.subplots(figsize=(6.0, 4.0))  # enlarge plot a bit
     extent = short_time_fft.extent(sample_count)
@@ -88,7 +82,6 @@ def make_spectrogram(job_data, files_dir=""):
     spectrogram_db_limited = 10 * np.log10(
         np.fmax(spectrogram, 1e-4),
     )  # limit range to -40 dB
-    print("Creating image")
     image = axes.imshow(
         spectrogram_db_limited,
         origin="lower",
@@ -107,7 +100,12 @@ def make_spectrogram(job_data, files_dir=""):
 
 
 if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser()
+    arg_parser = argparse.ArgumentParser(
+        description=(
+            "Make a spectrogram from SigMF data and metadata files. "
+            "Figure is saved to 'spectrogram.png'."
+        ),
+    )
     arg_parser.add_argument("--data", type=str, required=True)
     arg_parser.add_argument("--meta", type=str, required=True)
     args = arg_parser.parse_args()
@@ -116,6 +114,4 @@ if __name__ == "__main__":
         "data": {"local_files": [{"name": args.data}, {"name": args.meta}]},
     }
     fig = make_spectrogram(job_data)
-    print("Saving figure to spectrogram.png")
     fig.savefig("spectrogram.png")
-    print("Done")

@@ -4,7 +4,7 @@ import { Row, Col, Button } from 'react-bootstrap';
 
 import Spectrogram from '../components/spectrogram';
 import SpectrogramControls from '../components/spectrogram/SpectrogramControls';
-import { JobStatus } from '../components/JobStatus';
+import { JobStatusDisplay } from '../components/JobStatusDisplay';
 import {
   postSpectrogramJob,
   getJobMetadata,
@@ -80,6 +80,9 @@ const SpectrogramPage = () => {
     }
   };
 
+  /**
+   * Once a job is created, periodically poll the server to check its status
+   */
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
@@ -148,7 +151,7 @@ const SpectrogramPage = () => {
             <Button onClick={createSpectrogramJob} disabled={isSubmitting}>
               Generate Spectrogram
             </Button>
-            <JobStatus isSubmitting={isSubmitting} jobInfo={jobInfo} />
+            <JobStatusDisplay isSubmitting={isSubmitting} jobInfo={jobInfo} />
           </div>
         </Col>
         <Col>

@@ -1,5 +1,3 @@
-import { memo } from 'react';
-
 interface SpectrogramProps {
   imageUrl: string | null;
   hasError: boolean;
@@ -10,7 +8,7 @@ interface SpectrogramProps {
  * @param imageUrl - URL of the spectrogram image to display
  * @param hasError - Whether there was an error generating the spectrogram
  */
-const Spectrogram = memo(({ imageUrl, hasError }: SpectrogramProps) => {
+const Spectrogram = ({ imageUrl, hasError }: SpectrogramProps) => {
   return (
     <div
       style={{
@@ -37,8 +35,6 @@ const Spectrogram = memo(({ imageUrl, hasError }: SpectrogramProps) => {
       )}
     </div>
   );
-});
-
-Spectrogram.displayName = 'Spectrogram';
+};
 
 export default Spectrogram;

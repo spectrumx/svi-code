@@ -3,7 +3,7 @@ import _ from 'lodash';
 
 import { JobInfo } from '../pages/SpectrogramPage';
 
-interface JobStatusProps {
+interface JobStatusDisplayProps {
   isSubmitting: boolean;
   jobInfo: JobInfo;
 }
@@ -11,7 +11,7 @@ interface JobStatusProps {
 /**
  * Displays the current status of a job with appropriate styling and loading indicators
  */
-const JobStatus = ({ isSubmitting, jobInfo }: JobStatusProps) => {
+const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
   if (!isSubmitting && !jobInfo.job_id) return null;
 
   const variants: { [key: string]: string } = {
@@ -58,4 +58,4 @@ const JobStatus = ({ isSubmitting, jobInfo }: JobStatusProps) => {
   );
 };
 
-export { JobStatus };
+export { JobStatusDisplay };

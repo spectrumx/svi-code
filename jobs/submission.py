@@ -1,4 +1,5 @@
-from django.contrib.auth import get_user_model
+from typing import TYPE_CHECKING
+
 from kombu import Connection
 from rest_framework.authtoken.models import Token
 
@@ -8,28 +9,22 @@ from .models import JobStatusUpdate
 from .tasks import error_handler
 from .tasks import submit_job
 
-User = get_user_model()
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
 
 
 def request_job_submission(
     visualization_type: str,
-    owner: User,
+    owner: "User",
     local_files: list[str],
-):
-    print(
-        f"Requesting job submission for {visualization_type}"
-        f" with owner {owner.username}",
-    )
-
+) -> "Job":
     # check if there is already a token for this user
-    token, created = Token.objects.get_or_create(user=owner)
+    token = Token.objects.get_or_create(user=owner)[0]
 
     job = Job.objects.create(type=visualization_type, owner=owner)
-    print(f"Job (submission.py): {job}")
 
     for local_file in local_files:
-        file_obj = JobLocalFile.objects.create(job=job, file=local_file)
-        print(f"File created (submission.py): {file_obj}")
+        JobLocalFile.objects.create(job=job, file=local_file)
 
     # does this job have a specific submission connection?
     if job.submission_connection:
@@ -38,6 +33,7 @@ def request_job_submission(
         submit_job.apply_async(
             args=[job.id, token.key],
             connection=connection,
+            # This doesn't seem to work currently
             link_error=error_handler.s(),
         )
     else:

@@ -1,7 +1,5 @@
 from django.middleware.csrf import get_token
 from rest_framework import status
-
-# from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.decorators import api_view
@@ -40,7 +38,7 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
 @api_view(["GET"])
 def get_session_info(request):
     if request.user.is_authenticated:
-        auth_token, created = Token.objects.get_or_create(user=request.user)
+        auth_token = Token.objects.get_or_create(user=request.user)[0]
         csrf_token = get_token(request)
 
         return Response(

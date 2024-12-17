@@ -81,13 +81,10 @@ def create_job_status_update(request):
     Returns:
         Response: Serialized job status update data if successful, errors otherwise
     """
-    print(f"Request data (create_job_status_update): {request.data}")
-    # print(f"Request data dict (create_job_status_update): {request.data.dict()}")
     serializer = JobStatusUpdateSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=201)
-    print(f"Serializer errors (create_job_status_update): {serializer.errors}")
     return Response(serializer.errors, status=400)
 
 
@@ -96,7 +93,7 @@ class LocalFile(TypedDict):
     id: int
 
 
-class JobMetadataData(TypedDict):
+class JobMetadata(TypedDict):
     type: str
     status: Literal["submitted", "running", "completed", "failed"]
     created_at: datetime
@@ -107,7 +104,7 @@ class JobMetadataData(TypedDict):
 
 class JobMetadataResponse(TypedDict):
     status: Literal["success", "error"]
-    data: JobMetadataData | None
+    data: JobMetadata | None
     message: str | None
 
 
@@ -135,8 +132,6 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
         status_update = (
             JobStatusUpdate.objects.filter(job=job).order_by("-created_at").first()
         )
-        status_update_info = status_update.info if status_update else None
-        print(f"Status update info (get_job_metadata): {status_update_info}")
 
         # make sure the owner of this job is the person requesting it
         if job.owner != request.user:
@@ -257,12 +252,9 @@ def get_job_data(request: Request, job_data_id: int) -> FileResponse | Response:
         404: If job data doesn't exist or user doesn't have permission
     """
     try:
-        print(f"Querying for job data: {job_data_id}")
         job_data = JobData.objects.get(id=job_data_id)
-        print(f"Job data found (get_job_data): {job_data}")
 
         if job_data.job.owner != request.user:
-            print("User unauthorized for this job data")
             raise_does_not_exist(JobData)
 
         # Check if client specifically requests file download

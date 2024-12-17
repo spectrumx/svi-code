@@ -15,5 +15,4 @@ class JobStatusUpdateSerializer(serializers.ModelSerializer):
         job = validated_data["job"]
         status = validated_data["status"]
         info = validated_data.get("info", {})
-        print(f"Info (serializers.py:create): {info}")
         return JobStatusUpdate.objects.create(job=job, status=status, info=info)
