@@ -31,7 +31,7 @@ def submit_job(job_id: int, token: str):
     # Next, run through the local files and download them from the SVI main system.
     # Create a directory for the job files
     Path("jobs/job_files").mkdir(parents=True, exist_ok=True)
-    for _i, f in enumerate(job_data["data"]["local_files"]):
+    for f in job_data["data"]["local_files"]:
         data = get_job_file(f["id"], token, "local")
 
         if data is None:
