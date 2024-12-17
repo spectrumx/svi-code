@@ -241,7 +241,21 @@ def get_job_file(request, file_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
-def get_job_data(request, job_data_id):
+def get_job_data(request: Request, job_data_id: int) -> FileResponse | Response:
+    """
+    Retrieve both file and JSON data for a specific job data entry.
+
+    Args:
+        request: HTTP request object
+        job_data_id: ID of the JobData entry to retrieve
+
+    Returns:
+        Union[FileResponse, Response]: Either a FileResponse for file downloads or
+        a Response containing both file metadata and JSON data
+
+    Raises:
+        404: If job data doesn't exist or user doesn't have permission
+    """
     try:
         print(f"Querying for job data: {job_data_id}")
         job_data = JobData.objects.get(id=job_data_id)
@@ -249,9 +263,36 @@ def get_job_data(request, job_data_id):
 
         if job_data.job.owner != request.user:
             print("User unauthorized for this job data")
-            raise_does_not_exist(job_data)
+            raise_does_not_exist(JobData)
 
-        return Response(job_data.data)
+        # Check if client specifically requests file download
+        if request.GET.get("download") == "true" and job_data.file:
+            return FileResponse(
+                job_data.file,
+                as_attachment=True,
+                filename=job_data.file.name.split("/")[-1],
+            )
+
+        # Prepare response with both file metadata and JSON data
+        response_data = {
+            "status": "success",
+            "data": {
+                "json_data": job_data.data if job_data.data else None,
+                "file_metadata": None,
+            },
+        }
+
+        # Add file metadata if a file exists
+        if job_data.file:
+            response_data["data"]["file_metadata"] = {
+                "filename": job_data.file.name,
+                "size": job_data.file.size if hasattr(job_data.file, "size") else None,
+                "url": request.build_absolute_uri(f"{request.path}?download=true"),
+                "content_type": getattr(job_data.file, "content_type", None),
+            }
+
+        return Response(response_data)
+
     except JobData.DoesNotExist:
         return Response(
             {

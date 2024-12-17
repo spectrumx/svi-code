@@ -80,7 +80,7 @@ def get_job_file(file_id, token: str, file_type: str):
         "Authorization": f"Token {token}",
     }
     response = requests.get(
-        f"{settings.API_URL}/api/jobs/job-file/{file_id}",
+        f"{settings.API_URL}/api/jobs/job-file/{file_id}/",
         params={"file_type": file_type},
         headers=headers,
         timeout=60,

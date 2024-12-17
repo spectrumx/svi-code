@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
-import Stack from 'react-bootstrap/Stack';
-import Alert from 'react-bootstrap/Alert';
-import Spinner from 'react-bootstrap/Spinner';
+import { Row, Col, Alert, Spinner, Button } from 'react-bootstrap';
 import _ from 'lodash';
 
 import apiClient from '../apiClient';
 import Spectrogram from '../components/spectrogram';
 import SpectrogramControls from '../components/spectrogram/SpectrogramControls';
-import { Button } from 'react-bootstrap';
 
 export interface SpectrogramSettings {
   fftSize: number;
@@ -68,14 +65,26 @@ const SpectrogramPage = () => {
   const fetchSpectrogramImage = async (resultsId: string) => {
     console.log('Fetching spectrogram image:', resultsId);
     try {
-      const response = await apiClient.get(`/api/jobs/job-data/${resultsId}/`, {
-        responseType: 'blob',
-      });
+      const response = await apiClient.get(
+        `/api/jobs/job-data/${resultsId}/?download=true`,
+        {
+          responseType: 'blob',
+        },
+      );
       const imageBlob = new Blob([response.data], { type: 'image/png' });
       const imageUrl = URL.createObjectURL(imageBlob);
       setSpectrogramUrl(imageUrl);
+      setJobStatus({
+        job_id: null,
+        status: null,
+      });
     } catch (error) {
       console.error('Error fetching spectrogram image:', error);
+      setJobStatus((prevStatus) => ({
+        ...prevStatus,
+        status: 'failed',
+        message: 'Failed to fetch spectrogram results',
+      }));
     }
   };
 
@@ -95,20 +104,25 @@ const SpectrogramPage = () => {
           console.log('New status:', newStatus);
           console.log('Results ID:', resultsId);
 
-          setJobStatus((prevStatus) => ({
-            ...prevStatus,
-            status: newStatus,
-            message: response.data.message,
-            results_id: resultsId,
-          }));
-
-          // If job is completed and we have a results_id, fetch the spectrogram
           if (newStatus === 'completed' && resultsId) {
+            clearInterval(interval);
+            setJobStatus((prevStatus) => ({
+              ...prevStatus,
+              status: 'fetching_results',
+              message: 'Fetching spectrogram results...',
+              results_id: resultsId,
+            }));
             await fetchSpectrogramImage(resultsId);
+          } else {
+            setJobStatus((prevStatus) => ({
+              ...prevStatus,
+              status: newStatus,
+              message: response.data.message,
+              results_id: resultsId,
+            }));
           }
 
-          // Clear interval if job is completed or failed
-          if (newStatus && ['completed', 'failed'].includes(newStatus)) {
+          if (newStatus === 'failed') {
             console.log('Clearing interval');
             clearInterval(interval);
           }
@@ -119,7 +133,6 @@ const SpectrogramPage = () => {
       }, 2000);
     }
 
-    // Clean up function to clear interval and revoke object URL
     return () => {
       if (interval) {
         clearInterval(interval);
@@ -137,13 +150,16 @@ const SpectrogramPage = () => {
       pending: 'info',
       submitted: 'info',
       running: 'primary',
+      fetching_results: 'info',
       completed: 'success',
       failed: 'danger',
     };
 
     const isActive =
       isSubmitting ||
-      ['pending', 'submitted', 'running'].includes(jobStatus.status || '');
+      ['pending', 'submitted', 'running', 'fetching_results'].includes(
+        jobStatus.status || '',
+      );
 
     return (
       <Alert
@@ -165,7 +181,10 @@ const SpectrogramPage = () => {
               'Creating spectrogram job...'
             ) : (
               <>
-                Job status: {_.capitalize(jobStatus.status || 'Status missing')}
+                Job status:{' '}
+                {_.capitalize(
+                  jobStatus.status?.replace('_', ' ') || 'Status missing',
+                )}
                 {jobStatus.message && <div>Info: {jobStatus.message}</div>}
               </>
             )}
@@ -178,14 +197,10 @@ const SpectrogramPage = () => {
   return (
     <>
       <h5>Spectrogram for dataset {datasetId}</h5>
-      <Stack direction="horizontal" gap={3}>
-        <div style={{ width: 200, height: '100%' }}>
-          <Stack
-            direction="vertical"
-            gap={3}
-            className="h-100"
-            style={{ alignItems: 'stretch' }}
-          >
+      <br />
+      <Row>
+        <Col xs={3} style={{ maxWidth: 200 }}>
+          <div className="d-flex flex-column gap-3">
             <SpectrogramControls
               settings={spectrogramSettings}
               setSettings={setSpectrogramSettings}
@@ -194,29 +209,15 @@ const SpectrogramPage = () => {
               Generate Spectrogram
             </Button>
             {renderJobStatus()}
-          </Stack>
-        </div>
-        {spectrogramUrl ? (
-          <div>
-            <img
-              src={spectrogramUrl}
-              alt="Spectrogram visualization"
-              style={{ maxWidth: '100%', height: 'auto' }}
-            />
           </div>
-        ) : (
-          <div
-            className="d-flex justify-content-center align-items-center"
-            style={{ minHeight: '400px' }}
-          >
-            <p className="text-muted">
-              {jobStatus.status === 'failed'
-                ? 'Failed to generate spectrogram'
-                : 'Generate a spectrogram using the controls'}
-            </p>
-          </div>
-        )}
-      </Stack>
+        </Col>
+        <Col>
+          <Spectrogram
+            imageUrl={spectrogramUrl}
+            hasError={jobStatus.status === 'failed'}
+          />
+        </Col>
+      </Row>
     </>
   );
 };
