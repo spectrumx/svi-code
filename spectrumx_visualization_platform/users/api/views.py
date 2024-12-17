@@ -1,5 +1,6 @@
 from django.middleware.csrf import get_token
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -9,7 +10,6 @@ from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework_simplejwt.tokens import RefreshToken
 from spectrumx import (
     Client as SpectrumClient,  # Adjust import based on actual SDK package name
 )
@@ -38,13 +38,12 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
 @api_view(["GET"])
 def get_session_info(request):
     if request.user.is_authenticated:
-        refresh_token = RefreshToken.for_user(request.user)
+        auth_token = Token.objects.get_or_create(user=request.user)[0]
         csrf_token = get_token(request)
 
         return Response(
             {
-                "access_token": str(refresh_token.access_token),
-                "refresh_token": str(refresh_token),
+                "auth_token": str(auth_token),
                 "csrf_token": csrf_token,
                 "user": {
                     "id": request.user.id,

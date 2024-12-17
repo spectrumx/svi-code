@@ -1,22 +1,25 @@
-from django.contrib.auth import get_user_model
+from typing import TYPE_CHECKING
+
 from kombu import Connection
 from rest_framework.authtoken.models import Token
 
 from .models import Job
 from .models import JobLocalFile
 from .models import JobStatusUpdate
+from .tasks import error_handler
 from .tasks import submit_job
 
-User = get_user_model()
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
 
 
 def request_job_submission(
     visualization_type: str,
-    owner: User,
+    owner: "User",
     local_files: list[str],
-):
+) -> "Job":
     # check if there is already a token for this user
-    token, created = Token.objects.get_or_create(user=owner)
+    token = Token.objects.get_or_create(user=owner)[0]
 
     job = Job.objects.create(type=visualization_type, owner=owner)
 
@@ -30,6 +33,8 @@ def request_job_submission(
         submit_job.apply_async(
             args=[job.id, token.key],
             connection=connection,
+            # This doesn't seem to work currently
+            link_error=error_handler.s(),
         )
     else:
         submit_job.delay(job.id, token.key)
@@ -38,3 +43,5 @@ def request_job_submission(
         job=job,
         status="submitted",
     )
+
+    return job
