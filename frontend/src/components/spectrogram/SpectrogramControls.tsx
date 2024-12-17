@@ -24,7 +24,7 @@ const SpectrogramControls = ({
   return (
     <Form>
       <Form.Group>
-        <Form.Label>FFT Size</Form.Label>
+        <Form.Label>FFT Size [dummy control]</Form.Label>
         <Form.Select
           name="fftSize"
           value={settings.fftSize}
