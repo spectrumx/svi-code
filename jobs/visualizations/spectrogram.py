@@ -51,10 +51,10 @@ def make_spectrogram(job_data, files_dir=""):
     sample_count = len(data_array)
 
     std_dev = 100  # standard deviation for Gaussian window in samples
-    guassian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
+    gaussian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
     fft_size = 1024
     short_time_fft = ShortTimeFFT(
-        guassian_window,
+        gaussian_window,
         hop=500,
         fs=sample_rate,
         mfft=fft_size,

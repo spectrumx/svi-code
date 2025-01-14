@@ -266,6 +266,10 @@ dump.rdb
 ### Project template
 spectrumx_visualization_platform/media/
 
+# Job files
+jobs/job_files/
+jobs/job_results/
+
 .pytest_cache/
 .ipython/
 .env
