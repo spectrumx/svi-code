@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect} from 'react';
 import { useParams } from 'react-router';
 import { Row, Col, Button } from 'react-bootstrap';
 
@@ -11,8 +11,46 @@ import {
   getJobResults,
 } from '../apiClient/jobService';
 
+
+ //test code  -mm
+//const width =  8.0;
+//const height = 6.0;
+  // test code ends -mm 
+
+  const MyComponent: React.FC = () => {
+    const [windowDimensions, setWindowDimensions] = useState({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+
+    useEffect(() => {
+      const handleResize = () => {
+        setWindowDimensions({
+          width: window.innerWidth,
+          height: window.innerHeight,
+        });
+      };
+  
+      window.addEventListener('resize', handleResize);
+  
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    return (
+      <div>
+        <p>Width: {windowDimensions.width}</p>
+        <p>Height: {windowDimensions.height}</p>
+      </div>
+    );
+  };
+
+
+   
+
 export interface SpectrogramSettings {
   fftSize: number;
+  width: number, // add  -mm
+  height: number, // add - mm
 }
 
 export interface JobInfo {
@@ -28,6 +66,8 @@ const SpectrogramPage = () => {
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
+      width: (window.innerWidth / 100), // added to increase/decrease size of spectrogram image
+      height: (window.innerHeight / 100), // added to increase/decrease size of spectrogram image
     });
   const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
 
@@ -44,6 +84,8 @@ const SpectrogramPage = () => {
       const response = await postSpectrogramJob(
         datasetId as string,
         spectrogramSettings.fftSize,
+        spectrogramSettings.width,
+        spectrogramSettings.height,
       );
       setJobInfo({
         job_id: response.job_id ?? null,
@@ -99,6 +141,7 @@ const SpectrogramPage = () => {
           const newStatus = response.data?.status ?? null;
           const resultsId = response.data?.results_id;
 
+
           if (newStatus === 'completed' && resultsId) {
             clearInterval(interval);
             setJobInfo((prevStatus) => ({
@@ -107,7 +150,7 @@ const SpectrogramPage = () => {
               message: 'Fetching spectrogram results...',
               results_id: resultsId,
             }));
-            await fetchSpectrogramImage(resultsId);
+            await fetchSpectrogramImage(resultsId); // change here -mm
           } else {
             setJobInfo((prevStatus) => ({
               ...prevStatus,

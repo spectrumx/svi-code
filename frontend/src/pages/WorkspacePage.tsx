@@ -2,27 +2,53 @@ import { useEffect, useState } from 'react';
 import Button from '../components/Button';
 
 import DatasetTable from '../components/DatasetTable';
+import CaptureTable  from '../components/CaptureTable';
+import IntegratedTable from '../components/IntegratedTable';
 import FileUploadModal from '../components/FileUploadModal';
-import { getDatasets, SigMFFilePairResponse } from '../apiClient/fileService';
+import { getDatasets, SigMFFilePairResponse, CaptureResponse, getCapture , IntegratedResponse, getIntegratedView} from '../apiClient/fileService';
 import { useAppContext } from '../utils/AppContext';
 
 const WorkspacePage = () => {
   const context = useAppContext();
   const [showModal, setShowModal] = useState(false);
   const [datasets, setDatasets] = useState<SigMFFilePairResponse>([]);
+  //const [captures, setCaptures] = useState<CaptureResponse>([]);
+  const [integrated, setIntegratedView] = useState<IntegratedResponse>([]); // combined the SigMFFilePair table and newly created capture table
+ // const [combineddatasets, setCombineCapture] = useState<CombinedResponse | null>(null);
 
   const syncDatasets = async () => {
     setDatasets(await getDatasets());
   };
 
-  useEffect(() => {
+ /* useEffect(() => {
     syncDatasets();
+  }, []);
+
+  const syncCaptures = async() => {
+    setCaptures(await getCapture())
+
+  };
+
+  useEffect(() => {
+    syncCaptures();
+
+  }, []);*/
+
+  const syncIntegratedView = async() => {
+    setIntegratedView(await getIntegratedView())
+
+  };
+
+  useEffect(() => {
+    syncIntegratedView();
+
   }, []);
 
   return (
     <>
-      <h5>Select a Dataset to Visualize</h5>
-      <DatasetTable datasets={datasets} />
+     
+      <h5>Select a Capture to Visualize</h5>
+      <IntegratedTable datasets={integrated}/>
       <br />
       <h5>Add a New Dataset</h5>
       <Button
@@ -38,6 +64,9 @@ const WorkspacePage = () => {
         handleClose={() => setShowModal(false)}
         handleSuccess={syncDatasets}
       />
+      <br />
+      <br />    
+     
     </>
   );
 };

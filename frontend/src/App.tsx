@@ -6,6 +6,7 @@ import SpectrogramPage from './pages/SpectrogramPage';
 import TokenPage from './pages/TokenPage';
 import Header from './components/Header';
 import { useFetchSessionInfo } from './apiClient';
+import SearchPage from './pages/SearchPage';
 
 function App() {
   useFetchSessionInfo();
@@ -21,7 +22,7 @@ function App() {
           <Route path="/" element={<div>Home/Dashboard</div>} />
           <Route path="workspace" element={<WorkspacePage />} />
           <Route path="mydata" element={<div>My Data</div>} />
-          <Route path="search" element={<div>Search</div>} />
+          <Route path="search" element={<SearchPage />} />
           <Route path="tutorials" element={<div>Tutorials</div>} />
           <Route path="visualize/:datasetId" element={<SpectrogramPage />} />
           <Route path="token" element={<TokenPage />} />

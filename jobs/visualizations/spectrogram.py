@@ -11,10 +11,12 @@ from scipy.signal.windows import gaussian
 # from sigmf import SigMFArchiveReader
 
 
-def make_spectrogram(job_data, files_dir=""):
+def make_spectrogram(job_data,width,height, files_dir=""):
     # Get the data and metadata files by looking for the appropriate file extensions
     data_file = None
     metadata_file = None
+    print("width here in make spec func", width, height)
+    
 
     for f in job_data["data"]["local_files"]:
         if f["name"].endswith(".sigmf-data"):
@@ -26,6 +28,8 @@ def make_spectrogram(job_data, files_dir=""):
         msg = "Data or metadata file not found in job data"
         raise ValueError(msg)
 
+    config = job_data["data"] # debug line added 44
+    print("in  spec func", config) # debug line added 44
     # # Create tar from both files
     # sigmf_filename = data_file["name"].replace(".sigmf-data", ".sigmf")
     # with tarfile.open(sigmf_filename, "w") as tar:
@@ -39,13 +43,14 @@ def make_spectrogram(job_data, files_dir=""):
     # metadata = sigmf._metadata
     # print(metadata["global"])
 
-    # sample_rate = metadata["global"]["core:sample_rate"]
+    #sample_rate = metadata["global"]["core:sample_rate"]
     # data_array = sigmf.read_samples()
 
     # Get sample rate from metadata file
     with Path.open(f"{files_dir}{metadata_file['name']}") as f:
         metadata = json.load(f)
     sample_rate = metadata["global"]["core:sample_rate"]
+ 
 
     data_array = np.fromfile(f"{files_dir}{data_file['name']}", dtype=np.complex64)
     sample_count = len(data_array)
@@ -53,6 +58,7 @@ def make_spectrogram(job_data, files_dir=""):
     std_dev = 100  # standard deviation for Gaussian window in samples
     guassian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
     fft_size = 1024
+
     short_time_fft = ShortTimeFFT(
         guassian_window,
         hop=500,
@@ -65,7 +71,7 @@ def make_spectrogram(job_data, files_dir=""):
         data_array,
     )  # calculate absolute square of STFT
 
-    figure, axes = plt.subplots(figsize=(6.0, 4.0))  # enlarge plot a bit
+    figure, axes = plt.subplots(figsize=(width, height))  # enlarge plot a bit
     extent = short_time_fft.extent(sample_count)
     time_min, time_max = extent[:2]  # time range of plot
     axes.set_title(
