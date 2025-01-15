@@ -6,6 +6,7 @@ import WorkspacePage from './pages/WorkspacePage';
 import MyDataPage from './pages/MyDataPage';
 import SpectrogramPage from './pages/SpectrogramPage';
 import TokenPage from './pages/TokenPage';
+import NewVisualizationPage from './pages/NewVisualizationPage';
 import Header from './components/Header';
 import { useFetchSessionInfo } from './apiClient';
 
@@ -25,10 +26,7 @@ function App() {
           <Route path="mydata" element={<MyDataPage />} />
           <Route path="search" element={<div>Search</div>} />
           <Route path="tutorials" element={<div>Tutorials</div>} />
-          <Route
-            path="visualization/new"
-            element={<div>Create Visualization</div>}
-          />
+          <Route path="visualization/new" element={<NewVisualizationPage />} />
           <Route path="visualize/:datasetId" element={<SpectrogramPage />} />
           <Route path="token" element={<TokenPage />} />
           <Route path="*" element={<div>Uh-oh, page not found!</div>} />

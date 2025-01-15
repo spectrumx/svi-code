@@ -3,26 +3,23 @@ import Button from '../components/Button';
 
 import DatasetTable from '../components/DatasetTable';
 import FileUploadModal from '../components/FileUploadModal';
-import { getDatasets, SigMFFilePairResponse } from '../apiClient/fileService';
 import { useAppContext } from '../utils/AppContext';
+import { useSyncCaptures } from '../apiClient/fileService';
 
 const WorkspacePage = () => {
   const context = useAppContext();
+  const { captures } = context;
+  const syncCaptures = useSyncCaptures();
   const [showModal, setShowModal] = useState(false);
-  const [datasets, setDatasets] = useState<SigMFFilePairResponse>([]);
-
-  const syncDatasets = async () => {
-    setDatasets(await getDatasets());
-  };
 
   useEffect(() => {
-    syncDatasets();
-  }, []);
+    syncCaptures();
+  }, [syncCaptures]);
 
   return (
     <>
       <h5>Captures</h5>
-      <DatasetTable datasets={datasets} />
+      <DatasetTable datasets={captures} />
       <Button
         variant="primary"
         onClick={() => setShowModal(true)}
@@ -34,7 +31,7 @@ const WorkspacePage = () => {
       <FileUploadModal
         show={showModal}
         handleClose={() => setShowModal(false)}
-        handleSuccess={syncDatasets}
+        handleSuccess={syncCaptures}
       />
     </>
   );

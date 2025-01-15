@@ -13,16 +13,16 @@ export interface JobResponse {
 
 /**
  * Creates a spectrogram generation job for a specific dataset
- * @param datasetId - The ID of the dataset to generate spectrogram for
+ * @param sigMfId - The ID of the dataset to generate spectrogram for
  * @param fftSize - The FFT size parameter for spectrogram generation
  * @returns Promise containing the job response
  */
 export const postSpectrogramJob = async (
-  datasetId: string,
+  sigMfId: string,
   fftSize: number,
 ): Promise<JobResponse> => {
   const response = await apiClient.post(
-    `/api/sigmf-file-pairs/${datasetId}/create_spectrogram/`,
+    `/api/sigmf-file-pairs/${sigMfId}/create_spectrogram/`,
     {
       fft_size: fftSize,
     },
