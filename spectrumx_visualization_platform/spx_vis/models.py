@@ -93,7 +93,7 @@ class Capture(models.Model):
 class CaptureDatasetIntegrated(models.Model):
 
     sigmf_filepair = models.ForeignKey(SigMFFilePair, on_delete=models.CASCADE, related_name = "integrated_sigmf")
-    capture = models.ForeignKey(Capture, on_delete=models.CASCADE, related_name="integrated_captures")
+    #capture = models.ForeignKey(Capture, on_delete=models.CASCADE, related_name="integrated_captures")
     file_name = models.CharField(max_length=255) 
     timestamp = models.DateTimeField(auto_now_add=True)
     frequency = models.FloatField()
