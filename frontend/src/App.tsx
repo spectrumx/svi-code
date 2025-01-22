@@ -27,7 +27,14 @@ function App() {
           <Route path="search" element={<div>Search</div>} />
           <Route path="tutorials" element={<div>Tutorials</div>} />
           <Route path="visualization/new" element={<NewVisualizationPage />} />
-          <Route path="visualize/:datasetId" element={<SpectrogramPage />} />
+          <Route
+            path="visualize/spectrogram/:datasetId"
+            element={<SpectrogramPage />}
+          />
+          <Route
+            path="visualize/waterfall/:datasetId"
+            element={<div>Waterfall</div>}
+          />
           <Route path="token" element={<TokenPage />} />
           <Route path="*" element={<div>Uh-oh, page not found!</div>} />
         </Routes>
