@@ -1,13 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import _ from 'lodash';
+// @ts-ignore
+import { CanvasJSChart } from '@canvasjs/react-charts';
 
 type DataPoint = {
   x: number;
   y?: number;
   label?: string;
-  markerType?: string;
-  markerColor?: string;
-  markerSize?: number;
 };
 
 export type Data = {
@@ -19,17 +18,13 @@ export type Data = {
   visible?: boolean;
   toolTipContent?: string;
   raw?: number;
-  location?: google.maps.LatLng;
+  // location?: google.maps.LatLng;
+  location?: {
+    lat: number;
+    lng: number;
+  };
   weight?: number;
 };
-
-export interface BoundaryMarker {
-  value: number;
-  labelFontColor: string;
-  labelAlign: string;
-  lineDashType: string;
-  opacity: number;
-}
 
 interface Chart {
   theme: string;
@@ -49,7 +44,6 @@ interface Chart {
     crosshair?: {
       enabled: boolean;
     };
-    stripLines?: BoundaryMarker[];
     interval?: number;
   };
   axisY: {
@@ -121,16 +115,6 @@ export interface Display {
   ref_level: number | undefined;
   ref_range: number | undefined;
   ref_interval: number | undefined;
-  markers: {
-    index: number;
-    freq: number;
-    color: string;
-    type: string;
-    values: (number | undefined)[];
-    deleted: boolean;
-    to_be_set: boolean;
-  }[];
-  marker_indexes: (number | undefined)[] | undefined;
   maxHoldValues: { [key: string]: DataPoint[] };
   errors?: ScanOptionsType['errors'];
 }
@@ -150,7 +134,7 @@ export interface PeriodogramType {
     scan_time?: number;
     archiveResult?: boolean;
   };
-  data: number[] | Float32Array | Float64Array | string;
+  data: number[] | FloatArray | string;
   type?: string;
   sample_rate?: number;
   gain?: number;
@@ -225,17 +209,59 @@ export function Periodogram({
 }: // scaleMin,
 // scaleMax,
 PeriodogramProps) {
-  const [chart, setChart] = useState<Chart>({});
-  const [scanDisplay, setScanDisplay] = useState<Display>({});
-  const [waterfall, setWaterfall] = useState<Waterfall>({});
-  const [currentApplication, setCurrentApplication] = useState<
+  const [chart, setChart] = useState<Chart>({
+    theme: 'light2',
+    animationEnabled: false,
+    zoomEnabled: true,
+    zoomType: 'xy',
+    title: {
+      text: '',
+    },
+    exportEnabled: true,
+    data: [
+      {
+        _id: undefined as string | undefined,
+        type: 'line',
+        dataPoints: [{ x: 1, y: 0 }],
+        name: 'template',
+        showInLegend: false,
+      },
+    ] as Data[],
+    axisX: {
+      title: '-',
+    },
+    axisY: {
+      interval: 10,
+      includeZero: false,
+      viewportMinimum: -100,
+      viewportMaximum: -40,
+      title: 'dBm per bin',
+      absoluteMinimum: undefined as number | undefined,
+      absoluteMaximum: undefined as number | undefined,
+    },
+    key: 0,
+  });
+  const [scanDisplay, setScanDisplay] = useState<Display>({
+    resetScale: false,
+    scaleChanged: false,
+    scaleMax: -30,
+    scaleMin: -110,
+    scan_boundaries: 0,
+    max_hold: false,
+    ref_lock: false,
+    ref_level: undefined,
+    ref_range: undefined,
+    ref_interval: undefined,
+    maxHoldValues: {},
+  });
+  const [_waterfall, setWaterfall] = useState<Waterfall>({});
+  const [currentApplication, _setCurrentApplication] = useState<
     Application | Application[]
   >('PERIODOGRAM');
 
   const processPeriodogram = useCallback(
     (input: PeriodogramType) => {
-      //console.log("inside ProcessPeriodogram, input:", input);
-      let dataArray = input.data.split(',');
+      let dataArray: FloatArray | number[] | undefined;
       let arrayLength: number | undefined = Number(input.metadata?.xcount);
       const pointArr: DataPoint[] = [];
       const intArray: number[] = [];
@@ -258,20 +284,22 @@ PeriodogramProps) {
 
       // Check for Base64 encoding and decode it
       if (
-        typeof input.data === 'string' &&
-        input.metadata?.data_type === 'periodogram'
+        typeof input.data === 'string'
+        // && input.metadata?.data_type === 'periodogram'
       ) {
         // Null data can get base64 encoded and sent along which appears as all A's
         // Check start of string for A's and skip processing.
-        if (input.data.slice(0, 8) == 'AAAAAAAA') {
+        if (input.data.slice(0, 8) === 'AAAAAAAA') {
           console.log('Invalid data, not processing', input['data']);
           return;
         }
         // console.log("data before decoding: ", input['data']);
         // console.log("bytestring", String.fromCharCode.apply(input['data']))
         dataArray = binaryStringToFloatArray(input['data'], input['type']);
-        arrayLength = dataArray.length;
+        arrayLength = dataArray?.length;
         // console.log("Decoding B64 data to:",dataArray);
+      } else {
+        dataArray = input.data;
       }
 
       if (input.metadata?.xstart == null) {
@@ -305,18 +333,12 @@ PeriodogramProps) {
       }
 
       const tmpDisplay = _.cloneDeep(scanDisplay);
-      if (
-        scanDisplay.markers !== undefined &&
-        scanDisplay.marker_indexes == undefined
-      ) {
-        tmpDisplay.marker_indexes = [];
-      }
 
       const yValues = dataArray?.map((i) =>
         Math.round(10 * (Math.log(i * 1000) / Math.log(10))),
       );
-      minValue = yValues && Math.min(...yValues);
-      maxValue = yValues && Math.max(...yValues);
+      minValue = yValues && Math.min(...Array.from(yValues));
+      maxValue = yValues && Math.max(...Array.from(yValues));
 
       if (
         input.mac_address &&
@@ -340,7 +362,7 @@ PeriodogramProps) {
           if (yValue) {
             xValue = (fMin + i * freqStep) / 1000000;
             //console.log("xvalue:",xValue,"yValue:",yValue);
-            pointArr.push({ x: xValue, y: yValue, markerType: 'none' });
+            pointArr.push({ x: xValue, y: yValue });
             intArray.push(Math.floor(yValue)); //waterfall wants int values so it's less data to keep
             // if (yValue < minValue) { minValue = yValue; }
             // if (yValue > maxValue) { maxValue = yValue; }
@@ -424,33 +446,6 @@ PeriodogramProps) {
       //   chart.axisX.title +=  ' - ' + input.short_name
       //     + " (" + input.mac_address.substring(input.mac_address.length - 4) + ')';
       // }
-
-      if (currentApplication.includes('PERIODOGRAM')) {
-        scanDisplay.markers.map((marker) => {
-          if (marker.to_be_set || marker.deleted || nextIndex >= 2) {
-            //only set markers for two nodes, too much overhead for more
-            return;
-          }
-
-          if (tmpDisplay.marker_indexes === undefined)
-            tmpDisplay.marker_indexes = [];
-
-          const oldFreqIndex = tmpDisplay.marker_indexes[marker.index];
-          const freqIndex =
-            oldFreqIndex === undefined || oldFreqIndex === 0
-              ? findFreqIndex(marker.freq, pointArr)
-              : oldFreqIndex;
-          tmpDisplay.marker_indexes[marker.index] = freqIndex;
-
-          // console.log('marker_index',marker.index, 'next_index', next_index);
-          tmpDisplay.markers[marker.index]['values'][nextIndex] =
-            pointArr[freqIndex].y;
-          pointArr[freqIndex].markerType = marker.type;
-          pointArr[freqIndex].markerColor = marker.color;
-          pointArr[freqIndex].markerSize = 10;
-        });
-        setScanDisplay(tmpDisplay);
-      }
 
       if (currentApplication === 'WATERFALL') {
         tmpChart.axisX.title = '';
@@ -590,19 +585,8 @@ PeriodogramProps) {
   }, [data, processPeriodogram]);
 
   return (
-    <div
-      id="chartCanvas"
-      className="border"
-      //   onClick={(e) => chartRef && addMarkerCrosshair(e, chartRef)}
-      style={{ width: '100%' }}
-    >
-      <CanvasJSChart
-        onRef={(ref: React.RefObject<any>) => {
-          setChartRef(ref);
-          // console.log("canvas ref", ref);
-        }}
-        options={chart}
-      />
+    <div id="chartCanvas" className="border" style={{ width: '100%' }}>
+      <CanvasJSChart options={chart} />
     </div>
   );
 }
@@ -613,7 +597,7 @@ export const binaryStringToFloatArray = (
 ): FloatArray | undefined => {
   const bStr = atob(base64);
   const len = bStr.length;
-  let dataValues: Float32Array | Float64Array | undefined;
+  let dataValues: FloatArray | undefined;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
     bytes[i] = bStr.charCodeAt(i);
@@ -641,29 +625,4 @@ export function formatHertz(bytes: number, decimals = 2) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
-
-function findFreqIndex(target: number, arr: Array<{ x: number }>) {
-  let from = 0,
-    until = arr.length - 1;
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const cursor = Math.floor((from + until) / 2);
-
-    if (cursor === from) {
-      const diff1 = target - arr[from].x;
-      const diff2 = arr[until].x - target;
-      return diff1 <= diff2 ? from : until;
-    }
-
-    const found = arr[cursor].x;
-    if (found === target) return cursor;
-
-    if (found > target) {
-      until = cursor;
-    } else if (found < target) {
-      from = cursor;
-    }
-  }
 }
