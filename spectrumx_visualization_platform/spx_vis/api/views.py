@@ -1,13 +1,18 @@
+from rest_framework import filters
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from jobs.submission import request_job_submission
+from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import (
     SigMFFilePairSerializer,
 )
+from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 
 
@@ -40,3 +45,35 @@ class SigMFFilePairViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class FileViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing File objects.
+
+    Provides CRUD operations for File objects with filtering and search capabilities.
+    """
+
+    queryset = File.objects.all()
+    serializer_class = FileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "media_type"]
+    ordering_fields = ["created_at", "updated_at", "name"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        """Get the queryset of files for the current user.
+
+        Returns:
+            QuerySet: Filtered queryset containing only the user's files.
+        """
+        return File.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer: FileSerializer) -> None:
+        """Create a new file object.
+
+        Args:
+            serializer: The FileSerializer instance with validated data.
+        """
+        serializer.save(owner=self.request.user)
