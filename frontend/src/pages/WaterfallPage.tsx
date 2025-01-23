@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 
-import { Waterfall, PeriodogramType } from '../components/waterfall';
+import {
+  WaterfallVisualization,
+  PeriodogramType,
+} from '../components/waterfall';
 import WaterfallControls from '../components/waterfall/WaterfallControls';
 import {
   getFileMetadata,
@@ -85,7 +88,7 @@ const WaterfallPage = () => {
           </div>
         </Col>
         <Col>
-          <Waterfall data={file} />
+          <WaterfallVisualization data={file} />
         </Col>
       </Row>
     </>
