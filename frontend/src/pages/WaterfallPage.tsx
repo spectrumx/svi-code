@@ -26,7 +26,7 @@ const WaterfallPage = () => {
         const fileMetadata = await getFileMetadata(Number(datasetId));
         setFileMetadata(fileMetadata);
         const fileData = await getFileContent(fileMetadata.id);
-        setFile(fileData.data);
+        setFile(fileData);
       } catch (err) {
         setError(
           err instanceof Error
@@ -76,7 +76,7 @@ const WaterfallPage = () => {
 
   return (
     <>
-      <h5>Waterfall for dataset: {fileMetadata?.name}</h5>
+      <h5>Waterfall for file: {fileMetadata?.name}</h5>
       <br />
       <Row>
         <Col xs={3} style={{ maxWidth: 200 }}>

@@ -336,18 +336,15 @@ export function Periodogram({ data }: PeriodogramProps) {
       }
 
       if (
-        input['m4s_min'] &&
-        input['m4s_max'] &&
-        input['m4s_mean'] &&
-        input['m4s_median']
+        input.m4s_min &&
+        input.m4s_max &&
+        input.m4s_mean &&
+        input.m4s_median
       ) {
-        m4sMin = binaryStringToFloatArray(input['m4s_min'], input['type']);
-        m4sMax = binaryStringToFloatArray(input['m4s_max'], input['type']);
-        m4sMean = binaryStringToFloatArray(input['m4s_mean'], input['type']);
-        m4sMedian = binaryStringToFloatArray(
-          input['m4s_median'],
-          input['type'],
-        );
+        m4sMin = binaryStringToFloatArray(input.m4s_min, input.type);
+        m4sMax = binaryStringToFloatArray(input.m4s_max, input.type);
+        m4sMean = binaryStringToFloatArray(input.m4s_mean, input.type);
+        m4sMedian = binaryStringToFloatArray(input.m4s_median, input.type);
       }
 
       const tmpDisplay = _.cloneDeep(scanDisplay);
