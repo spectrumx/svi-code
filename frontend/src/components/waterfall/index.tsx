@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { Periodogram } from './Periodogram';
-import { Waterfall } from './Waterfall';
+// import { Waterfall } from './Waterfall';
 
 export type DataPoint = {
   x: number;
@@ -184,6 +184,94 @@ export interface ScanState {
   scaleMax: number | undefined;
 }
 
+const initialState: ScanState = {
+  isScanActive: false,
+  options: {
+    selectedNodes: [],
+    startingFrequency: 1990,
+    endingFrequency: 2010,
+    centerFrequency: 2000,
+    gain: 1,
+    nsamples: 1024,
+    interval: 0.2, // handler for recurring scan
+    bandwidth: 20,
+    errors: {},
+    selectedGroups: [],
+    rbw: 23437.5,
+    showLiveData: false,
+    archiveResult: true,
+    m4s: false,
+    siggen: false,
+    siggen_ip: '10.173.170.235',
+    siggen_power: -30,
+    siggen_freq: 2000,
+    option: 1,
+    hw_versions_selected: [],
+    mode: 'compatibility',
+    scaleMax: -30,
+    scaleMin: -110,
+    algorithm: 'Cubic',
+  } as ScanOptionsType,
+  display: {
+    resetScale: false,
+    scaleChanged: false,
+    scaleMax: -30,
+    scaleMin: -110,
+    scan_boundaries: 0,
+    max_hold: false,
+    ref_lock: false,
+    ref_level: undefined,
+    ref_range: undefined,
+    ref_interval: undefined,
+    maxHoldValues: {},
+  },
+  lastScanOptions: undefined as ScanOptionsType | undefined,
+  receivedHeatmap: false,
+  scansRequested: 0,
+  allData: [] as Data[],
+  yMin: 100000,
+  yMax: -100000,
+  xMin: 100000,
+  xMax: -100000,
+  spinner: false,
+  periodogram: undefined,
+  chart: {
+    theme: 'light2',
+    animationEnabled: false,
+    zoomEnabled: true,
+    zoomType: 'xy',
+    title: {
+      text: '',
+    },
+    exportEnabled: true,
+    data: [
+      {
+        _id: undefined as string | undefined,
+        type: 'line',
+        dataPoints: [{ x: 1, y: 0 }],
+        name: 'template',
+        showInLegend: false,
+      },
+    ] as Data[],
+    axisX: {
+      title: '-',
+    },
+    axisY: {
+      interval: 10,
+      includeZero: false,
+      viewportMinimum: -100,
+      viewportMaximum: -40,
+      title: 'dBm per bin',
+      absoluteMinimum: undefined as number | undefined,
+      absoluteMaximum: undefined as number | undefined,
+    },
+    key: 0,
+  },
+  heatmapData: [] as Data[],
+  scaleMin: undefined as number | undefined,
+  scaleMax: undefined as number | undefined,
+};
+
 export interface WaterfallType
   extends Pick<ScanState, 'periodogram' | 'xMin' | 'xMax'>,
     Partial<Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax'>> {}
@@ -236,77 +324,19 @@ interface WaterfallProps {
 }
 
 const WaterfallVisualization = ({ data }: WaterfallProps) => {
-  const [chart, setChart] = useState<Chart>({
-    theme: 'light2',
-    animationEnabled: false,
-    zoomEnabled: true,
-    zoomType: 'xy',
-    title: {
-      text: '',
-    },
-    exportEnabled: true,
-    data: [
-      {
-        _id: undefined as string | undefined,
-        type: 'line',
-        dataPoints: [{ x: 1, y: 0 }],
-        name: 'template',
-        showInLegend: false,
-      },
-    ] as Data[],
-    axisX: {
-      title: '-',
-    },
-    axisY: {
-      interval: 10,
-      includeZero: false,
-      viewportMinimum: -100,
-      viewportMaximum: -40,
-      title: 'dBm per bin',
-      absoluteMinimum: undefined as number | undefined,
-      absoluteMaximum: undefined as number | undefined,
-    },
-    key: 0,
-  });
-  const [scanDisplay, setScanDisplay] = useState<Display>({
-    resetScale: false,
-    scaleChanged: false,
-    scaleMax: -30,
-    scaleMin: -110,
-    scan_boundaries: 0,
-    max_hold: false,
-    ref_lock: false,
-    ref_level: undefined,
-    ref_range: undefined,
-    ref_interval: undefined,
-    maxHoldValues: {},
-  });
-  const [scanOptions, setScanOptions] = useState<ScanOptionsType>({
-    selectedNodes: [],
-    startingFrequency: 1990,
-    endingFrequency: 2010,
-    centerFrequency: 2000,
-    gain: 1,
-    nsamples: 1024,
-    interval: 0.2, // handler for recurring scan
-    bandwidth: 20,
-    errors: {},
-    selectedGroups: [],
-    rbw: 23437.5,
-    showLiveData: false,
-    archiveResult: true,
-    m4s: false,
-    siggen: false,
-    siggen_ip: '10.173.170.235',
-    siggen_power: -30,
-    siggen_freq: 2000,
-    option: 1,
-    hw_versions_selected: [],
-    mode: 'compatibility',
-    scaleMax: -30,
-    scaleMin: -110,
-    algorithm: 'Cubic',
-  });
+  const [scan, setScan] = useState<ScanState>(initialState);
+  const scanDisplay = scan.display;
+  const setScanDisplay = (display: Display) => {
+    setScan((prevScan) => ({ ...prevScan, display }));
+  };
+  const scanOptions = scan.options;
+  const setScanOptions = (options: ScanOptionsType) => {
+    setScan((prevScan) => ({ ...prevScan, options }));
+  };
+  const chart = scan.chart;
+  const setChart = (chart: Chart) => {
+    setScan((prevScan) => ({ ...prevScan, chart }));
+  };
   const [waterfall, setWaterfall] = useState<WaterfallType>({});
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
 
@@ -323,7 +353,7 @@ const WaterfallVisualization = ({ data }: WaterfallProps) => {
         waterfall={waterfall}
         setWaterfall={setWaterfall}
       />
-      <Waterfall
+      {/* <Waterfall
         data={data}
         currentApplication={currentApplication}
         scanDisplay={scanDisplay}
@@ -334,7 +364,7 @@ const WaterfallVisualization = ({ data }: WaterfallProps) => {
         setChart={setChart}
         waterfall={waterfall}
         setWaterfall={setWaterfall}
-      />
+      /> */}
     </>
   );
 };
