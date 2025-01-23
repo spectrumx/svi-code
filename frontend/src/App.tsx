@@ -9,6 +9,7 @@ import TokenPage from './pages/TokenPage';
 import NewVisualizationPage from './pages/NewVisualizationPage';
 import Header from './components/Header';
 import { useFetchSessionInfo } from './apiClient';
+import WaterfallPage from './pages/WaterfallPage';
 
 function App() {
   useFetchSessionInfo();
@@ -33,7 +34,7 @@ function App() {
           />
           <Route
             path="visualize/waterfall/:datasetId"
-            element={<div>Waterfall</div>}
+            element={<WaterfallPage />}
           />
           <Route path="token" element={<TokenPage />} />
           <Route path="*" element={<div>Uh-oh, page not found!</div>} />

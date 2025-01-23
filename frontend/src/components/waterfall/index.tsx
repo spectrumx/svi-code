@@ -1,7 +1,9 @@
 import { useCallback, useState, useEffect } from 'react';
 import _ from 'lodash';
 // @ts-ignore
-import { CanvasJSChart } from '@canvasjs/react-charts';
+import CanvasJSReact from '@canvasjs/react-charts';
+
+const { CanvasJSChart } = CanvasJSReact;
 
 type DataPoint = {
   x: number;
@@ -184,7 +186,7 @@ export interface ScanState {
   scaleMax: number | undefined;
 }
 
-interface Waterfall
+interface WaterfallType
   extends Pick<ScanState, 'periodogram' | 'xMin' | 'xMax'>,
     Partial<Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax'>> {}
 
@@ -196,19 +198,9 @@ type Application =
 
 interface PeriodogramProps {
   data: PeriodogramType;
-  startingFrequency: number;
-  endingFrequency: number;
-  // scaleMin: number;
-  // scaleMax: number;
 }
 
-export function Periodogram({
-  data,
-  startingFrequency,
-  endingFrequency,
-}: // scaleMin,
-// scaleMax,
-PeriodogramProps) {
+export function Periodogram({ data }: PeriodogramProps) {
   const [chart, setChart] = useState<Chart>({
     theme: 'light2',
     animationEnabled: false,
@@ -254,7 +246,33 @@ PeriodogramProps) {
     ref_interval: undefined,
     maxHoldValues: {},
   });
-  const [_waterfall, setWaterfall] = useState<Waterfall>({});
+  const [scanOptions, _setScanOptions] = useState<ScanOptionsType>({
+    selectedNodes: [],
+    startingFrequency: 1990,
+    endingFrequency: 2010,
+    centerFrequency: 2000,
+    gain: 1,
+    nsamples: 1024,
+    interval: 0.2, // handler for recurring scan
+    bandwidth: 20,
+    errors: {},
+    selectedGroups: [],
+    rbw: 23437.5,
+    showLiveData: false,
+    archiveResult: true,
+    m4s: false,
+    siggen: false,
+    siggen_ip: '10.173.170.235',
+    siggen_power: -30,
+    siggen_freq: 2000,
+    option: 1,
+    hw_versions_selected: [],
+    mode: 'compatibility',
+    scaleMax: -30,
+    scaleMin: -110,
+    algorithm: 'Cubic',
+  });
+  const [_waterfall, setWaterfall] = useState<WaterfallType>({});
   const [currentApplication, _setCurrentApplication] = useState<
     Application | Application[]
   >('PERIODOGRAM');
@@ -556,8 +574,8 @@ PeriodogramProps) {
       // If user requests X amount of bandwidth, lock the display to their request.
       // But not for other functions
       if (currentApplication.includes('PERIODOGRAM')) {
-        tmpChart.axisX.minimum = startingFrequency;
-        tmpChart.axisX.maximum = endingFrequency;
+        tmpChart.axisX.minimum = scanOptions.startingFrequency;
+        tmpChart.axisX.maximum = scanOptions.endingFrequency;
       } else {
         delete tmpChart.axisX.minimum;
         delete tmpChart.axisX.maximum;
@@ -571,13 +589,7 @@ PeriodogramProps) {
       // }
       return;
     },
-    [
-      scanDisplay,
-      chart,
-      currentApplication,
-      startingFrequency,
-      endingFrequency,
-    ],
+    [scanDisplay, chart, currentApplication, scanOptions],
   );
 
   useEffect(() => {
@@ -626,3 +638,15 @@ export function formatHertz(bytes: number, decimals = 2) {
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
+
+interface WaterfallProps extends PeriodogramProps {}
+
+const Waterfall = ({ data }: WaterfallProps) => {
+  return (
+    <>
+      <Periodogram data={data} />
+    </>
+  );
+};
+
+export { Waterfall };

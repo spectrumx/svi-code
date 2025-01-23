@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 
 import apiClient from '.';
 import { useAppContext } from '../utils/AppContext';
+import { z } from 'zod';
 
 export type SigMFFilePair = {
   id: number;
@@ -35,4 +36,32 @@ export const postSigMFCapture = async (dataFile: Blob, metaFile: Blob) => {
     },
   });
   return response;
+};
+
+const FileMetadataSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  content_url: z.string(),
+  media_type: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export type FileMetadata = z.infer<typeof FileMetadataSchema>;
+
+export const getFileMetadata = async (
+  fileId: number,
+): Promise<FileMetadata> => {
+  try {
+    const response = await apiClient.get(`/api/files/${fileId}/`);
+    return FileMetadataSchema.parse(response.data);
+  } catch (error) {
+    console.error('Error fetching file:', error);
+    throw error;
+  }
+};
+
+export const getFileContent = async (fileId: number): Promise<any> => {
+  const response = await apiClient.get(`/api/files/${fileId}/content/`);
+  return response.data;
 };

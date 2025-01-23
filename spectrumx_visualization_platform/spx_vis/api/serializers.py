@@ -1,3 +1,4 @@
+from django.urls import reverse
 from rest_framework import serializers
 
 from spectrumx_visualization_platform.spx_vis.models import File
@@ -33,15 +34,14 @@ class SigMFFilePairSerializer(serializers.ModelSerializer[SigMFFilePair]):
 
 
 class FileSerializer(serializers.ModelSerializer[File]):
-    """Serializer for File model.
+    """Serializer for File model metadata.
 
     Provides serialization of File objects with owner information and file handling.
     """
 
     owner = serializers.ReadOnlyField(source="owner.username")
     file = serializers.FileField(write_only=True)
-    file_url = serializers.SerializerMethodField()
-    name = serializers.CharField(required=False)
+    content_url = serializers.SerializerMethodField()
 
     class Meta:
         model = File
@@ -49,7 +49,7 @@ class FileSerializer(serializers.ModelSerializer[File]):
             "id",
             "owner",
             "file",
-            "file_url",
+            "content_url",
             "created_at",
             "expiration_date",
             "media_type",
@@ -58,19 +58,21 @@ class FileSerializer(serializers.ModelSerializer[File]):
         ]
         read_only_fields = ["created_at", "updated_at", "local_path"]
 
-    def get_file_url(self, obj: File) -> str:
-        """Get the URL for downloading the file.
+    def get_content_url(self, obj: File) -> str:
+        """Get the URL for downloading the file content.
 
         Args:
             obj: The File instance being serialized.
 
         Returns:
-            str: The URL to download the file.
+            str: The URL to download the file content.
         """
         request = self.context.get("request")
-        if request is None or not obj.file:
+        if request is None:
             return ""
-        return request.build_absolute_uri(obj.file.url)
+        return request.build_absolute_uri(
+            reverse("api:file-content", kwargs={"pk": obj.pk}),
+        )
 
     def create(self, validated_data: dict) -> File:
         """Create a new File instance.

@@ -1,3 +1,4 @@
+from django.http import FileResponse
 from rest_framework import filters
 from rest_framework import permissions
 from rest_framework import status
@@ -69,6 +70,23 @@ class FileViewSet(viewsets.ModelViewSet):
             QuerySet: Filtered queryset containing only the user's files.
         """
         return File.objects.filter(owner=self.request.user)
+
+    @action(detail=True, methods=["get"])
+    def content(self, request, pk=None):
+        """Get the file content.
+
+        Args:
+            request: The HTTP request
+            pk: The primary key of the file
+
+        Returns:
+            FileResponse: The file content with appropriate content type
+        """
+        file_obj = self.get_object()
+        response = FileResponse(file_obj.file)
+        response["Content-Type"] = file_obj.media_type
+        response["Content-Disposition"] = f'attachment; filename="{file_obj.name}"'
+        return response
 
     def perform_create(self, serializer: FileSerializer) -> None:
         """Create a new file object.
