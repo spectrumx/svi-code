@@ -19,7 +19,7 @@ const WorkspacePage = () => {
   return (
     <>
       <h5>Captures</h5>
-      <DatasetTable datasets={captures} />
+      <DatasetTable datasets={captures} type="sigmf" />
       <Button
         variant="primary"
         onClick={() => setShowModal(true)}

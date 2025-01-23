@@ -1,5 +1,5 @@
 const WaterfallControls = () => {
-  return <div>WaterfallControls</div>;
+  return <div>Waterfall Controls</div>;
 };
 
 export default WaterfallControls;

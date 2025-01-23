@@ -29,11 +29,11 @@ function App() {
           <Route path="tutorials" element={<div>Tutorials</div>} />
           <Route path="visualization/new" element={<NewVisualizationPage />} />
           <Route
-            path="visualize/spectrogram/:datasetId"
+            path="visualization/spectrogram/:datasetId"
             element={<SpectrogramPage />}
           />
           <Route
-            path="visualize/waterfall/:datasetId"
+            path="visualization/waterfall/:datasetId"
             element={<WaterfallPage />}
           />
           <Route path="token" element={<TokenPage />} />
