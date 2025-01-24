@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import _ from 'lodash';
 
 // @ts-ignore
@@ -26,7 +27,6 @@ interface PeriodogramProps {
   setScanDisplay: (display: Display) => void;
   chart: Chart;
   setChart: (chart: Chart) => void;
-  waterfall: WaterfallType;
   setWaterfall: (waterfall: WaterfallType) => void;
 }
 
@@ -38,7 +38,6 @@ function Periodogram({
   setScanDisplay,
   chart,
   setChart,
-  waterfall,
   setWaterfall,
 }: PeriodogramProps) {
   const processPeriodogram = (input: PeriodogramType) => {
@@ -295,9 +294,7 @@ function Periodogram({
       //waterfall.allData.shift();
       //}
       // console.log("calling dispatch with:", waterfall);
-      if (!_.isEqual(newWaterfall, waterfall)) {
-        setWaterfall(newWaterfall);
-      }
+      setWaterfall(newWaterfall);
     }
 
     // Determine viewing area based off min/max
@@ -351,7 +348,10 @@ function Periodogram({
     return;
   };
 
-  processPeriodogram(data);
+  useEffect(() => {
+    console.log('Running useEffect in Periodogram');
+    processPeriodogram(data);
+  }, [data]);
 
   return (
     <div id="chartCanvas" className="border" style={{ width: '100%' }}>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
-// import { Waterfall } from './Waterfall';
+import { Waterfall } from './Waterfall';
 
 export type DataPoint = {
   x: number;
@@ -276,6 +277,8 @@ export interface WaterfallType
   extends Pick<ScanState, 'periodogram' | 'xMin' | 'xMax'>,
     Partial<Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax'>> {}
 
+export const waterfall_max_rows = 80;
+
 export type ApplicationType =
   | 'WATERFALL'
   | 'PERIODOGRAM'
@@ -330,14 +333,45 @@ const WaterfallVisualization = ({ data }: WaterfallProps) => {
     setScan((prevScan) => ({ ...prevScan, display }));
   };
   const scanOptions = scan.options;
-  const setScanOptions = (options: ScanOptionsType) => {
-    setScan((prevScan) => ({ ...prevScan, options }));
+  const setScaleChanged = (scaleChanged: boolean) => {
+    setScan((prevScan) => ({
+      ...prevScan,
+      options: { ...prevScan.options, scaleChanged },
+    }));
+  };
+  const setResetScale = (resetScale: boolean) => {
+    setScan((prevScan) => ({
+      ...prevScan,
+      options: { ...prevScan.options, resetScale },
+    }));
   };
   const chart = scan.chart;
   const setChart = (chart: Chart) => {
     setScan((prevScan) => ({ ...prevScan, chart }));
   };
-  const [waterfall, setWaterfall] = useState<WaterfallType>({});
+  const setWaterfall = (waterfall: WaterfallType) => {
+    const localScaleMin = waterfall.scaleMin ?? scan.scaleMin;
+    const localScaleMax = waterfall.scaleMax ?? scan.scaleMax;
+    const tmpData = _.cloneDeep(scan.allData);
+    if (waterfall.periodogram !== undefined) {
+      tmpData.push(waterfall.periodogram);
+    }
+    while (tmpData.length > waterfall_max_rows) {
+      tmpData.shift();
+    }
+    const tmpScan = _.cloneDeep(scan);
+    tmpScan.periodogram = waterfall.periodogram;
+    tmpScan.allData = tmpData;
+    tmpScan.yMin = Math.min(Number(waterfall.yMin), tmpScan.yMin);
+    tmpScan.yMax = Math.max(Number(waterfall.yMax), tmpScan.yMax);
+    tmpScan.xMin = waterfall.xMin;
+    tmpScan.xMax = waterfall.xMax;
+    tmpScan.scaleMin = localScaleMin;
+    tmpScan.scaleMax = localScaleMax;
+    if (!_.isEqual(tmpScan, scan)) {
+      setScan(tmpScan);
+    }
+  };
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
 
   return (
@@ -350,21 +384,14 @@ const WaterfallVisualization = ({ data }: WaterfallProps) => {
         scanOptions={scanOptions}
         chart={chart}
         setChart={setChart}
-        waterfall={waterfall}
         setWaterfall={setWaterfall}
       />
-      {/* <Waterfall
-        data={data}
-        currentApplication={currentApplication}
-        scanDisplay={scanDisplay}
-        setScanDisplay={setScanDisplay}
-        scanOptions={scanOptions}
-        setScanOptions={setScanOptions}
-        chart={chart}
-        setChart={setChart}
-        waterfall={waterfall}
+      <Waterfall
+        scan={scan}
         setWaterfall={setWaterfall}
-      /> */}
+        setScaleChanged={setScaleChanged}
+        setResetScale={setResetScale}
+      />
     </>
   );
 };
