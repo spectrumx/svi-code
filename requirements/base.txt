@@ -32,4 +32,4 @@ matplotlib==3.9.3  # https://github.com/matplotlib/matplotlib
 sigmf==1.2.3  # https://github.com/sigmf/sigmf-python
 
 # SpectrumX Data System SDK
-spectrumx==0.1.3  # https://pypi.org/project/spectrumx/
+spectrumx==0.1.4  # https://pypi.org/project/spectrumx/

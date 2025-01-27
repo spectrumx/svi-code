@@ -369,3 +369,9 @@ SPECTACULAR_SETTINGS = {
 # ------------------------------------------------------------------------------
 API_URL = env("API_URL", default="http://django:8000")
 SPECTRUMX_HOST = env("SPECTRUMX_HOST", default="sds.crc.nd.edu")
+
+
+# SVI Server API Key
+SVI_SERVER_API_KEY: str = env("SVI_SERVER_API_KEY", default="svi-server-api-key")
+SVI_SERVER_URL: str = env("SVI_SERVER_URL", default="https://svi.crc.nd.edu")
+SDS_CLIENT_URL: str = env("SDS_CLIENT_URL", default="sds.crc.nd.edu")
