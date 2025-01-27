@@ -87,3 +87,6 @@ INSTALLED_APPS += ["django_extensions"]
 CELERY_TASK_EAGER_PROPAGATES = True
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+# Local SVI SDK API Key (for testing purposes)
+SDS_USER_API_KEY = env("SDS_USER_API_KEY", default=None)
