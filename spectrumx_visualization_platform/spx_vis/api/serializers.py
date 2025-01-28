@@ -27,8 +27,7 @@ class IntegratedViewSerializer(serializers.ModelSerializer[CaptureDatasetIntegra
     class Meta:
         model = CaptureDatasetIntegrated
         fields = ["id","file_name","timestamp", "frequency", "location", "source", "captureformat"]
-   
-    
+     
 class SigMFFilePairSerializer(serializers.ModelSerializer[SigMFFilePair]):
     data_file = serializers.FileField(write_only=True)
     meta_file = serializers.FileField(write_only=True)

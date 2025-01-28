@@ -13,26 +13,19 @@ const WorkspacePage = () => {
   const [showModal, setShowModal] = useState(false);
   const [datasets, setDatasets] = useState<SigMFFilePairResponse>([]);
   //const [captures, setCaptures] = useState<CaptureResponse>([]);
-  const [integrated, setIntegratedView] = useState<IntegratedResponse>([]); // combined the SigMFFilePair table and newly created capture table
+  const [integrated, setIntegratedView] = useState<IntegratedResponse>([]); 
  // const [combineddatasets, setCombineCapture] = useState<CombinedResponse | null>(null);
 
   const syncDatasets = async () => {
     setDatasets(await getDatasets());
   };
 
- /* useEffect(() => {
+  useEffect(() => {
     syncDatasets();
   }, []);
 
-  const syncCaptures = async() => {
-    setCaptures(await getCapture())
 
-  };
-
-  useEffect(() => {
-    syncCaptures();
-
-  }, []);*/
+ 
 
   const syncIntegratedView = async() => {
     setIntegratedView(await getIntegratedView())

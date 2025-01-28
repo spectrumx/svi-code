@@ -49,13 +49,13 @@ class SigMFFilePair(models.Model):
         File,
         on_delete=models.CASCADE,
         related_name="data_file",
-        validators=[FileExtensionValidator(allowed_extensions=["sigmf-data"])],
+     #   validators=[FileExtensionValidator(allowed_extensions=["sigmf-data"])],
     )
     meta_file = models.ForeignKey(
         File,
         on_delete=models.CASCADE,
         related_name="meta_file",
-        validators=[FileExtensionValidator(allowed_extensions=["sigmf-meta"])],
+    #   validators=[FileExtensionValidator(allowed_extensions=["sigmf-meta"])],
     )
 
     def __str__(self) -> str:
@@ -92,7 +92,7 @@ class Capture(models.Model):
 # integrated view: combined the SigMFFilePair  and newly created capture
 class CaptureDatasetIntegrated(models.Model):
 
-    sigmf_filepair = models.ForeignKey(SigMFFilePair, on_delete=models.CASCADE, related_name = "integrated_sigmf")
+    sigmf_filepair = models.ForeignKey(SigMFFilePair, on_delete=models.CASCADE, related_name = "integrated_sigmf", null=True)
     #capture = models.ForeignKey(Capture, on_delete=models.CASCADE, related_name="integrated_captures")
     file_name = models.CharField(max_length=255) 
     timestamp = models.DateTimeField(auto_now_add=True)

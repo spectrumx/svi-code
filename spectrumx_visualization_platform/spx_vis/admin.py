@@ -28,6 +28,6 @@ class CaptureAdmin(admin.ModelAdmin):
 # integrated model registered
 @admin.register(CaptureDatasetIntegrated)
 class CaptureDatasetIntegratedAdmin(admin.ModelAdmin):
-    list_display = ("id","file_name","timestamp","frequency","location","source","captureformat")
+    pass
 
 
