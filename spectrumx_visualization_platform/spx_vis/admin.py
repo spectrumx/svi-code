@@ -1,10 +1,10 @@
 # Register your models here.
 from django.contrib import admin
 
-from .models import File
-from .models import SigMFFilePair
 from .models import Capture
 from .models import CaptureDatasetIntegrated
+from .models import File
+from .models import SigMFFilePair
 
 
 @admin.register(File)
@@ -21,13 +21,13 @@ class SigMFFilePairAdmin(admin.ModelAdmin):
     # search_fields = ("name",)
     # list_filter = ("created_at", "updated_at", "user")
 
+
 @admin.register(Capture)
 class CaptureAdmin(admin.ModelAdmin):
-    list_display = ("capturename","file_path","timestamp","frequency","location")
+    list_display = ("name", "owner", "created_at", "timestamp", "type", "source")
+
 
 # integrated model registered
 @admin.register(CaptureDatasetIntegrated)
 class CaptureDatasetIntegratedAdmin(admin.ModelAdmin):
     pass
-
-

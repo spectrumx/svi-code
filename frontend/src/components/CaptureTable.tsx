@@ -1,49 +1,89 @@
 import Table from 'react-bootstrap/Table';
 import { Link } from 'react-router';
 
-import { CaptureResponse } from '../apiClient/fileService';
-
-// This page was added to view the capture table. This is not currently used. Instead the IntegratedTable.tsx is used
-// retaining this page so that in case we want to have a separate table for captures we can use this
+import { Capture } from '../apiClient/fileService';
+import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
 
 interface CaptureTableProps {
-  datasets: CaptureResponse;
-  //datasets: CombinedResponse;
+  captures: Capture[];
+  selectedId?: number | null;
+  onSelect?: (id: number) => void;
 }
 
-const CaptureTable = ({ datasets }: CaptureTableProps) => {
+/**
+ * Displays a table of captures with optional selection functionality
+ */
+const CaptureTable = ({
+  captures,
+  selectedId,
+  onSelect,
+}: CaptureTableProps) => {
   return (
     <Table striped bordered hover>
       <thead>
         <tr>
+          {onSelect && (
+            <th className="text-center" style={{ width: '50px' }}></th>
+          )}
+          <th>ID</th>
           <th>Name</th>
           <th>Timestamp</th>
-          <th>Frequency</th>
-          <th>Location</th>
-          <th>File Path</th>
-          <th></th>
+          <th>Type</th>
+          <th>Source</th>
+          {!onSelect && <th></th>}
         </tr>
       </thead>
       <tbody>
-        {datasets.map((dataset) => (
-          <tr key="key">
-            <td className="align-middle">{dataset.name}</td>
-            <td className="align-middle">{dataset.timestamp}</td>
-            <td className="align-middle">{dataset.frequency}</td>
-            <td className="align-middle">{dataset.location}</td>
-            <td className="align-middle">{dataset.file_path}</td>
-            
-            
-            <td className="align-middle text-center">
-            <Link
-                to={`/viewCapture/${dataset.name}`}
-                className="btn btn-primary btn-sm px-4"
-              >
-                View Details
-              </Link>
-            </td>
-          </tr>
-        ))}
+        {captures.map((capture) => {
+          const visualizationType = VISUALIZATION_TYPES.find((visType) =>
+            visType.supportedCaptureTypes.includes(capture.type),
+          );
+
+          return (
+            <tr
+              key={capture.id}
+              className={selectedId === capture.id ? 'table-primary' : ''}
+              onClick={() => onSelect?.(capture.id)}
+              style={onSelect ? { cursor: 'pointer' } : undefined}
+              role={onSelect ? 'button' : undefined}
+              tabIndex={onSelect ? 0 : undefined}
+              onKeyPress={(e) => {
+                if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+                  onSelect(capture.id);
+                }
+              }}
+            >
+              {onSelect && (
+                <td className="text-center align-middle">
+                  <input
+                    type="radio"
+                    checked={selectedId === capture.id}
+                    onChange={() => onSelect(capture.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select capture ${capture.id}`}
+                  />
+                </td>
+              )}
+              <td className="align-middle">{capture.id}</td>
+              <td className="align-middle">{capture.name}</td>
+              <td className="align-middle">
+                {new Date(capture.timestamp).toLocaleDateString()}
+              </td>
+              <td className="align-middle">{capture.type}</td>
+              <td className="align-middle">{capture.source}</td>
+              {!onSelect && visualizationType && (
+                <td className="align-middle text-center">
+                  <Link
+                    to={`/visualization/${visualizationType.name}/${capture.id}`}
+                    className="btn btn-primary btn-sm px-4"
+                  >
+                    Visualize
+                  </Link>
+                </td>
+              )}
+            </tr>
+          );
+        })}
       </tbody>
     </Table>
   );

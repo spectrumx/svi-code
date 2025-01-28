@@ -1,57 +1,23 @@
 import { useEffect, useState } from 'react';
-import Button from '../components/Button';
 
-import DatasetTable from '../components/DatasetTable';
 import CaptureTable from '../components/CaptureTable';
-import IntegratedTable from '../components/IntegratedTable';
 import FileUploadModal from '../components/FileUploadModal';
-import {
-  getSigMFFilePairs,
-  SigMFFilePairResponse,
-  CaptureResponse,
-  getCaptures,
-  IntegratedResponse,
-  getIntegratedView,
-} from '../apiClient/fileService';
+import { useSyncCaptures } from '../apiClient/fileService';
 import { useAppContext } from '../utils/AppContext';
 
 const SearchPage = () => {
   const context = useAppContext();
+  const { captures } = context;
+  const syncCaptures = useSyncCaptures();
   const [showModal, setShowModal] = useState(false);
-  const [datasets, setDatasets] = useState<SigMFFilePairResponse>([]);
-  //const [captures, setCaptures] = useState<CaptureResponse>([]);
-  const [integrated, setIntegratedView] = useState<IntegratedResponse>([]); // combined the SigMFFilePair table and newly created capture table
-  // const [combineddatasets, setCombineCapture] = useState<CombinedResponse | null>(null);
 
   interface CheckboxProps {
     label: string;
   }
 
-  const syncDatasets = async () => {
-    setDatasets(await getSigMFFilePairs());
-  };
-
-  /* useEffect(() => {
-    syncDatasets();
-  }, []);
-
-  const syncCaptures = async() => {
-    setCaptures(await getCapture())
-
-  };
-
   useEffect(() => {
     syncCaptures();
-
-  }, []);*/
-
-  const syncIntegratedView = async () => {
-    setIntegratedView(await getIntegratedView());
-  };
-
-  useEffect(() => {
-    syncIntegratedView();
-  }, []);
+  }, [syncCaptures]);
 
   const Checkbox: React.FC<CheckboxProps> = ({ label }) => {
     const [isChecked, setIsChecked] = useState(false);
@@ -119,14 +85,14 @@ const SearchPage = () => {
             </div>
           </div>
           <div></div>
-          <IntegratedTable datasets={integrated} />
+          <CaptureTable captures={captures} />
         </div>
       </div>
       <br />
       <FileUploadModal
         show={showModal}
         handleClose={() => setShowModal(false)}
-        handleSuccess={syncDatasets}
+        handleSuccess={syncCaptures}
       />
       <br />
       <br />

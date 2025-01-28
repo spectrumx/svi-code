@@ -3,37 +3,27 @@ import Button from '../components/Button';
 
 import FileUploadModal from '../components/FileUploadModal';
 import { useAppContext } from '../utils/AppContext';
-import { useSyncSigMFFilePairs } from '../apiClient/fileService';
-import DatasetTable from '../components/DatasetTable';
-import IntegratedTable from '../components/IntegratedTable';
 import {
-  IntegratedResponse,
-  getIntegratedView,
+  useSyncSigMFFilePairs,
+  useSyncCaptures,
 } from '../apiClient/fileService';
+import DatasetTable from '../components/CaptureTable';
 
 const MyDataPage = () => {
   const context = useAppContext();
-  const { sigMFFilePairs } = context;
+  const { captures } = context;
   const syncSigMFFilePairs = useSyncSigMFFilePairs();
+  const syncCaptures = useSyncCaptures();
   const [showModal, setShowModal] = useState(false);
 
-  const [integrated, setIntegratedView] = useState<IntegratedResponse>([]);
-
-  const syncIntegratedView = async () => {
-    setIntegratedView(await getIntegratedView());
-  };
-
   useEffect(() => {
-    syncSigMFFilePairs();
-    syncIntegratedView();
-  }, [syncSigMFFilePairs]);
+    syncCaptures();
+  }, [syncCaptures]);
 
   return (
     <>
-      <h5>SigMF File Pairs</h5>
-      <DatasetTable datasets={sigMFFilePairs} type="sigmf" />
-      <h5>Integrated View</h5>
-      <IntegratedTable datasets={integrated} />
+      <h5>Captures</h5>
+      <DatasetTable captures={captures} />
       <Button
         variant="primary"
         onClick={() => setShowModal(true)}

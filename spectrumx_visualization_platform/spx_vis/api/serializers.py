@@ -11,7 +11,15 @@ from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 class CaptureSerializer(serializers.ModelSerializer[Capture]):
     class Meta:
         model = Capture
-        fields = ["capturename", "timestamp", "frequency", "location", "file_path"]
+        fields = [
+            "id",
+            "owner",
+            "name",
+            "created_at",
+            "timestamp",
+            "type",
+            "source",
+        ]
 
 
 # serializer added for the integrated view set

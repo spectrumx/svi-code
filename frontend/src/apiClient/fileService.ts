@@ -4,24 +4,6 @@ import apiClient from '.';
 import { useAppContext } from '../utils/AppContext';
 import { z } from 'zod';
 
-export type SigMFFilePair = {
-  id: number;
-  data_file_name: string;
-  meta_file_name: string;
-};
-
-export type SigMFFilePairResponse = SigMFFilePair[];
-
-export type Capture = {
-  name: string;
-  timestamp: string;
-  frequency: number;
-  location: string;
-  file_path: string;
-};
-
-export type CaptureResponse = Capture[];
-
 export type IntegratedResponse = {
   id: number;
   name: string;
@@ -32,15 +14,37 @@ export type IntegratedResponse = {
   captureformat: string;
 }[];
 
-// integrated response captured here
 export const getIntegratedView = async () => {
   const response = await apiClient.get('/api/integratedview/');
   return response.data as IntegratedResponse;
 };
 
-export const getCaptures = async () => {
-  const response = await apiClient.get('/api/captures/');
-  return response.data as CaptureResponse;
+const CaptureTypeSchema = z.enum(['drf', 'rh', 'sigmf']);
+export type CaptureType = z.infer<typeof CaptureTypeSchema>;
+
+const CaptureSourceSchema = z.enum(['sds', 'svi_public', 'svi_user']);
+export type CaptureSource = z.infer<typeof CaptureSourceSchema>;
+
+const CaptureSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  owner: z.number(),
+  created_at: z.string(),
+  timestamp: z.string(),
+  type: CaptureTypeSchema,
+  source: CaptureSourceSchema,
+});
+
+export type Capture = z.infer<typeof CaptureSchema>;
+
+export const getCaptures = async (): Promise<Capture[]> => {
+  try {
+    const response = await apiClient.get('/api/captures/');
+    return z.array(CaptureSchema).parse(response.data);
+  } catch (error) {
+    console.error('Error fetching captures:', error);
+    throw error;
+  }
 };
 
 export const useSyncCaptures = () => {
@@ -50,6 +54,14 @@ export const useSyncCaptures = () => {
   }, [setCaptures]);
   return syncCaptures;
 };
+
+export type SigMFFilePair = {
+  id: number;
+  data_file_name: string;
+  meta_file_name: string;
+};
+
+export type SigMFFilePairResponse = SigMFFilePair[];
 
 export const getSigMFFilePairs = async () => {
   const response = await apiClient.get('/api/sigmf-file-pairs/');

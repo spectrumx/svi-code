@@ -3,34 +3,31 @@ import { Link } from 'react-router';
 import { Row, Col, Card } from 'react-bootstrap';
 
 import Button from '../components/Button';
-import DatasetTable from '../components/DatasetTable';
+import CaptureTable from '../components/CaptureTable';
 import { useAppContext } from '../utils/AppContext';
 import { SpectrogramSettings } from './SpectrogramPage';
-import { useSyncSigMFFilePairs, useSyncFiles } from '../apiClient/fileService';
+import { useSyncCaptures, CaptureType } from '../apiClient/fileService';
 
 interface VisualizationType {
-  id: 'spectrogram' | 'waterfall';
-  name: string;
+  name: 'spectrogram' | 'waterfall';
   description: string;
   icon: string;
-  supportedTypes: 'sigmf' | 'radiohound';
+  supportedCaptureTypes: CaptureType[];
 }
 
-const VISUALIZATION_TYPES: VisualizationType[] = [
+export const VISUALIZATION_TYPES: VisualizationType[] = [
   {
-    id: 'spectrogram',
-    name: 'Spectrogram',
+    name: 'spectrogram',
     description: 'Visualize signal strength across frequency and time',
     icon: 'bi-graph-up',
-    supportedTypes: 'sigmf',
+    supportedCaptureTypes: ['sigmf'],
   },
   {
-    id: 'waterfall',
-    name: 'Waterfall',
+    name: 'waterfall',
     description:
       'View signal data as a scrolling waterfall display with periodogram',
     icon: 'bi-water',
-    supportedTypes: 'radiohound',
+    supportedCaptureTypes: ['rh'],
   },
 ];
 
@@ -39,12 +36,11 @@ const VISUALIZATION_TYPES: VisualizationType[] = [
  * Guides users through selecting visualization type, data source, and configuration
  */
 const NewVisualizationPage = () => {
-  const { sigMFFilePairs, files } = useAppContext();
-  const syncSigMFFilePairs = useSyncSigMFFilePairs();
-  const syncFiles = useSyncFiles();
+  const { captures } = useAppContext();
+  const syncCaptures = useSyncCaptures();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedType, setSelectedType] = useState<
-    VisualizationType['id'] | null
+    VisualizationType['name'] | null
   >(null);
   const [selectedCaptureId, setSelectedCaptureId] = useState<number | null>(
     null,
@@ -56,38 +52,24 @@ const NewVisualizationPage = () => {
 
   // Handle type selection and advance to next step
   const handleTypeSelect = useCallback(
-    async (type: VisualizationType['id']) => {
+    async (type: VisualizationType['name']) => {
       setSelectedType(type);
-      // Load appropriate data based on visualization type
-      if (type === 'spectrogram') {
-        await syncSigMFFilePairs();
-      } else if (type === 'waterfall') {
-        await syncFiles();
-      }
+      syncCaptures();
       setCurrentStep(2);
     },
-    [syncSigMFFilePairs, syncFiles],
+    [syncCaptures],
   );
 
-  // Get the appropriate datasets for the selected visualization type
-  const getDatasets = useCallback(() => {
+  // Get the appropriate captures for the selected visualization type
+  const getCaptures = useCallback(() => {
     const selectedVisType = VISUALIZATION_TYPES.find(
-      (t) => t.id === selectedType,
+      (t) => t.name === selectedType,
     );
     if (!selectedVisType) return [];
-
-    if (selectedVisType.supportedTypes === 'sigmf') {
-      return sigMFFilePairs;
-    } else if (selectedVisType.supportedTypes === 'radiohound') {
-      // For now, just filter out any sigmf files
-      return files.filter(
-        (file) =>
-          !file.name.endsWith('.sigmf-meta') &&
-          !file.name.endsWith('.sigmf-data'),
-      );
-    }
-    return [];
-  }, [selectedType, sigMFFilePairs, files]);
+    return captures.filter((capture) =>
+      selectedVisType.supportedCaptureTypes.includes(capture.type),
+    );
+  }, [selectedType, captures]);
 
   // Handle capture selection and advance to next step
   const handleCaptureSelect = useCallback((id: number) => {
@@ -98,24 +80,24 @@ const NewVisualizationPage = () => {
   const renderVisualizationTypeStep = () => (
     <Row className="g-4">
       {VISUALIZATION_TYPES.map((type) => (
-        <Col key={type.id} md={6}>
+        <Col key={type.name} md={6}>
           <Card
             role="button"
             tabIndex={0}
             className={`h-100 ${
-              selectedType === type.id ? 'border-primary' : ''
+              selectedType === type.name ? 'border-primary' : ''
             }`}
-            onClick={() => handleTypeSelect(type.id)}
+            onClick={() => handleTypeSelect(type.name)}
             onKeyPress={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
-                handleTypeSelect(type.id);
+                handleTypeSelect(type.name);
               }
             }}
           >
             <Card.Body>
               <Card.Title>
                 <i className={`bi ${type.icon} me-2`}></i>
-                {type.name}
+                {type.name.charAt(0).toUpperCase() + type.name.slice(1)}
               </Card.Title>
               <Card.Text>{type.description}</Card.Text>
             </Card.Body>
@@ -127,15 +109,11 @@ const NewVisualizationPage = () => {
 
   const renderChooseCaptureStep = () => (
     <div>
-      <h6>
-        Select a {selectedType === 'spectrogram' ? 'SigMF capture' : 'file'} to
-        visualize:
-      </h6>
-      <DatasetTable
-        datasets={getDatasets()}
+      <h6>Select a capture to visualize:</h6>
+      <CaptureTable
+        captures={getCaptures()}
         selectedId={selectedCaptureId}
         onSelect={handleCaptureSelect}
-        type={selectedType === 'spectrogram' ? 'sigmf' : 'file'}
       />
     </div>
   );
