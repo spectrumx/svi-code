@@ -10,6 +10,7 @@ import NewVisualizationPage from './pages/NewVisualizationPage';
 import Header from './components/Header';
 import { useFetchSessionInfo } from './apiClient';
 import WaterfallPage from './pages/WaterfallPage';
+import SearchPage from './pages/SearchPage';
 
 function App() {
   useFetchSessionInfo();
@@ -25,7 +26,7 @@ function App() {
           <Route path="/" element={<div>Home/Dashboard</div>} />
           <Route path="workspace" element={<WorkspacePage />} />
           <Route path="mydata" element={<MyDataPage />} />
-          <Route path="search" element={<div>Search</div>} />
+          <Route path="search" element={<SearchPage />} />
           <Route path="tutorials" element={<div>Tutorials</div>} />
           <Route path="visualization/new" element={<NewVisualizationPage />} />
           <Route

@@ -1,0 +1,7 @@
+# Capture Details
+captureOwner: test_user
+name: Sample Capture 1
+file_path: /captures/sample_capture_1.dat
+timestamp: 2025-01-06T10:30:00Z
+frequency: 2.4
+location: New York

@@ -11,6 +11,38 @@ import {
   getJobResults,
 } from '../apiClient/jobService';
 
+//test code  -mm
+//const width =  8.0;
+//const height = 6.0;
+// test code ends -mm
+
+// const MyComponent: React.FC = () => {
+//   const [windowDimensions, setWindowDimensions] = useState({
+//     width: window.innerWidth,
+//     height: window.innerHeight,
+//   });
+
+//   useEffect(() => {
+//     const handleResize = () => {
+//       setWindowDimensions({
+//         width: window.innerWidth,
+//         height: window.innerHeight,
+//       });
+//     };
+
+//     window.addEventListener('resize', handleResize);
+
+//     return () => window.removeEventListener('resize', handleResize);
+//   }, []);
+
+//   return (
+//     <div>
+//       <p>Width: {windowDimensions.width}</p>
+//       <p>Height: {windowDimensions.height}</p>
+//     </div>
+//   );
+// };
+
 export interface SpectrogramSettings {
   fftSize: number;
 }
@@ -39,11 +71,15 @@ const SpectrogramPage = () => {
 
   const createSpectrogramJob = async () => {
     setIsSubmitting(true);
+    const width = window.innerWidth / 100; // added to increase/decrease size of spectrogram image
+    const height = window.innerHeight / 100; // added to increase/decrease size of spectrogram image
 
     try {
       const response = await postSpectrogramJob(
         datasetId as string,
         spectrogramSettings.fftSize,
+        width,
+        height,
       );
       setJobInfo({
         job_id: response.job_id ?? null,
@@ -107,7 +143,7 @@ const SpectrogramPage = () => {
               message: 'Fetching spectrogram results...',
               results_id: resultsId,
             }));
-            await fetchSpectrogramImage(resultsId);
+            await fetchSpectrogramImage(resultsId); // change here -mm
           } else {
             setJobInfo((prevStatus) => ({
               ...prevStatus,

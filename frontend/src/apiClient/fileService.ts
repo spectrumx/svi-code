@@ -12,20 +12,59 @@ export type SigMFFilePair = {
 
 export type SigMFFilePairResponse = SigMFFilePair[];
 
-export const getSigMFCaptures = async () => {
-  const response = await apiClient.get('/api/sigmf-file-pairs/');
-  return response.data as SigMFFilePairResponse;
+export type Capture = {
+  name: string;
+  timestamp: string;
+  frequency: number;
+  location: string;
+  file_path: string;
+};
+
+export type CaptureResponse = Capture[];
+
+export type IntegratedResponse = {
+  id: number;
+  name: string;
+  timestamp: string;
+  frequency: number;
+  location: string;
+  source: string;
+  captureformat: string;
+}[];
+
+// integrated response captured here
+export const getIntegratedView = async () => {
+  const response = await apiClient.get('/api/integratedview/');
+  return response.data as IntegratedResponse;
+};
+
+export const getCaptures = async () => {
+  const response = await apiClient.get('/api/captures/');
+  return response.data as CaptureResponse;
 };
 
 export const useSyncCaptures = () => {
   const { setCaptures } = useAppContext();
   const syncCaptures = useCallback(async () => {
-    setCaptures(await getSigMFCaptures());
+    setCaptures(await getCaptures());
   }, [setCaptures]);
   return syncCaptures;
 };
 
-export const postSigMFCapture = async (dataFile: Blob, metaFile: Blob) => {
+export const getSigMFFilePairs = async () => {
+  const response = await apiClient.get('/api/sigmf-file-pairs/');
+  return response.data as SigMFFilePairResponse;
+};
+
+export const useSyncSigMFFilePairs = () => {
+  const { setSigMFFilePairs } = useAppContext();
+  const syncSigMFFilePairs = useCallback(async () => {
+    setSigMFFilePairs(await getSigMFFilePairs());
+  }, [setSigMFFilePairs]);
+  return syncSigMFFilePairs;
+};
+
+export const postSigMFFilePair = async (dataFile: Blob, metaFile: Blob) => {
   const formData = new FormData();
   formData.append('data_file', dataFile);
   formData.append('meta_file', metaFile);

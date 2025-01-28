@@ -32,6 +32,7 @@ class Job(models.Model):
         ("failed", "Failed"),
     ]
     type = models.CharField(max_length=255)
+    config = models.JSONField(default=dict, blank=True) # new field added to include configurations passed from front end 
     status = models.CharField(max_length=255, choices=STATUS_CHOICES, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

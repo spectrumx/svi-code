@@ -20,11 +20,15 @@ export interface JobResponse {
 export const postSpectrogramJob = async (
   sigMfId: string,
   fftSize: number,
+  width: number,
+  height: number,
 ): Promise<JobResponse> => {
   const response = await apiClient.post(
     `/api/sigmf-file-pairs/${sigMfId}/create_spectrogram/`,
     {
       fft_size: fftSize,
+      width: width,
+      height: height,
     },
   );
   return response.data;
@@ -47,6 +51,7 @@ export const getJobMetadata = async (jobId: number): Promise<JobResponse> => {
  * @param resultsId - The ID of the results to fetch
  * @returns Promise containing the blob data
  */
+// change here -- mm -- delete width and height params while undoing
 export const getJobResults = async (resultsId: string): Promise<Blob> => {
   const response = await apiClient.get(
     `/api/jobs/job-data/${resultsId}/?download=true`,

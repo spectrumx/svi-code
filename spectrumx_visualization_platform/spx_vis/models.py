@@ -18,7 +18,7 @@ class File(models.Model):
         updated_at:         The timestamp when the file was last updated.
         local_path:         The path to the file on the local filesystem.
     """
-
+    
     owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
     file = models.FileField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -49,13 +49,13 @@ class SigMFFilePair(models.Model):
         File,
         on_delete=models.CASCADE,
         related_name="data_file",
-        validators=[FileExtensionValidator(allowed_extensions=["sigmf-data"])],
+     #   validators=[FileExtensionValidator(allowed_extensions=["sigmf-data"])],
     )
     meta_file = models.ForeignKey(
         File,
         on_delete=models.CASCADE,
         related_name="meta_file",
-        validators=[FileExtensionValidator(allowed_extensions=["sigmf-meta"])],
+    #   validators=[FileExtensionValidator(allowed_extensions=["sigmf-meta"])],
     )
 
     def __str__(self) -> str:
@@ -67,14 +67,50 @@ class SigMFFilePair(models.Model):
 
 #     # TODO: Implement this model.
 
+class Capture(models.Model):
 
-# class Capture(models.Model):
 #     """A collection of related RF files."""
+    captureOwner = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    capturename= models.CharField(max_length=255)
+    file_path = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    frequency = models.FloatField()
+    location = models.CharField(max_length=255, blank=True, null=True)
+    
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=["captureOwner", "capturename"], name="unique_capturefilename_for_user"),
+        ]
 
-#     # TODO: Implement this model.
+    def __str__(self) -> str:
+        return self.capturename
+
+
+    
+
+#     """A collection of related RF files."""
+# integrated view: combined the SigMFFilePair  and newly created capture
+class CaptureDatasetIntegrated(models.Model):
+
+    sigmf_filepair = models.ForeignKey(SigMFFilePair, on_delete=models.CASCADE, related_name = "integrated_sigmf", null=True)
+    #capture = models.ForeignKey(Capture, on_delete=models.CASCADE, related_name="integrated_captures")
+    file_name = models.CharField(max_length=255) 
+    timestamp = models.DateTimeField(auto_now_add=True)
+    frequency = models.FloatField()
+    location = models.CharField(max_length=255, blank=True, null=True)
+    captureformat =  models.CharField(max_length=255, null=True)
+    source = models.CharField(max_length=255, null=True)
+
+
+    def __str__(self) -> str:
+        return self.file_name
+
+
 
 
 __all__ = [
     "File",
     "SigMFFilePair",
+    "Capture",
+    "CaptureDatasetIntegrated",
 ]

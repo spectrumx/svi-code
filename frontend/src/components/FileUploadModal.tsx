@@ -1,7 +1,7 @@
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
-import { postSigMFCapture } from '../apiClient/fileService';
+import { postSigMFFilePair } from '../apiClient/fileService';
 import { useState } from 'react';
 import { Alert } from 'react-bootstrap';
 
@@ -26,7 +26,7 @@ const FileUploadModal = ({
     const metaFile = formData.get('metaFile') as Blob;
 
     try {
-      await postSigMFCapture(dataFile, metaFile);
+      await postSigMFFilePair(dataFile, metaFile);
       handleSuccess();
       handleClose();
     } catch (error) {

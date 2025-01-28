@@ -6,12 +6,7 @@ import Button from '../components/Button';
 import DatasetTable from '../components/DatasetTable';
 import { useAppContext } from '../utils/AppContext';
 import { SpectrogramSettings } from './SpectrogramPage';
-import {
-  useSyncCaptures,
-  useSyncFiles,
-  SigMFFilePair,
-  FileMetadata,
-} from '../apiClient/fileService';
+import { useSyncSigMFFilePairs, useSyncFiles } from '../apiClient/fileService';
 
 interface VisualizationType {
   id: 'spectrogram' | 'waterfall';
@@ -44,8 +39,8 @@ const VISUALIZATION_TYPES: VisualizationType[] = [
  * Guides users through selecting visualization type, data source, and configuration
  */
 const NewVisualizationPage = () => {
-  const { captures, files } = useAppContext();
-  const syncCaptures = useSyncCaptures();
+  const { sigMFFilePairs, files } = useAppContext();
+  const syncSigMFFilePairs = useSyncSigMFFilePairs();
   const syncFiles = useSyncFiles();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedType, setSelectedType] = useState<
@@ -65,13 +60,13 @@ const NewVisualizationPage = () => {
       setSelectedType(type);
       // Load appropriate data based on visualization type
       if (type === 'spectrogram') {
-        await syncCaptures();
+        await syncSigMFFilePairs();
       } else if (type === 'waterfall') {
         await syncFiles();
       }
       setCurrentStep(2);
     },
-    [syncCaptures, syncFiles],
+    [syncSigMFFilePairs, syncFiles],
   );
 
   // Get the appropriate datasets for the selected visualization type
@@ -82,7 +77,7 @@ const NewVisualizationPage = () => {
     if (!selectedVisType) return [];
 
     if (selectedVisType.supportedTypes === 'sigmf') {
-      return captures;
+      return sigMFFilePairs;
     } else if (selectedVisType.supportedTypes === 'radiohound') {
       // For now, just filter out any sigmf files
       return files.filter(
@@ -92,7 +87,7 @@ const NewVisualizationPage = () => {
       );
     }
     return [];
-  }, [selectedType, captures, files]);
+  }, [selectedType, sigMFFilePairs, files]);
 
   // Handle capture selection and advance to next step
   const handleCaptureSelect = useCallback((id: number) => {
