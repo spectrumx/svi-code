@@ -105,7 +105,7 @@ const initialState: ScanState = {
   scaleMax: undefined as number | undefined,
 };
 
-export const waterfall_max_rows = 80;
+export const WATERFALL_MAX_ROWS = 80;
 
 export type Application = ApplicationType | ApplicationType[];
 
@@ -138,13 +138,14 @@ const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
     setScan((prevScan) => ({ ...prevScan, chart }));
   };
   const setWaterfall = (waterfall: WaterfallType) => {
+    console.log('setWaterfall called with:', waterfall);
     const localScaleMin = waterfall.scaleMin ?? scan.scaleMin;
     const localScaleMax = waterfall.scaleMax ?? scan.scaleMax;
-    const tmpData = _.cloneDeep(scan.allData);
-    if (waterfall.periodogram !== undefined) {
-      tmpData.push(waterfall.periodogram);
-    }
-    while (tmpData.length > waterfall_max_rows) {
+    const tmpData = _.cloneDeep(waterfall.allData ?? scan.allData);
+    // if (waterfall.periodogram !== undefined) {
+    //   tmpData.push(waterfall.periodogram);
+    // }
+    while (tmpData.length > WATERFALL_MAX_ROWS) {
       tmpData.shift();
     }
     const tmpScan = _.cloneDeep(scan);
@@ -162,7 +163,7 @@ const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
   };
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
 
-  const processPeriodogram = (input: PeriodogramType) => {
+  const processPeriodogramData = (input: PeriodogramType) => {
     let dataArray: FloatArray | number[] | undefined;
     let arrayLength: number | undefined = Number(input.metadata?.xcount);
     const pointArr: DataPoint[] = [];
@@ -400,24 +401,24 @@ const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
       tmpChart.data[nextIndex].toolTipContent = 'Median : {x}, {y}';
     }
 
-    // Waterfall data follows
-    if (currentApplication.includes('WATERFALL')) {
-      const newWaterfall = {
-        periodogram: intArray,
-        xMin: Number(input.metadata?.xstart),
-        xMax: Number(input.metadata?.xstop),
-        yMin: minValue,
-        yMax: maxValue,
-      };
-      //waterfall.periodogram = [];
-      //waterfall.allData.push(intArray);
-      //waterfall.maxSize = DEFS.WATERFALL_MAX_ROWS;
-      //while (waterfall.allData.length > waterfall.maxSize) {
-      //waterfall.allData.shift();
-      //}
-      console.log('calling dispatch with:', newWaterfall);
-      setWaterfall(newWaterfall);
-    }
+    // // Waterfall data follows
+    // if (currentApplication.includes('WATERFALL')) {
+    //   const newWaterfall = {
+    //     periodogram: intArray,
+    //     xMin: Number(input.metadata?.xstart),
+    //     xMax: Number(input.metadata?.xstop),
+    //     yMin: minValue,
+    //     yMax: maxValue,
+    //   };
+    //   //waterfall.periodogram = [];
+    //   //waterfall.allData.push(intArray);
+    //   //waterfall.maxSize = DEFS.WATERFALL_MAX_ROWS;
+    //   //while (waterfall.allData.length > waterfall.maxSize) {
+    //   //waterfall.allData.shift();
+    //   //}
+    //   console.log('calling dispatch with:', newWaterfall);
+    //   setWaterfall(newWaterfall);
+    // }
 
     // Determine viewing area based off min/max
     if (
@@ -470,9 +471,89 @@ const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
     return;
   };
 
+  /**
+   * Processes multiple captures for the waterfall display
+   */
+  const processWaterfallData = (captures: PeriodogramType[]) => {
+    const processedData: number[][] = [];
+    let globalMinValue = 100000;
+    let globalMaxValue = -100000;
+    let xMin = Number.MAX_VALUE;
+    let xMax = Number.MIN_VALUE;
+
+    captures.forEach((capture) => {
+      let dataArray: FloatArray | number[] | undefined;
+      // const arrayLength = Number(capture.metadata?.xcount);
+
+      // Process the data array similar to existing logic
+      if (typeof capture.data === 'string') {
+        if (capture.data.slice(0, 8) === 'AAAAAAAA') {
+          console.log('Invalid data, skipping capture');
+          return;
+        }
+        dataArray = binaryStringToFloatArray(capture.data, capture.type);
+      } else {
+        dataArray = capture.data;
+      }
+
+      if (!dataArray) return;
+
+      // Convert to dB values
+      // const intArray: number[] = [];
+      const yValues = dataArray.map((i) =>
+        Math.round(10 * (Math.log(i * 1000) / Math.log(10))),
+      );
+
+      // Update global min/max
+      const minValue = Math.min(...Array.from(yValues));
+      const maxValue = Math.max(...Array.from(yValues));
+      globalMinValue = Math.min(globalMinValue, minValue);
+      globalMaxValue = Math.max(globalMaxValue, maxValue);
+
+      // Update x range
+      const currentXMin = Number(capture.metadata?.xstart);
+      const currentXMax = Number(capture.metadata?.xstop);
+      xMin = Math.min(xMin, currentXMin);
+      xMax = Math.max(xMax, currentXMax);
+
+      // Store processed values
+      processedData.push(Array.from(yValues));
+    });
+
+    // Trim to maximum rows if needed
+    while (processedData.length > WATERFALL_MAX_ROWS) {
+      processedData.shift();
+    }
+
+    // Update waterfall state
+    const newWaterfall: WaterfallType = {
+      periodogram: processedData[processedData.length - 1], // Most recent capture for periodogram
+      allData: processedData,
+      xMin,
+      xMax,
+      yMin: globalMinValue,
+      yMax: globalMaxValue,
+      scaleMin: scan.scaleMin,
+      scaleMax: scan.scaleMax,
+    };
+
+    setWaterfall(newWaterfall);
+  };
+
   useEffect(() => {
     console.log('Running useEffect in WaterfallVisualization');
-    processPeriodogram(data[settings.captureIndex]);
+    // Process single capture for periodogram
+    processPeriodogramData(data[settings.captureIndex]);
+
+    // Process all captures for waterfall
+    // Determine range of captures to process based on current index
+    const startIndex = Math.max(
+      0,
+      settings.captureIndex - WATERFALL_MAX_ROWS + 1,
+    );
+    const endIndex = Math.min(data.length, startIndex + WATERFALL_MAX_ROWS);
+    const relevantCaptures = data.slice(startIndex, endIndex);
+    processWaterfallData(relevantCaptures);
   }, [data, settings.captureIndex]);
 
   return (

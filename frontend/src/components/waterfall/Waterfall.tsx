@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
 import { ScanState, WaterfallType } from './types';
-import { waterfall_max_rows } from './index';
+import { WATERFALL_MAX_ROWS } from './index';
 
 interface WaterfallProps {
   scan: ScanState;
@@ -19,7 +19,6 @@ function Waterfall({
   setResetScale,
 }: WaterfallProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const waterfall = scan;
 
   // Update canvas size only once on mount
   useEffect(() => {
@@ -52,12 +51,12 @@ function Waterfall({
     canvas: HTMLCanvasElement,
     resetScaleCallback: () => void,
   ) {
-    const waterfallCopy = _.cloneDeep(waterfall);
-    const dataset = waterfallCopy.periodogram;
+    const scanCopy = _.cloneDeep(scan);
+    const allData = scanCopy.allData as number[][];
     let redrawLegend = 0;
 
-    console.log('in processWaterfall: waterfall object', waterfall);
-    if (Array.isArray(dataset) && dataset.length > 0) {
+    console.log('in processWaterfall: scan object', scan);
+    if (allData && allData.length > 0) {
       const context = canvas.getContext('2d');
       const labelWidth = 60;
       const margin = {
@@ -71,20 +70,18 @@ function Waterfall({
       const height = canvas.height - margin.top - margin.bottom;
       console.log('width, height:', width, height);
 
-      const startingFrequency = waterfallCopy.options.startingFrequency;
-      const endingFrequency = waterfallCopy.options.endingFrequency;
+      const { startingFrequency, endingFrequency } = scanCopy.options;
 
-      const maxSize = waterfall_max_rows; //that.maxSize = that.seconds * that.jobsPerSecond;
+      const maxSize = WATERFALL_MAX_ROWS; //that.maxSize = that.seconds * that.jobsPerSecond;
       const rectHeight = height / maxSize;
       const rectWidth = width / (endingFrequency - startingFrequency);
       console.log('rectWidth, rectHeight:', rectWidth, rectHeight);
 
-      let yMin = waterfallCopy.yMin;
-      let yMax = waterfallCopy.yMax;
-      const { scaleMin, scaleMax } = waterfallCopy.display;
+      let { yMin, yMax } = scanCopy;
+      const { scaleMin, scaleMax } = scanCopy.display;
 
       const x = scaleLinear().range([0, width]);
-      x.domain([0, dataset.length - 1]);
+      x.domain([0, allData[0].length - 1]);
 
       const y = scaleLinear().range([0, height]);
       y.domain([0, maxSize]);
@@ -100,7 +97,10 @@ function Waterfall({
             // .interpolate(d3.interpolateHcl)
             undefined;
 
-      if (waterfallCopy.display.resetScale && context) {
+      console.log('scanCopy.display.resetScale:', scanCopy.display.resetScale);
+      console.log('context:', context);
+      if (scanCopy.display.resetScale && context) {
+        console.log('rescaling and redrawing');
         // Rescale the color gradient to min/max values and redraw entire graph
 
         // The following block of code clears the entire canvas without
@@ -114,69 +114,60 @@ function Waterfall({
         context.restore();
 
         //console.log("old ymin/max:",yMin,yMax);
-        waterfallCopy.allData
-          .slice()
-          .reverse()
-          .forEach(function (data) {
-            if (Array.isArray(data)) {
-              data.forEach((element) => {
-                if (yMin === undefined || element < yMin) {
-                  yMin = element;
-                }
-                if (yMax === undefined || element > yMax) {
-                  yMax = element;
-                }
-              });
+        allData.forEach((row) => {
+          row.forEach((value) => {
+            if (yMin === undefined || value < yMin) {
+              yMin = value;
+            }
+            if (yMax === undefined || value > yMax) {
+              yMax = value;
             }
           });
+        });
         //console.log("new ymin/max:",yMin,yMax);
 
         //waterfall.display.scaleMin = Math.round(yMin * 100) / 100;
         //waterfall.display.scaleMax = Math.round(yMax * 100) / 100;
-        waterfallCopy.display.scaleMin = yMin;
-        waterfallCopy.display.scaleMax = yMax;
-        if (yMin < waterfallCopy.yMin) {
-          waterfallCopy.yMin = yMin;
+        scanCopy.display.scaleMin = yMin;
+        scanCopy.display.scaleMax = yMax;
+        if (yMin < scanCopy.yMin) {
+          scanCopy.yMin = yMin;
         }
-        if (yMax > waterfallCopy.yMax) {
-          waterfallCopy.yMax = yMax;
+        if (yMax > scanCopy.yMax) {
+          scanCopy.yMax = yMax;
         }
 
         // We made a dispatch call to reset the min/max values
         // But, unset periodogram so we aren't duplicating it inside allData
-        waterfallCopy.periodogram = undefined;
-        setWaterfall(waterfallCopy);
+        scanCopy.periodogram = undefined;
+        setWaterfall(scanCopy);
 
         colorScale = scaleLinear(
-          [waterfallCopy.display.scaleMin, waterfallCopy.display.scaleMax],
+          [scanCopy.display.scaleMin, scanCopy.display.scaleMax],
           [rgb('#0000FF'), rgb('#FF0000')],
         ).interpolate(interpolateHslLong);
 
         // context.translate(labelWidth + margin.left, margin.top + 5);
 
-        waterfallCopy.allData
-          .slice()
-          .reverse()
-          .forEach(function (data, index) {
-            if (Array.isArray(data)) {
-              data.forEach((value, xIndex) => {
-                if (colorScale) {
-                  console.log('Drawing allDatacanvas square:', xIndex, value);
-                  drawCanvasSquare(
-                    context,
-                    xIndex,
-                    value,
-                    index,
-                    colorScale,
-                    rectWidth,
-                    rectHeight,
-                  );
-                } else {
-                  console.log('color is undefined');
-                }
-              });
+        // console.log('allData before draw:', allData);
+        allData.forEach((row, rowIndex) => {
+          row.forEach((value, colIndex) => {
+            if (colorScale) {
+              // console.log('Drawing allDatacanvas square:', colIndex, value);
+              drawCanvasSquare(
+                context,
+                colIndex,
+                value,
+                rowIndex,
+                colorScale,
+                rectWidth,
+                rectHeight,
+              );
+            } else {
+              console.log('color scale is undefined');
             }
           });
+        });
 
         resetScaleCallback();
         redrawLegend = 1;
@@ -185,7 +176,7 @@ function Waterfall({
       if (
         (isCanvasBlank(canvas) ||
           redrawLegend ||
-          waterfallCopy.display.scaleChanged) &&
+          scanCopy.display.scaleChanged) &&
         context
       ) {
         // Legend
@@ -214,8 +205,8 @@ function Waterfall({
           context.strokeStyle = dbValColor;
           context.fillStyle = dbValColor;
           if (
-            dbVal > Number(waterfallCopy.display.scaleMin) &&
-            dbVal < Number(waterfallCopy.display.scaleMax)
+            dbVal > Number(scanCopy.display.scaleMin) &&
+            dbVal < Number(scanCopy.display.scaleMax)
           ) {
             context.fillRect(2, legend, 20, 1);
           }
@@ -224,40 +215,36 @@ function Waterfall({
         setScaleChanged(false);
       }
 
-      if (waterfallCopy.periodogram !== undefined && context) {
-        // Copy existing plot and move it down one row.
-        //console.log(labelWidth, margin.top, width, height-rectHeight);
-        const periodogram = context.getImageData(
-          labelWidth,
-          margin.top,
-          width + 5,
-          height - rectHeight,
-        );
-        context.putImageData(periodogram, labelWidth, rectHeight + margin.top);
+      if (context) {
+        // // Copy existing plot and move it down one row.
+        // //console.log(labelWidth, margin.top, width, height-rectHeight);
+        // const periodogram = context.getImageData(
+        //   labelWidth,
+        //   margin.top,
+        //   width + 5,
+        //   height - rectHeight,
+        // );
+        // context.putImageData(periodogram, labelWidth, rectHeight + margin.top);
 
-        // Draw newest data on the top row
-        dataset.forEach(function (yValue, index) {
-          // console.log('waterfall:', color(yValue), yValue, index);
-          if (yValue < Number(waterfallCopy.display.scaleMin)) {
-            yValue = Number(waterfallCopy.display.scaleMin);
-          }
-          if (yValue > Number(waterfallCopy.display.scaleMax)) {
-            yValue = Number(waterfallCopy.display.scaleMax);
-          }
-          if (colorScale) {
-            // console.log('Drawing dataset canvas square:', index, yValue);
-            drawCanvasSquare(
-              context,
-              index,
-              yValue,
-              0,
-              colorScale,
-              rectWidth,
-              rectHeight,
-            );
-          } else {
-            console.log('color is undefined');
-          }
+        console.log('Drawing all data');
+        // Draw all data at once instead of moving existing data
+        allData.forEach((row, rowIndex) => {
+          row.forEach((value, colIndex) => {
+            if (colorScale) {
+              // console.log('Drawing dataset canvas square:', colIndex, value);
+              drawCanvasSquare(
+                context,
+                colIndex,
+                value,
+                rowIndex,
+                colorScale,
+                rectWidth,
+                rectHeight,
+              );
+            } else {
+              console.log('color scale is undefined');
+            }
+          });
         });
       }
     }

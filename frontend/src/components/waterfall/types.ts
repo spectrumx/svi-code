@@ -181,7 +181,9 @@ export interface ScanState {
 
 export interface WaterfallType
   extends Pick<ScanState, 'periodogram' | 'xMin' | 'xMax'>,
-    Partial<Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax'>> {}
+    Partial<
+      Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax' | 'allData'>
+    > {}
 
 export type ApplicationType =
   | 'WATERFALL'
