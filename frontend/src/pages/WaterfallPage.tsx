@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 // import { useParams } from 'react-router';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 
-import {
-  WaterfallVisualization,
-  PeriodogramType,
-} from '../components/waterfall';
+import { WaterfallVisualization } from '../components/waterfall';
+import { PeriodogramType } from '../components/waterfall/types';
 import WaterfallControls from '../components/waterfall/WaterfallControls';
 import { getCaptures, Capture, getFileContent } from '../apiClient/fileService';
 

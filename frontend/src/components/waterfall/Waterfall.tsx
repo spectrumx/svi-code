@@ -2,7 +2,8 @@ import { useRef, useEffect } from 'react';
 import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
-import { ScanState, waterfall_max_rows, WaterfallType } from './index';
+import { ScanState, WaterfallType } from './types';
+import { waterfall_max_rows } from './index';
 
 interface WaterfallProps {
   scan: ScanState;
