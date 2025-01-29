@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+// import { useParams } from 'react-router';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 
 import {
@@ -7,50 +7,66 @@ import {
   PeriodogramType,
 } from '../components/waterfall';
 import WaterfallControls from '../components/waterfall/WaterfallControls';
-import {
-  getFileMetadata,
-  FileMetadata,
-  getFileContent,
-} from '../apiClient/fileService';
+import { getCaptures, Capture, getFileContent } from '../apiClient/fileService';
 
-const WaterfallPage = () => {
-  const { datasetId } = useParams();
-  const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
-  const [file, setFile] = useState<PeriodogramType | null>(null);
+interface WaterfallData {
+  capture: Capture;
+  fileData: PeriodogramType;
+}
+
+export const WaterfallPage = () => {
+  const [waterfallData, setWaterfallData] = useState<WaterfallData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchFile = async () => {
+    const fetchRadiohoundData = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        const fileMetadata = await getFileMetadata(Number(datasetId));
-        setFileMetadata(fileMetadata);
-        const fileData = await getFileContent(fileMetadata.id);
-        setFile(fileData);
+        // Fetch all captures and filter for RadioHound data
+        const captures = await getCaptures();
+        const radiohoundCaptures = captures.filter(
+          (capture) => capture.type === 'rh',
+        );
+
+        // Fetch file content for each RadioHound capture
+        const waterfallPromises = radiohoundCaptures.map(async (capture) => {
+          // Assuming we want the first file from each capture
+          const fileId = capture.files[0]?.id;
+          if (!fileId) {
+            throw new Error(`No files found for capture ${capture.id}`);
+          }
+          const fileData = await getFileContent(fileId);
+          return {
+            capture,
+            fileData,
+          };
+        });
+
+        const results = await Promise.all(waterfallPromises);
+        setWaterfallData(results);
       } catch (err) {
         setError(
           err instanceof Error
             ? err.message
-            : 'An error occurred while fetching the file data',
+            : 'An error occurred while fetching RadioHound data',
         );
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (datasetId) {
-      fetchFile();
-    }
-  }, [datasetId]);
+    fetchRadiohoundData();
+  }, []);
 
   if (isLoading) {
     return (
       <div
         className="d-flex justify-content-center align-items-center"
         style={{ minHeight: '200px' }}
+        aria-live="polite"
       >
         <Spinner animation="border" role="status">
           <span className="visually-hidden">Loading...</span>
@@ -68,18 +84,18 @@ const WaterfallPage = () => {
     );
   }
 
-  if (!file) {
+  if (waterfallData.length === 0) {
     return (
       <Alert variant="warning">
-        <Alert.Heading>No Data Found</Alert.Heading>
-        <p>No data found for this dataset</p>
+        <Alert.Heading>No RadioHound Data Found</Alert.Heading>
+        <p>No RadioHound captures are currently available</p>
       </Alert>
     );
   }
 
   return (
     <>
-      <h5>Waterfall for file: {fileMetadata?.name}</h5>
+      <h5>Waterfall</h5>
       <br />
       <Row>
         <Col xs={3} style={{ maxWidth: 200 }}>
@@ -88,7 +104,9 @@ const WaterfallPage = () => {
           </div>
         </Col>
         <Col>
-          <WaterfallVisualization data={file} />
+          <WaterfallVisualization
+            data={waterfallData.map((data) => data.fileData)}
+          />
         </Col>
       </Row>
     </>

@@ -19,7 +19,6 @@ from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 
 
-# CaptureView added
 class CaptureViewSet(viewsets.ModelViewSet):
     queryset = Capture.objects.all()
     serializer_class = CaptureSerializer

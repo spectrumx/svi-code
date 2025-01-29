@@ -29,6 +29,7 @@ const CaptureTable = ({
           <th>Name</th>
           <th>Timestamp</th>
           <th>Type</th>
+          <th>Files</th>
           <th>Source</th>
           {!onSelect && <th></th>}
         </tr>
@@ -38,6 +39,10 @@ const CaptureTable = ({
           const visualizationType = VISUALIZATION_TYPES.find((visType) =>
             visType.supportedCaptureTypes.includes(capture.type),
           );
+          // For now, we're just displaying all RadioHound captures in the
+          // waterfall visualization
+          const captureId =
+            visualizationType?.name === 'waterfall' ? '' : capture.id;
 
           return (
             <tr
@@ -70,11 +75,12 @@ const CaptureTable = ({
                 {new Date(capture.timestamp).toLocaleDateString()}
               </td>
               <td className="align-middle">{capture.type}</td>
+              <td className="align-middle">{capture.files.length}</td>
               <td className="align-middle">{capture.source}</td>
               {!onSelect && visualizationType && (
                 <td className="align-middle text-center">
                   <Link
-                    to={`/visualization/${visualizationType.name}/${capture.id}`}
+                    to={`/visualization/${visualizationType.name}/${captureId}`}
                     className="btn btn-primary btn-sm px-4"
                   >
                     Visualize

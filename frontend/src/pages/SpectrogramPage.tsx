@@ -55,7 +55,7 @@ export interface JobInfo {
 }
 
 const SpectrogramPage = () => {
-  const { datasetId } = useParams();
+  const { captureId } = useParams();
 
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
@@ -76,7 +76,7 @@ const SpectrogramPage = () => {
 
     try {
       const response = await postSpectrogramJob(
-        datasetId as string,
+        captureId as string,
         spectrogramSettings.fftSize,
         width,
         height,
@@ -175,7 +175,7 @@ const SpectrogramPage = () => {
 
   return (
     <>
-      <h5>Spectrogram for dataset {datasetId}</h5>
+      <h5>Spectrogram for capture {captureId}</h5>
       <br />
       <Row>
         <Col xs={3} style={{ maxWidth: 200 }}>

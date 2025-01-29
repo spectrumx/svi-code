@@ -293,7 +293,7 @@ function Periodogram({
       //while (waterfall.allData.length > waterfall.maxSize) {
       //waterfall.allData.shift();
       //}
-      // console.log("calling dispatch with:", waterfall);
+      console.log('calling dispatch with:', newWaterfall);
       setWaterfall(newWaterfall);
     }
 

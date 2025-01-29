@@ -16,9 +16,7 @@ function App() {
   useFetchSessionInfo();
 
   return (
-    <div
-    // className="App"
-    >
+    <div>
       <Header />
       <div className="content-container">
         <Routes>
@@ -30,11 +28,12 @@ function App() {
           <Route path="tutorials" element={<div>Tutorials</div>} />
           <Route path="visualization/new" element={<NewVisualizationPage />} />
           <Route
-            path="visualization/spectrogram/:datasetId"
+            path="visualization/spectrogram/:captureId"
             element={<SpectrogramPage />}
           />
           <Route
-            path="visualization/waterfall/:datasetId"
+            // path="visualization/waterfall/:captureId"
+            path="visualization/waterfall"
             element={<WaterfallPage />}
           />
           <Route path="token" element={<TokenPage />} />

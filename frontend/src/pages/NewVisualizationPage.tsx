@@ -45,6 +45,9 @@ const NewVisualizationPage = () => {
   const [selectedCaptureId, setSelectedCaptureId] = useState<number | null>(
     null,
   );
+  // For now, we're just displaying all RadioHound captures in the
+  // waterfall visualization
+  const finalCaptureId = selectedType === 'waterfall' ? '' : selectedCaptureId;
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
@@ -231,9 +234,7 @@ const NewVisualizationPage = () => {
                 >
                   Back
                 </Button>
-                <Link
-                  to={`/visualization/${selectedType}/${selectedCaptureId}`}
-                >
+                <Link to={`/visualization/${selectedType}/${finalCaptureId}`}>
                   <Button
                     variant="primary"
                     disabled={!selectedType || !selectedCaptureId}

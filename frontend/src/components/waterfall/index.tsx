@@ -323,7 +323,7 @@ export function formatHertz(bytes: number, decimals = 2) {
 }
 
 interface WaterfallProps {
-  data: PeriodogramType;
+  data: PeriodogramType[];
 }
 
 const WaterfallVisualization = ({ data }: WaterfallProps) => {
@@ -373,11 +373,12 @@ const WaterfallVisualization = ({ data }: WaterfallProps) => {
     }
   };
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
+  const [currCaptureIndex, _setCurrCaptureIndex] = useState(0);
 
   return (
     <>
       <Periodogram
-        data={data}
+        data={data[currCaptureIndex]}
         currentApplication={currentApplication}
         scanDisplay={scanDisplay}
         setScanDisplay={setScanDisplay}

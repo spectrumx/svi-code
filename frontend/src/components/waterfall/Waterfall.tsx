@@ -20,6 +20,36 @@ function Waterfall({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const waterfall = scan;
 
+  // Update canvas size only once on mount
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const container = canvas.parentElement;
+    if (!container) return;
+
+    // Get the container's width
+    const { width } = container.getBoundingClientRect();
+
+    // Set canvas width to match container width, accounting for device pixel ratio
+    const pixelRatio = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(width * pixelRatio);
+    canvas.height = 500 * pixelRatio; // Maintain 500px height, adjusted for pixel ratio
+
+    // Scale the canvas CSS size back down
+    canvas.style.width = `${width}px`;
+    canvas.style.height = '500px';
+
+    // Adjust canvas context for high DPI displays
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.scale(pixelRatio, pixelRatio);
+    }
+
+    // Initial waterfall draw
+    processWaterfall(canvas, () => setResetScale(false));
+  }, []); // Empty dependency array means this only runs once on mount
+
   function processWaterfall(
     canvas: HTMLCanvasElement,
     resetScaleCallback: () => void,
@@ -41,24 +71,28 @@ function Waterfall({
       };
       const width = canvas.width - margin.left - margin.right - labelWidth;
       const height = canvas.height - margin.top - margin.bottom;
+      console.log('width, height:', width, height);
+
+      const startingFrequency = waterfallCopy.options.startingFrequency;
+      const endingFrequency = waterfallCopy.options.endingFrequency;
 
       const maxSize = waterfall_max_rows; //that.maxSize = that.seconds * that.jobsPerSecond;
       const rectHeight = height / maxSize;
-      const rectWidth = width / dataset.length;
+      const rectWidth = width / (endingFrequency - startingFrequency);
+      console.log('rectWidth, rectHeight:', rectWidth, rectHeight);
 
       let yMin = waterfallCopy.yMin;
       let yMax = waterfallCopy.yMax;
       const { scaleMin, scaleMax } = waterfallCopy.display;
 
       const x = scaleLinear().range([0, width]);
-      //x.domain([xMin, xMax]);
       x.domain([0, dataset.length - 1]);
 
       const y = scaleLinear().range([0, height]);
       y.domain([0, maxSize]);
 
       // console.log('scalemin/max', waterfall.display.scaleMin, waterfall.display.scaleMax)
-      let color =
+      let colorScale =
         scaleMin && scaleMax
           ? scaleLinear(
               [scaleMin, scaleMax],
@@ -109,11 +143,13 @@ function Waterfall({
         if (yMax > waterfallCopy.yMax) {
           waterfallCopy.yMax = yMax;
         }
+
         // We made a dispatch call to reset the min/max values
         // But, unset periodogram so we aren't duplicating it inside allData
         waterfallCopy.periodogram = undefined;
         setWaterfall(waterfallCopy);
-        color = scaleLinear(
+
+        colorScale = scaleLinear(
           [waterfallCopy.display.scaleMin, waterfallCopy.display.scaleMax],
           [rgb('#0000FF'), rgb('#FF0000')],
         ).interpolate(interpolateHslLong);
@@ -125,14 +161,15 @@ function Waterfall({
           .reverse()
           .forEach(function (data, index) {
             if (Array.isArray(data)) {
-              data.forEach((element, xIndex) => {
-                if (color) {
+              data.forEach((value, xIndex) => {
+                if (colorScale) {
+                  console.log('Drawing allDatacanvas square:', xIndex, value);
                   drawCanvasSquare(
                     context,
                     xIndex,
-                    element,
+                    value,
                     index,
-                    color,
+                    colorScale,
                     rectWidth,
                     rectHeight,
                   );
@@ -175,7 +212,7 @@ function Waterfall({
           if (Math.ceil(dbVal / 10) * 10 < saveDbVal) {
             skipCount = 0;
           }
-          const dbValColor = color?.(dbVal) ?? 'black';
+          const dbValColor = colorScale?.(dbVal) ?? 'black';
           context.strokeStyle = dbValColor;
           context.fillStyle = dbValColor;
           if (
@@ -209,13 +246,14 @@ function Waterfall({
           if (yValue > Number(waterfallCopy.display.scaleMax)) {
             yValue = Number(waterfallCopy.display.scaleMax);
           }
-          if (color) {
+          if (colorScale) {
+            // console.log('Drawing dataset canvas square:', index, yValue);
             drawCanvasSquare(
               context,
               index,
               yValue,
               0,
-              color,
+              colorScale,
               rectWidth,
               rectHeight,
             );
@@ -228,16 +266,16 @@ function Waterfall({
   }
 
   useEffect(() => {
-    console.log('Running useEffect in Waterfall');
     if (canvasRef.current) {
-      console.log('Running processWaterfall in Waterfall');
       processWaterfall(canvasRef.current, () => setResetScale(false));
-    } else {
-      console.log('canvasRef.current is null');
     }
   }, [scan]);
 
-  return <canvas key="waterfall" ref={canvasRef} width="100%" height="500px" />;
+  return (
+    <div style={{ width: '100%', height: '500px' }}>
+      <canvas ref={canvasRef} style={{ display: 'block' }} />
+    </div>
+  );
 }
 
 function drawCanvasSquare(

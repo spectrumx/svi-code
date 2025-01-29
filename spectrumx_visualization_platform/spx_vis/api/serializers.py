@@ -6,21 +6,6 @@ from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 
 
-# serializer class for Capture
-class CaptureSerializer(serializers.ModelSerializer[Capture]):
-    class Meta:
-        model = Capture
-        fields = [
-            "id",
-            "owner",
-            "name",
-            "created_at",
-            "timestamp",
-            "type",
-            "source",
-        ]
-
-
 class SigMFFilePairSerializer(serializers.ModelSerializer[SigMFFilePair]):
     data_file = serializers.FileField(write_only=True)
     meta_file = serializers.FileField(write_only=True)
@@ -105,3 +90,20 @@ class FileSerializer(serializers.ModelSerializer[File]):
 
         validated_data["owner"] = self.context["request"].user
         return super().create(validated_data)
+
+
+class CaptureSerializer(serializers.ModelSerializer[Capture]):
+    files = FileSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Capture
+        fields = [
+            "id",
+            "owner",
+            "name",
+            "files",
+            "created_at",
+            "timestamp",
+            "type",
+            "source",
+        ]

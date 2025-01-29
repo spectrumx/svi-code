@@ -4,19 +4,45 @@ import apiClient from '.';
 import { useAppContext } from '../utils/AppContext';
 import { z } from 'zod';
 
-export type IntegratedResponse = {
-  id: number;
-  name: string;
-  timestamp: string;
-  frequency: number;
-  location: string;
-  source: string;
-  captureformat: string;
-}[];
+const FileMetadataSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  content_url: z.string(),
+  media_type: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 
-export const getIntegratedView = async () => {
-  const response = await apiClient.get('/api/integratedview/');
-  return response.data as IntegratedResponse;
+export type FileMetadata = z.infer<typeof FileMetadataSchema>;
+
+export const getFileMetadata = async (
+  fileId: number,
+): Promise<FileMetadata> => {
+  try {
+    const response = await apiClient.get(`/api/files/${fileId}/`);
+    return FileMetadataSchema.parse(response.data);
+  } catch (error) {
+    console.error('Error fetching file:', error);
+    throw error;
+  }
+};
+
+export const getFileContent = async (fileId: number): Promise<any> => {
+  const response = await apiClient.get(`/api/files/${fileId}/content/`);
+  return response.data;
+};
+
+export const getFiles = async (): Promise<FileMetadata[]> => {
+  const response = await apiClient.get('/api/files/');
+  return response.data;
+};
+
+export const useSyncFiles = () => {
+  const { setFiles } = useAppContext();
+  const syncFiles = useCallback(async () => {
+    setFiles(await getFiles());
+  }, [setFiles]);
+  return syncFiles;
 };
 
 const CaptureTypeSchema = z.enum(['drf', 'rh', 'sigmf']);
@@ -33,6 +59,7 @@ const CaptureSchema = z.object({
   timestamp: z.string(),
   type: CaptureTypeSchema,
   source: CaptureSourceSchema,
+  files: z.array(FileMetadataSchema),
 });
 
 export type Capture = z.infer<typeof CaptureSchema>;
@@ -87,45 +114,4 @@ export const postSigMFFilePair = async (dataFile: Blob, metaFile: Blob) => {
     },
   });
   return response;
-};
-
-const FileMetadataSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  content_url: z.string(),
-  media_type: z.string(),
-  created_at: z.string(),
-  updated_at: z.string(),
-});
-
-export type FileMetadata = z.infer<typeof FileMetadataSchema>;
-
-export const getFileMetadata = async (
-  fileId: number,
-): Promise<FileMetadata> => {
-  try {
-    const response = await apiClient.get(`/api/files/${fileId}/`);
-    return FileMetadataSchema.parse(response.data);
-  } catch (error) {
-    console.error('Error fetching file:', error);
-    throw error;
-  }
-};
-
-export const getFileContent = async (fileId: number): Promise<any> => {
-  const response = await apiClient.get(`/api/files/${fileId}/content/`);
-  return response.data;
-};
-
-export const getFiles = async (): Promise<FileMetadata[]> => {
-  const response = await apiClient.get('/api/files/');
-  return response.data;
-};
-
-export const useSyncFiles = () => {
-  const { setFiles } = useAppContext();
-  const syncFiles = useCallback(async () => {
-    setFiles(await getFiles());
-  }, [setFiles]);
-  return syncFiles;
 };
