@@ -45,9 +45,6 @@ function Waterfall({
     if (context) {
       context.scale(pixelRatio, pixelRatio);
     }
-
-    // Initial waterfall draw
-    processWaterfall(canvas, () => setResetScale(false));
   }, []); // Empty dependency array means this only runs once on mount
 
   function processWaterfall(

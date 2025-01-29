@@ -14,8 +14,15 @@ interface WaterfallData {
   fileData: PeriodogramType;
 }
 
+export interface WaterfallSettings {
+  captureIndex: number;
+}
+
 export const WaterfallPage = () => {
   const [waterfallData, setWaterfallData] = useState<WaterfallData[]>([]);
+  const [settings, setSettings] = useState<WaterfallSettings>({
+    captureIndex: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,12 +107,17 @@ export const WaterfallPage = () => {
       <Row>
         <Col xs={3} style={{ maxWidth: 200 }}>
           <div className="d-flex flex-column gap-3">
-            <WaterfallControls />
+            <WaterfallControls
+              settings={settings}
+              setSettings={setSettings}
+              numCaptures={waterfallData.length}
+            />
           </div>
         </Col>
         <Col>
           <WaterfallVisualization
             data={waterfallData.map((data) => data.fileData)}
+            settings={settings}
           />
         </Col>
       </Row>

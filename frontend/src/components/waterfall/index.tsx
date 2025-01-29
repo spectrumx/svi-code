@@ -3,6 +3,7 @@ import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
 import { Waterfall } from './Waterfall';
+import { WaterfallSettings } from '../../pages/WaterfallPage';
 
 export type DataPoint = {
   x: number;
@@ -324,9 +325,10 @@ export function formatHertz(bytes: number, decimals = 2) {
 
 interface WaterfallProps {
   data: PeriodogramType[];
+  settings: WaterfallSettings;
 }
 
-const WaterfallVisualization = ({ data }: WaterfallProps) => {
+const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
   const [scan, setScan] = useState<ScanState>(initialState);
   const scanDisplay = scan.display;
   const setScanDisplay = (display: Display) => {
@@ -373,12 +375,11 @@ const WaterfallVisualization = ({ data }: WaterfallProps) => {
     }
   };
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
-  const [currCaptureIndex, _setCurrCaptureIndex] = useState(0);
 
   return (
     <>
       <Periodogram
-        data={data[currCaptureIndex]}
+        data={data[settings.captureIndex]}
         currentApplication={currentApplication}
         scanDisplay={scanDisplay}
         setScanDisplay={setScanDisplay}
@@ -387,6 +388,7 @@ const WaterfallVisualization = ({ data }: WaterfallProps) => {
         setChart={setChart}
         setWaterfall={setWaterfall}
       />
+      <br />
       <Waterfall
         scan={scan}
         setWaterfall={setWaterfall}
