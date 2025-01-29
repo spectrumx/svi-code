@@ -2,7 +2,6 @@
 from django.contrib import admin
 
 from .models import Capture
-from .models import CaptureDatasetIntegrated
 from .models import File
 from .models import SigMFFilePair
 
@@ -25,9 +24,3 @@ class SigMFFilePairAdmin(admin.ModelAdmin):
 @admin.register(Capture)
 class CaptureAdmin(admin.ModelAdmin):
     list_display = ("name", "owner", "created_at", "timestamp", "type", "source")
-
-
-# integrated model registered
-@admin.register(CaptureDatasetIntegrated)
-class CaptureDatasetIntegratedAdmin(admin.ModelAdmin):
-    pass

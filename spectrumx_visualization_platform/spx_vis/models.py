@@ -119,32 +119,8 @@ class SigMFFilePair(models.Model):
 #     # TODO: Implement this model.
 
 
-#     """A collection of related RF files."""
-# integrated view: combined the SigMFFilePair  and newly created capture
-class CaptureDatasetIntegrated(models.Model):
-    sigmf_filepair = models.ForeignKey(
-        SigMFFilePair,
-        on_delete=models.CASCADE,
-        related_name="integrated_sigmf",
-        null=True,
-    )
-    # capture = models.ForeignKey(
-    #   Capture, on_delete=models.CASCADE, related_name="integrated_captures"
-    # )
-    file_name = models.CharField(max_length=255)
-    timestamp = models.DateTimeField(auto_now_add=True)
-    frequency = models.FloatField()
-    location = models.CharField(max_length=255, blank=True, null=True)
-    captureformat = models.CharField(max_length=255, null=True)
-    source = models.CharField(max_length=255, null=True)
-
-    def __str__(self) -> str:
-        return self.file_name
-
-
 __all__ = [
     "File",
     "SigMFFilePair",
     "Capture",
-    "CaptureDatasetIntegrated",
 ]

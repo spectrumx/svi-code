@@ -2,7 +2,6 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from spectrumx_visualization_platform.spx_vis.models import Capture
-from spectrumx_visualization_platform.spx_vis.models import CaptureDatasetIntegrated
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 
@@ -19,21 +18,6 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             "timestamp",
             "type",
             "source",
-        ]
-
-
-# serializer added for the integrated view set
-class IntegratedViewSerializer(serializers.ModelSerializer[CaptureDatasetIntegrated]):
-    class Meta:
-        model = CaptureDatasetIntegrated
-        fields = [
-            "id",
-            "file_name",
-            "timestamp",
-            "frequency",
-            "location",
-            "source",
-            "captureformat",
         ]
 
 

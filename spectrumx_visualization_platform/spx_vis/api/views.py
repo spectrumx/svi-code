@@ -12,13 +12,9 @@ from jobs.submission import request_job_submission
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import (
-    IntegratedViewSerializer,
-)
-from spectrumx_visualization_platform.spx_vis.api.serializers import (
     SigMFFilePairSerializer,
 )
 from spectrumx_visualization_platform.spx_vis.models import Capture
-from spectrumx_visualization_platform.spx_vis.models import CaptureDatasetIntegrated
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 
@@ -37,24 +33,6 @@ class CaptureViewSet(viewsets.ModelViewSet):
         print("Capture list:")
         for item in serializer.data:
             print(item)
-
-        return Response(serializer.data)
-
-
-# integrated view: combined the SigMFFilePair  and newly created capture
-class IntegratedViewSet(viewsets.ModelViewSet):
-    queryset = CaptureDatasetIntegrated.objects.all()
-    serializer_class = IntegratedViewSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-
-        serializer = self.get_serializer(queryset, many=True)
-
-        print(" list:")
-        for item in serializer.data:
-            print("items..", item)
 
         return Response(serializer.data)
 
