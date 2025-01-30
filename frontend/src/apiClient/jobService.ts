@@ -92,7 +92,6 @@ export const getJobMetadata = async (jobId: number): Promise<JobResponse> => {
  * @param resultsId - The ID of the results to fetch
  * @returns Promise containing the blob data
  */
-// change here -- mm -- delete width and height params while undoing
 export const getJobResults = async (resultsId: string): Promise<Blob> => {
   const response = await apiClient.get(
     `/api/jobs/job-data/${resultsId}/?download=true`,

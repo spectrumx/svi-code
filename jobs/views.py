@@ -41,7 +41,6 @@ def submit_job(request):
     Returns:
         Response: JSON response indicating submission status
     """
-    print("query parameters")
     request_job_submission(
         request.data.get("type"),
         request.user,

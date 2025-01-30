@@ -17,7 +17,6 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
     # the next thing we do is get the job information. This will tell us:
     # 1. What type of visualization we should do
     # 2. A list of files we'll need
-
     job_data = get_job_meta(job_id, token)
     if job_data is None:
         error_msg = "Could not get job information."
@@ -28,13 +27,10 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
             info=error_msg,
         )
         raise ValueError(error_msg)
-    # print(f"job data in submit job: {job_data["data"]["config"]}")
+
     # Next, run through the local files and download them from the SVI main system.
     # Create a directory for the job files
-    print(f"Job {job_id} is running with config: {config}")  # config added 44
-    width = config.get("width", 1024)  # debug added 44
-    height = config.get("height", 768)  # debug onfig added 44
-    print(f"Job {job_id} dimensions: width={width}, height={height}")  # config added 44
+    print(f"Job {job_id} is running with config: {config}")
     Path("jobs/job_files").mkdir(parents=True, exist_ok=True)
     print("job data: " + str(job_data))  # debug added 44
     for f in job_data["data"]["local_files"]:
@@ -61,12 +57,23 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
     # print(f"job_data['data']: {job_data.get('data', 'data key is missing')}")
     if job_data["data"]["type"] == "spectrogram":
         try:
+            try:
+                width = config["width"]
+                height = config["height"]
+            except KeyError:
+                print("Width or height not found in config, using defaults")
+                width = 1024
+                height = 768
+            print(
+                f"Job {job_id} dimensions: width={width}, height={height}",
+            )
+
             figure = make_spectrogram(
                 job_data,
                 width,
                 height,
                 files_dir="jobs/job_files/",
-            )  # config added 44
+            )
             figure.savefig("jobs/job_results/figure.png")
         except Exception as e:
             update_job_status(

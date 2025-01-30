@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { Row, Col, Button } from 'react-bootstrap';
 
-import Spectrogram from '../components/spectrogram';
+import { SpectrogramVisualization } from '../components/spectrogram';
 import SpectrogramControls from '../components/spectrogram/SpectrogramControls';
 import { JobStatusDisplay } from '../components/JobStatusDisplay';
 import {
@@ -113,7 +113,7 @@ const SpectrogramPage = () => {
               results_id: resultsId,
               message: undefined,
             }));
-            await fetchSpectrogramImage(resultsId); // change here -mm
+            await fetchSpectrogramImage(resultsId);
           } else {
             setJobInfo((prevStatus) => ({
               ...prevStatus,
@@ -161,7 +161,7 @@ const SpectrogramPage = () => {
           </div>
         </Col>
         <Col>
-          <Spectrogram
+          <SpectrogramVisualization
             imageUrl={spectrogramUrl}
             hasError={jobInfo.status === 'failed' || jobInfo.status === 'error'}
           />

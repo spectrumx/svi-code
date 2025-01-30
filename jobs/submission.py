@@ -19,17 +19,16 @@ def request_job_submission(
     local_files: list[str],
     config: dict | None = None,
 ) -> "Job":
-    # print(f"width and height received: {width} , {height}")
     # check if there is already a token for this user
     token = Token.objects.get_or_create(user=owner)[0]
-    print(f"Config: {config}")  # debug line added
+
+    print(f"Config: {config}")
     job = Job.objects.create(
         type=visualization_type,
         owner=owner,
         config=config,
-    )  # configurations passed from front end added as a parameter "config" - 44
-    print("job", job.config["width"])  # debug line added 44
-    # print("config:", config.get("width"), config("height"))
+    )
+
     print("job in req subm", job)
     for local_file in local_files:
         JobLocalFile.objects.create(job=job, file=local_file)

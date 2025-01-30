@@ -15,7 +15,6 @@ def make_spectrogram(job_data, width, height, files_dir=""):
     # Get the data and metadata files by looking for the appropriate file extensions
     data_file = None
     metadata_file = None
-    print("width here in make spec func", width, height)
 
     for f in job_data["data"]["local_files"]:
         if f["name"].endswith(".sigmf-data"):
@@ -27,8 +26,6 @@ def make_spectrogram(job_data, width, height, files_dir=""):
         msg = "Data or metadata file not found in job data"
         raise ValueError(msg)
 
-    config = job_data["data"]  # debug line added 44
-    print("in  spec func", config)  # debug line added 44
     # # Create tar from both files
     # sigmf_filename = data_file["name"].replace(".sigmf-data", ".sigmf")
     # with tarfile.open(sigmf_filename, "w") as tar:

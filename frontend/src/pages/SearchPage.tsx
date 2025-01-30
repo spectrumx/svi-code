@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 import CaptureTable from '../components/CaptureTable';
-import FileUploadModal from '../components/FileUploadModal';
 import { useSyncCaptures } from '../apiClient/fileService';
 import { useAppContext } from '../utils/AppContext';
 
@@ -9,7 +8,6 @@ const SearchPage = () => {
   const context = useAppContext();
   const { captures } = context;
   const syncCaptures = useSyncCaptures();
-  const [showModal, setShowModal] = useState(false);
 
   interface CheckboxProps {
     label: string;
@@ -80,7 +78,7 @@ const SearchPage = () => {
             <h5>Filters</h5>
             <div>
               <Checkbox label="Frequency" />
-              <Checkbox label="Category2" />
+              <Checkbox label="Category 2" />
               <Checkbox label="Category 3" />
             </div>
           </div>
@@ -88,14 +86,6 @@ const SearchPage = () => {
           <CaptureTable captures={captures} />
         </div>
       </div>
-      <br />
-      <FileUploadModal
-        show={showModal}
-        handleClose={() => setShowModal(false)}
-        handleSuccess={syncCaptures}
-      />
-      <br />
-      <br />
     </>
   );
 };

@@ -5,19 +5,19 @@ import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 import { ScanState, WaterfallType } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
-interface WaterfallProps {
+interface WaterfallPlotProps {
   scan: ScanState;
   setWaterfall: (waterfall: WaterfallType) => void;
   setScaleChanged: (scaleChanged: boolean) => void;
   setResetScale: (resetScale: boolean) => void;
 }
 
-function Waterfall({
+function WaterfallPlot({
   scan,
   setWaterfall,
   setScaleChanged,
   setResetScale,
-}: WaterfallProps) {
+}: WaterfallPlotProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Update canvas size only once on mount
@@ -68,10 +68,7 @@ function Waterfall({
       };
       const width = canvas.width - margin.left - margin.right - labelWidth;
       const height = canvas.height - margin.top - margin.bottom;
-      console.log('width, height:', width, height);
-
       const { startingFrequency, endingFrequency } = scanCopy.options;
-
       const maxSize = WATERFALL_MAX_ROWS; //that.maxSize = that.seconds * that.jobsPerSecond;
       const rectHeight = height / maxSize;
       const rectWidth = width / (endingFrequency - startingFrequency);
@@ -97,8 +94,6 @@ function Waterfall({
             // .interpolate(d3.interpolateHcl)
             undefined;
 
-      console.log('scanCopy.display.resetScale:', scanCopy.display.resetScale);
-      console.log('context:', context);
       if (scanCopy.display.resetScale && context) {
         console.log('rescaling and redrawing');
         // Rescale the color gradient to min/max values and redraw entire graph
@@ -226,7 +221,7 @@ function Waterfall({
         // );
         // context.putImageData(periodogram, labelWidth, rectHeight + margin.top);
 
-        console.log('Drawing all data');
+        console.log('Drawing all waterfalldata');
         // Draw all data at once instead of moving existing data
         allData.forEach((row, rowIndex) => {
           row.forEach((value, colIndex) => {
@@ -286,4 +281,4 @@ function isCanvasBlank(canvas: HTMLCanvasElement) {
   return !pixelBuffer.some((color) => color !== 0);
 }
 
-export { Waterfall };
+export { WaterfallPlot };

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
-import { Waterfall } from './Waterfall';
+import { WaterfallPlot } from './WaterfallPlot';
 import { WaterfallSettings } from '../../pages/WaterfallPage';
 import {
   Chart,
@@ -109,12 +109,15 @@ export const WATERFALL_MAX_ROWS = 80;
 
 export type Application = ApplicationType | ApplicationType[];
 
-interface WaterfallProps {
+interface WaterfallVisualizationProps {
   data: PeriodogramType[];
   settings: WaterfallSettings;
 }
 
-const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
+const WaterfallVisualization = ({
+  data,
+  settings,
+}: WaterfallVisualizationProps) => {
   const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
     settings.captureIndex,
   );
@@ -565,7 +568,7 @@ const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
       <h5>Capture {displayedCaptureIndex + 1}</h5>
       <Periodogram chart={chart} />
       <br />
-      <Waterfall
+      <WaterfallPlot
         scan={scan}
         setWaterfall={setWaterfall}
         setScaleChanged={setScaleChanged}

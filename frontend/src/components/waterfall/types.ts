@@ -1,3 +1,8 @@
+/**
+ * Types for waterfall data and visualization.
+ * TODO: Refine using the newly-created official RadioHound format definition.
+ */
+
 export type DataPoint = {
   x: number;
   y?: number;
