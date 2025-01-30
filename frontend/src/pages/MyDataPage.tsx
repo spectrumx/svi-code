@@ -3,16 +3,12 @@ import Button from '../components/Button';
 
 import FileUploadModal from '../components/FileUploadModal';
 import { useAppContext } from '../utils/AppContext';
-import {
-  useSyncSigMFFilePairs,
-  useSyncCaptures,
-} from '../apiClient/fileService';
+import { useSyncCaptures } from '../apiClient/fileService';
 import DatasetTable from '../components/CaptureTable';
 
 const MyDataPage = () => {
   const context = useAppContext();
   const { captures } = context;
-  const syncSigMFFilePairs = useSyncSigMFFilePairs();
   const syncCaptures = useSyncCaptures();
   const [showModal, setShowModal] = useState(false);
 
@@ -35,7 +31,7 @@ const MyDataPage = () => {
       <FileUploadModal
         show={showModal}
         handleClose={() => setShowModal(false)}
-        handleSuccess={syncSigMFFilePairs}
+        handleSuccess={syncCaptures}
       />
     </>
   );

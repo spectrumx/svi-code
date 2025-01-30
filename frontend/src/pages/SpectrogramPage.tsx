@@ -11,38 +11,6 @@ import {
   getJobResults,
 } from '../apiClient/jobService';
 
-//test code  -mm
-//const width =  8.0;
-//const height = 6.0;
-// test code ends -mm
-
-// const MyComponent: React.FC = () => {
-//   const [windowDimensions, setWindowDimensions] = useState({
-//     width: window.innerWidth,
-//     height: window.innerHeight,
-//   });
-
-//   useEffect(() => {
-//     const handleResize = () => {
-//       setWindowDimensions({
-//         width: window.innerWidth,
-//         height: window.innerHeight,
-//       });
-//     };
-
-//     window.addEventListener('resize', handleResize);
-
-//     return () => window.removeEventListener('resize', handleResize);
-//   }, []);
-
-//   return (
-//     <div>
-//       <p>Width: {windowDimensions.width}</p>
-//       <p>Height: {windowDimensions.height}</p>
-//     </div>
-//   );
-// };
-
 export interface SpectrogramSettings {
   fftSize: number;
 }
@@ -55,7 +23,8 @@ export interface JobInfo {
 }
 
 const SpectrogramPage = () => {
-  const { captureId } = useParams();
+  const { captureId: captureIdString } = useParams();
+  const captureId = Number(captureIdString);
 
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
@@ -76,14 +45,15 @@ const SpectrogramPage = () => {
 
     try {
       const response = await postSpectrogramJob(
-        captureId as string,
-        spectrogramSettings.fftSize,
+        captureId,
+        // spectrogramSettings.fftSize,
         width,
         height,
       );
       setJobInfo({
         job_id: response.job_id ?? null,
-        status: response.data?.status ?? null,
+        status: response.status ?? null,
+        message: response.message ?? response.detail,
       });
     } catch (error) {
       console.error('Error creating spectrogram job:', error);
@@ -193,7 +163,7 @@ const SpectrogramPage = () => {
         <Col>
           <Spectrogram
             imageUrl={spectrogramUrl}
-            hasError={jobInfo.status === 'failed'}
+            hasError={jobInfo.status === 'failed' || jobInfo.status === 'error'}
           />
         </Col>
       </Row>

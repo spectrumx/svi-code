@@ -90,37 +90,7 @@ class File(models.Model):
         return self.name
 
 
-class SigMFFilePair(models.Model):
-    """A pair of files in the SigMF format.
-
-    Attributes:
-        data_file:          The data file in the pair.
-        meta_file:          The metadata file in the pair.
-    """
-
-    data_file = models.ForeignKey(
-        File,
-        on_delete=models.CASCADE,
-        related_name="data_file",
-    )
-    meta_file = models.ForeignKey(
-        File,
-        on_delete=models.CASCADE,
-        related_name="meta_file",
-    )
-
-    def __str__(self) -> str:
-        return self.data_file.name.split(".")[0]
-
-
-# class Dataset(models.Model):
-#     """A collection of files."""
-
-#     # TODO: Implement this model.
-
-
 __all__ = [
     "File",
-    "SigMFFilePair",
     "Capture",
 ]

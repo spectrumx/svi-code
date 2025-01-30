@@ -19,7 +19,6 @@ from rest_framework.decorators import permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-import json
 
 from .models import Job
 from .models import JobData
@@ -43,7 +42,12 @@ def submit_job(request):
         Response: JSON response indicating submission status
     """
     print("query parameters")
-    request_job_submission("spectrogram", request.user, ["data.csv"])
+    request_job_submission(
+        request.data.get("type"),
+        request.user,
+        request.data.get("local_files"),
+        request.data.get("config"),
+    )
     return Response({"status": "success"})
 
 

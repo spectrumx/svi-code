@@ -1,8 +1,8 @@
+import { useState } from 'react';
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
-import { postSigMFFilePair } from '../apiClient/fileService';
-import { useState } from 'react';
+import { postCapture, CaptureType } from '../apiClient/fileService';
 import { Alert } from 'react-bootstrap';
 
 interface FileUploadModalProps {
@@ -22,11 +22,13 @@ const FileUploadModal = ({
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
-    const dataFile = formData.get('dataFile') as Blob;
-    const metaFile = formData.get('metaFile') as Blob;
+
+    const name = formData.get('name') as string;
+    const type = formData.get('type') as CaptureType;
+    const files = formData.getAll('files') as Blob[];
 
     try {
-      await postSigMFFilePair(dataFile, metaFile);
+      await postCapture(name, type, files);
       handleSuccess();
       handleClose();
     } catch (error) {
@@ -51,14 +53,29 @@ const FileUploadModal = ({
           </Alert>
         )}
         <Form onSubmit={handleSubmit}>
-          <Form.Group controlId="dataFile">
-            <Form.Label>Data File</Form.Label>
-            <Form.Control type="file" name="dataFile" />
+          <Form.Group controlId="name">
+            <Form.Label>Name</Form.Label>
+            <Form.Control
+              type="text"
+              name="name"
+              required
+              maxLength={255}
+              placeholder="Enter a name for the capture"
+            />
           </Form.Group>
           <br />
-          <Form.Group controlId="metaFile">
-            <Form.Label>Metadata File</Form.Label>
-            <Form.Control type="file" name="metaFile" />
+          <Form.Group controlId="type">
+            <Form.Label>Type</Form.Label>
+            <Form.Control type="text" name="type" as="select" required>
+              <option value="drf">Digital RF</option>
+              <option value="rh">RadioHound</option>
+              <option value="sigmf">SigMF</option>
+            </Form.Control>
+          </Form.Group>
+          <br />
+          <Form.Group controlId="files">
+            <Form.Label>Files</Form.Label>
+            <Form.Control type="file" name="files" required multiple />
           </Form.Group>
           <br />
           <Button variant="primary" type="submit">

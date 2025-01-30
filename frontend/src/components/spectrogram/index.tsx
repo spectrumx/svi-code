@@ -3,37 +3,6 @@ interface SpectrogramProps {
   hasError: boolean;
 }
 
-/**
- * Renders a spectrogram visualization or placeholder based on provided image URL
- * @param imageUrl - URL of the spectrogram image to display
- * @param hasError - Whether there was an error generating the spectrogram
- */
-// const MyComponent: React.FC = () => {
-//   const [windowDimensions, setWindowDimensions] = useState({
-//     width: window.innerWidth,
-//     height: window.innerHeight,
-//   });
-//   useEffect(() => {
-//     const handleResize = () => {
-//       setWindowDimensions({
-//         width: window.innerWidth,
-//         height: window.innerHeight,
-//       });
-//     };
-
-//     window.addEventListener('resize', handleResize);
-
-//     return () => window.removeEventListener('resize', handleResize);
-//   }, []);
-
-//   return (
-//     <div>
-//       <p>Width: {windowDimensions.width}</p>
-//       <p>Height: {windowDimensions.height}</p>
-//     </div>
-//   );
-// };
-
 const Spectrogram = ({ imageUrl, hasError }: SpectrogramProps) => {
   return (
     <div

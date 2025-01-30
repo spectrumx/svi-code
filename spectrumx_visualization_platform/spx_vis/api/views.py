@@ -11,12 +11,8 @@ from rest_framework.response import Response
 from jobs.submission import request_job_submission
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
-from spectrumx_visualization_platform.spx_vis.api.serializers import (
-    SigMFFilePairSerializer,
-)
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import File
-from spectrumx_visualization_platform.spx_vis.models import SigMFFilePair
 
 
 class CaptureViewSet(viewsets.ModelViewSet):
@@ -35,34 +31,58 @@ class CaptureViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
-
-class SigMFFilePairViewSet(viewsets.ModelViewSet):
-    queryset = SigMFFilePair.objects.all()
-    serializer_class = SigMFFilePairSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
     @action(detail=True, methods=["post"])
     def create_spectrogram(self, request, pk=None):
-        file_pair: SigMFFilePair = self.get_object()
+        """
+        Create a spectrogram visualization job for a SigMF capture.
 
-        # Get FFT size from request parameters, default to 1024 if not provided
-        # fft_size = request.data.get("fft_size", 1024)
+        Args:
+            request: HTTP request containing width, height parameters
+            pk: Primary key of the Capture
 
-        # Get the data and metadata file paths
-        # get width value
-        width = request.data.get("width", 10)  # width passed from front end 44
-        height = request.data.get("height", 10)  # height passed from front end 44
-        print("views width and height:", {width}, {height})  # debug line added 44
-        dimensions = {"width": width, "height": height}  # debug line added  44
-        print("views dimensions", dimensions)  # debug line added
-        local_files = [file_pair.data_file.file.name, file_pair.meta_file.file.name]
+        Returns:
+            Response with job_id and status if successful
 
-        # Submit the job using the submission function
+        Raises:
+            400: If capture is not SigMF type or required files are missing
+        """
+        capture: Capture = self.get_object()
+
+        if capture.type != "sigmf":
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Spectrogram generation is only supported for\
+                    SigMF captures",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Find the data and metadata files associated with this capture
+        data_file = capture.files.filter(name__endswith=".sigmf-data").first()
+        meta_file = capture.files.filter(name__endswith=".sigmf-meta").first()
+
+        if not data_file or not meta_file:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Required SigMF files (data and/or metadata) not found",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        width = request.data.get("width", 10)
+        height = request.data.get("height", 10)
+        dimensions = {"width": width, "height": height}
+
+        local_files = [data_file.file.name, meta_file.file.name]
+
+        # Submit the job
         job = request_job_submission(
             visualization_type="spectrogram",
             owner=request.user,
             local_files=local_files,
-            dimensions=dimensions,
+            config=dimensions,
         )
 
         return Response(

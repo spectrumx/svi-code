@@ -82,33 +82,20 @@ export const useSyncCaptures = () => {
   return syncCaptures;
 };
 
-export type SigMFFilePair = {
-  id: number;
-  data_file_name: string;
-  meta_file_name: string;
-};
-
-export type SigMFFilePairResponse = SigMFFilePair[];
-
-export const getSigMFFilePairs = async () => {
-  const response = await apiClient.get('/api/sigmf-file-pairs/');
-  return response.data as SigMFFilePairResponse;
-};
-
-export const useSyncSigMFFilePairs = () => {
-  const { setSigMFFilePairs } = useAppContext();
-  const syncSigMFFilePairs = useCallback(async () => {
-    setSigMFFilePairs(await getSigMFFilePairs());
-  }, [setSigMFFilePairs]);
-  return syncSigMFFilePairs;
-};
-
-export const postSigMFFilePair = async (dataFile: Blob, metaFile: Blob) => {
+export const postCapture = async (
+  name: string,
+  type: CaptureType,
+  files: Blob[],
+) => {
   const formData = new FormData();
-  formData.append('data_file', dataFile);
-  formData.append('meta_file', metaFile);
+  formData.append('name', name);
+  formData.append('type', type);
+  formData.append('source', 'svi_user');
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
 
-  const response = await apiClient.post('/api/sigmf-file-pairs/', formData, {
+  const response = await apiClient.post('/api/captures/', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
