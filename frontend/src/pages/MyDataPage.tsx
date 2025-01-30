@@ -19,14 +19,20 @@ const MyDataPage = () => {
   return (
     <>
       <h5>Captures</h5>
-      <DatasetTable captures={captures} />
+      {captures.length > 0 ? (
+        <DatasetTable captures={captures} />
+      ) : (
+        <div>
+          <p>No captures found. Upload a capture to get started!</p>
+        </div>
+      )}
       <Button
         variant="primary"
         onClick={() => setShowModal(true)}
         disabled={!context?.username}
         disabledHelpText="You must be logged in to upload a capture"
       >
-        Upload SigMF File Pair
+        Upload New Capture
       </Button>
       <FileUploadModal
         show={showModal}

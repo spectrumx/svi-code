@@ -1,7 +1,12 @@
+import mimetypes
+
+from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import serializers
 
 from spectrumx_visualization_platform.spx_vis.models import Capture
+from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 
 
@@ -64,7 +69,18 @@ class FileSerializer(serializers.ModelSerializer[File]):
 
 
 class CaptureSerializer(serializers.ModelSerializer[Capture]):
+    """Serializer for Capture model with automatic field handling.
+
+    Handles creation of associated File objects and automatic field population.
+    """
+
     files = FileSerializer(many=True, read_only=True)
+    # Separate field for files to be uploaded on Capture creation
+    uploaded_files = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=True,
+    )
 
     class Meta:
         model = Capture
@@ -77,4 +93,59 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             "timestamp",
             "type",
             "source",
+            "uploaded_files",  # Write-only field for file uploads
         ]
+        read_only_fields = ["owner", "created_at", "timestamp", "source"]
+
+    def create(self, validated_data: dict) -> Capture:
+        """Create a new Capture with associated File objects.
+
+        Args:
+            validated_data: Validated data including uploaded files
+
+        Returns:
+            The created Capture instance
+        """
+        uploaded_files = validated_data.pop("uploaded_files")
+
+        # Set defaults for required fields
+        validated_data["owner"] = self.context["request"].user
+        validated_data["timestamp"] = timezone.now()
+        validated_data["source"] = "svi_user"  # Default source for user uploads
+
+        # Create the capture instance
+        capture = super().create(validated_data)
+
+        # Create File objects for each uploaded file
+        for uploaded_file in uploaded_files:
+            if not isinstance(uploaded_file, UploadedFile):
+                continue
+
+            # Determine media type based on capture type
+            if capture.type == CaptureType.DigitalRF:
+                media_type = "application/octet-stream"
+            elif capture.type == CaptureType.RadioHound:
+                media_type = "application/json"
+            elif capture.type == CaptureType.SigMF:
+                # Check file extension for SigMF
+                if uploaded_file.name.endswith(".sigmf-meta"):
+                    media_type = "application/json"
+                elif uploaded_file.name.endswith(".sigmf-data"):
+                    media_type = "application/octet-stream"
+                else:
+                    media_type = "application/octet-stream"
+            else:
+                # Try to guess media type based on file extension
+                media_type, _ = mimetypes.guess_type(uploaded_file.name)
+                if media_type is None:
+                    media_type = "application/octet-stream"
+
+            File.objects.create(
+                owner=validated_data["owner"],
+                file=uploaded_file,
+                media_type=media_type,
+                name=uploaded_file.name,
+                capture=capture,
+            )
+
+        return capture

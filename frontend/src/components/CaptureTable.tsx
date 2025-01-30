@@ -77,7 +77,7 @@ const CaptureTable = ({
               <td className="align-middle">{capture.type}</td>
               <td className="align-middle">{capture.files.length}</td>
               <td className="align-middle">{capture.source}</td>
-              {!onSelect && visualizationType && (
+              {!onSelect && visualizationType ? (
                 <td className="align-middle text-center">
                   <Link
                     to={`/visualization/${visualizationType.name}/${captureId}`}
@@ -86,7 +86,9 @@ const CaptureTable = ({
                     Visualize
                   </Link>
                 </td>
-              )}
+              ) : !onSelect ? (
+                <td></td>
+              ) : null}
             </tr>
           );
         })}

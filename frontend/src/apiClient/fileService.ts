@@ -86,19 +86,19 @@ export const postCapture = async (
   name: string,
   type: CaptureType,
   files: Blob[],
-) => {
+): Promise<void> => {
   const formData = new FormData();
   formData.append('name', name);
   formData.append('type', type);
-  formData.append('source', 'svi_user');
+
+  // Append each file to the uploaded_files array
   files.forEach((file) => {
-    formData.append('files', file);
+    formData.append('uploaded_files', file);
   });
 
-  const response = await apiClient.post('/api/captures/', formData, {
+  await apiClient.post('/api/captures/', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
-  return response;
 };

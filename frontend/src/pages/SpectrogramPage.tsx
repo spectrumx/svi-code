@@ -110,8 +110,8 @@ const SpectrogramPage = () => {
             setJobInfo((prevStatus) => ({
               ...prevStatus,
               status: 'fetching_results',
-              message: 'Fetching spectrogram results...',
               results_id: resultsId,
+              message: undefined,
             }));
             await fetchSpectrogramImage(resultsId); // change here -mm
           } else {
