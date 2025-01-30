@@ -115,6 +115,9 @@ interface WaterfallProps {
 }
 
 const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
+  const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
+    settings.captureIndex,
+  );
   const [scan, setScan] = useState<ScanState>(initialState);
   const scanDisplay = scan.display;
   const setScanDisplay = (display: Display) => {
@@ -463,6 +466,7 @@ const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
     if (!_.isEqual(chart, tmpChart)) {
       tmpChart.key = Math.random();
       setChart(tmpChart);
+      setDisplayedCaptureIndex(settings.captureIndex);
     }
     // if (process.env.REACT_APP_ENVIRONMENT === "development")
     // {
@@ -558,6 +562,7 @@ const WaterfallVisualization = ({ data, settings }: WaterfallProps) => {
 
   return (
     <>
+      <h5>Capture {displayedCaptureIndex + 1}</h5>
       <Periodogram chart={chart} />
       <br />
       <Waterfall

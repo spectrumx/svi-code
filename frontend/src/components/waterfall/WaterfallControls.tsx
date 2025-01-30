@@ -1,7 +1,9 @@
-import React, { useCallback } from 'react';
-import { Form, InputGroup } from 'react-bootstrap';
+import React, { useCallback, useState, useEffect } from 'react';
+import { Form, InputGroup, Button } from 'react-bootstrap';
+import debounce from 'lodash/debounce';
 
 import { WaterfallSettings } from '../../pages/WaterfallPage';
+import _ from 'lodash';
 
 interface WaterfallControlsProps {
   settings: WaterfallSettings;
@@ -14,66 +16,148 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   setSettings,
   numCaptures,
 }: WaterfallControlsProps) => {
-  // Handle capture index changes from either slider or number input
-  const handleCaptureIndexChange = useCallback(
-    (newValue: number) => {
-      // Ensure the value stays within bounds
-      const boundedValue = Math.max(0, Math.min(newValue, numCaptures - 1));
-      setSettings({
-        ...settings,
-        captureIndex: boundedValue,
-      });
-    },
-    [settings, setSettings, numCaptures],
+  const captureIndexTextInputRef = React.useRef<HTMLInputElement>(null);
+  // Local state for immediate UI updates
+  const [localCaptureIndex, setLocalCaptureIndex] = useState(
+    settings.captureIndex,
   );
 
-  // Handle keyboard arrow keys for fine-tuning
-  const handleKeyDown = useCallback(
+  // Update local state when props change
+  useEffect(() => {
+    console.log('Updating local capture index from props');
+    setLocalCaptureIndex(settings.captureIndex);
+  }, [settings.captureIndex]);
+
+  // Debounced function to update parent state
+  const debouncedSetSettings = useCallback(
+    debounce((newValue: number) => {
+      console.log('Updating parent capture index from debounce');
+      setSettings({
+        ...settings,
+        captureIndex: newValue,
+      });
+      setLocalCaptureIndex(newValue);
+    }, 150),
+    [settings, setSettings],
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      console.log('Cancelling debounce');
+      debouncedSetSettings.cancel();
+    };
+  }, [debouncedSetSettings]);
+
+  const handleCaptureIndexChange = useCallback(
+    (newValue: number) => {
+      // Update local state immediately
+      setLocalCaptureIndex(newValue);
+
+      // Ensure the value stays within bounds
+      const boundedValue = _.clamp(newValue, 0, numCaptures - 1);
+
+      const focusedElement = document.activeElement;
+      const isButtonDisabled =
+        focusedElement?.tagName === 'BUTTON' &&
+        (boundedValue === 0 || boundedValue === numCaptures - 1);
+
+      if (isButtonDisabled) {
+        // If disabled button is focused, move focus to text input
+        captureIndexTextInputRef.current?.focus();
+      }
+
+      // Debounce the update to parent
+      debouncedSetSettings(boundedValue);
+    },
+    [numCaptures, debouncedSetSettings],
+  );
+
+  // Handle keyboard arrow keys for any control
+  const handleCaptureIndexKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        handleCaptureIndexChange(settings.captureIndex - 1);
-        e.preventDefault();
-      } else if (e.key === 'ArrowRight') {
-        handleCaptureIndexChange(settings.captureIndex + 1);
-        e.preventDefault();
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowDown':
+          handleCaptureIndexChange(localCaptureIndex - 1);
+          e.preventDefault();
+          break;
+        case 'ArrowRight':
+        case 'ArrowUp':
+          handleCaptureIndexChange(localCaptureIndex + 1);
+          e.preventDefault();
+          break;
       }
     },
-    [settings.captureIndex, handleCaptureIndexChange],
+    [localCaptureIndex, handleCaptureIndexChange],
   );
 
   return (
     <Form>
       <Form.Group>
         <Form.Label htmlFor="captureIndexSlider">Capture Index</Form.Label>
-        <InputGroup>
+        <div
+          className="d-flex align-items-center gap-2"
+          style={{ marginBottom: '5px' }}
+        >
+          <span className="text-muted">1</span>
           <Form.Range
             id="captureIndexSlider"
             name="captureIndex"
-            value={settings.captureIndex + 1}
+            value={localCaptureIndex + 1}
             min={1}
             max={numCaptures}
             onChange={(e) =>
               handleCaptureIndexChange(Number(e.target.value) - 1)
             }
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleCaptureIndexKeyDown}
             aria-label="Capture index slider"
+            tabIndex={0}
           />
-          <InputGroup.Text>
-            <Form.Control
-              type="number"
-              value={settings.captureIndex + 1}
-              onChange={(e) =>
-                handleCaptureIndexChange(Number(e.target.value) - 1)
-              }
-              onKeyDown={handleKeyDown}
-              min={1}
-              max={numCaptures}
-              style={{ width: '80px' }}
-              aria-label="Capture index number input"
-            />
-          </InputGroup.Text>
-          <InputGroup.Text>of {numCaptures}</InputGroup.Text>
-        </InputGroup>
+          <span className="text-muted">{numCaptures}</span>
+        </div>
+        <div className="d-flex align-items-center gap-2">
+          <InputGroup className="justify-content-center">
+            <Button
+              variant="secondary"
+              onClick={() => handleCaptureIndexChange(localCaptureIndex - 1)}
+              onKeyDown={handleCaptureIndexKeyDown}
+              disabled={localCaptureIndex === 0}
+              aria-label="Previous capture"
+            >
+              <i className="bi bi-chevron-left" />
+            </Button>
+            <InputGroup.Text>
+              <Form.Control
+                ref={captureIndexTextInputRef}
+                type="number"
+                value={localCaptureIndex + 1}
+                onChange={(e) =>
+                  handleCaptureIndexChange(Number(e.target.value) - 1)
+                }
+                onKeyDown={handleCaptureIndexKeyDown}
+                min={1}
+                max={numCaptures}
+                style={{
+                  // Hide up/down buttons
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'textfield',
+                  textAlign: 'center',
+                }}
+                aria-label="Capture index number input"
+              />
+            </InputGroup.Text>
+            <Button
+              variant="secondary"
+              onClick={() => handleCaptureIndexChange(localCaptureIndex + 1)}
+              onKeyDown={handleCaptureIndexKeyDown}
+              disabled={localCaptureIndex === numCaptures - 1}
+              aria-label="Next capture"
+            >
+              <i className="bi bi-chevron-right" />
+            </Button>
+          </InputGroup>
+        </div>
       </Form.Group>
     </Form>
   );
