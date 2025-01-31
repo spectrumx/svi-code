@@ -121,9 +121,14 @@ const WaterfallVisualization = ({
   data,
   settings,
 }: WaterfallVisualizationProps) => {
+  const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
   const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
     settings.captureIndex,
   );
+  const [waterfallRange, setWaterfallRange] = useState({
+    startIndex: 0,
+    endIndex: 0,
+  });
 
   const [scan, setScan] = useState<ScanState>(initialScan);
   const [display, setDisplay] = useState<Display>(initialDisplay);
@@ -166,9 +171,9 @@ const WaterfallVisualization = ({
       setScan(tmpScan);
     }
   };
-  const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
 
   const processPeriodogramData = (input: RadioHoundCapture) => {
+    console.log('Processing periodogram data');
     let dataArray: FloatArray | number[] | undefined;
     let arrayLength: number | undefined = Number(input.metadata?.xcount);
     const pointArr: DataPoint[] = [];
@@ -405,25 +410,6 @@ const WaterfallVisualization = ({
       tmpChart.data[nextIndex].toolTipContent = 'Median : {x}, {y}';
     }
 
-    // // Waterfall data follows
-    // if (currentApplication.includes('WATERFALL')) {
-    //   const newWaterfall = {
-    //     periodogram: intArray,
-    //     xMin: Number(input.metadata?.xstart),
-    //     xMax: Number(input.metadata?.xstop),
-    //     yMin: minValue,
-    //     yMax: maxValue,
-    //   };
-    //   //waterfall.periodogram = [];
-    //   //waterfall.allData.push(intArray);
-    //   //waterfall.maxSize = DEFS.WATERFALL_MAX_ROWS;
-    //   //while (waterfall.allData.length > waterfall.maxSize) {
-    //   //waterfall.allData.shift();
-    //   //}
-    //   console.log('calling dispatch with:', newWaterfall);
-    //   setWaterfall(newWaterfall);
-    // }
-
     // Determine viewing area based off min/max
     if (
       maxValue &&
@@ -480,6 +466,7 @@ const WaterfallVisualization = ({
    * Processes multiple captures for the waterfall display
    */
   const processWaterfallData = (captures: RadioHoundCapture[]) => {
+    console.log('Processing waterfall data');
     const processedData: number[][] = [];
     let globalMinValue = 100000;
     let globalMaxValue = -100000;
@@ -546,20 +533,33 @@ const WaterfallVisualization = ({
   };
 
   useEffect(() => {
-    console.log('Running useEffect in WaterfallVisualization');
     // Process single capture for periodogram
     processPeriodogramData(data[settings.captureIndex]);
+  }, [data, settings.captureIndex]);
 
-    // Process all captures for waterfall
-    // Determine range of captures to process based on current index
+  useEffect(() => {
+    // Calculate new waterfall range
     const startIndex = Math.max(
       0,
       settings.captureIndex - WATERFALL_MAX_ROWS + 1,
     );
     const endIndex = Math.min(data.length, startIndex + WATERFALL_MAX_ROWS);
-    const relevantCaptures = data.slice(startIndex, endIndex);
-    processWaterfallData(relevantCaptures);
-  }, [data, settings.captureIndex]);
+
+    // Only reprocess waterfall if the range of captures has changed
+    if (
+      startIndex !== waterfallRange.startIndex ||
+      endIndex !== waterfallRange.endIndex
+    ) {
+      const relevantCaptures = data.slice(startIndex, endIndex);
+      processWaterfallData(relevantCaptures);
+      setWaterfallRange({ startIndex, endIndex });
+    }
+  }, [
+    data,
+    settings.captureIndex,
+    waterfallRange.startIndex,
+    waterfallRange.endIndex,
+  ]);
 
   return (
     <>
