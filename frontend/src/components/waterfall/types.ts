@@ -118,14 +118,14 @@ export interface Display {
   errors?: ScanOptionsType['errors'];
 }
 
-/*
-  RadioHound-format capture for periodograms
-
-  Schema definition:
-  https://github.com/spectrumx/schema-definitions/tree/master/definitions/sds/metadata-formats/radiohound
-
-  TODO: Update this type to match schema
-*/
+/**
+ * RadioHound format (.rh) capture for periodograms
+ *
+ * Schema definition:
+ * https://github.com/spectrumx/schema-definitions/tree/master/definitions/sds/metadata-formats/radiohound
+ *
+ * TODO: Update this type to match schema
+ */
 export interface RadioHoundCapture {
   short_name?: string;
   mac_address: string;
@@ -172,8 +172,6 @@ export type FloatArray = Float32Array | Float64Array;
 
 export interface ScanState {
   isScanActive: boolean;
-  options: ScanOptionsType;
-  display: Display;
   lastScanOptions: ScanOptionsType | undefined;
   receivedHeatmap: boolean;
   scansRequested: number;
@@ -185,7 +183,6 @@ export interface ScanState {
   xMax?: number;
   spinner: boolean;
   periodogram?: RadioHoundCapture | number[];
-  chart: Chart;
   heatmapData: Data[];
   scaleMin: number | undefined;
   scaleMax: number | undefined;

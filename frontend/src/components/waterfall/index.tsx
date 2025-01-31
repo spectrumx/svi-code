@@ -17,47 +17,82 @@ import {
   ApplicationType,
 } from './types';
 
-const initialState: ScanState = {
-  isScanActive: false,
-  options: {
-    selectedNodes: [],
-    startingFrequency: 1990,
-    endingFrequency: 2010,
-    centerFrequency: 2000,
-    gain: 1,
-    nsamples: 1024,
-    interval: 0.2, // handler for recurring scan
-    bandwidth: 20,
-    errors: {},
-    selectedGroups: [],
-    rbw: 23437.5,
-    showLiveData: false,
-    archiveResult: true,
-    m4s: false,
-    siggen: false,
-    siggen_ip: '10.173.170.235',
-    siggen_power: -30,
-    siggen_freq: 2000,
-    option: 1,
-    hw_versions_selected: [],
-    mode: 'compatibility',
-    scaleMax: -30,
-    scaleMin: -110,
-    algorithm: 'Cubic',
-  } as ScanOptionsType,
-  display: {
-    resetScale: false,
-    scaleChanged: false,
-    scaleMax: -30,
-    scaleMin: -110,
-    scan_boundaries: 0,
-    max_hold: false,
-    ref_lock: false,
-    ref_level: undefined,
-    ref_range: undefined,
-    ref_interval: undefined,
-    maxHoldValues: {},
+const initialOptions: ScanOptionsType = {
+  selectedNodes: [],
+  startingFrequency: 1990,
+  endingFrequency: 2010,
+  centerFrequency: 2000,
+  gain: 1,
+  nsamples: 1024,
+  interval: 0.2, // handler for recurring scan
+  bandwidth: 20,
+  errors: {},
+  selectedGroups: [],
+  rbw: 23437.5,
+  showLiveData: false,
+  archiveResult: true,
+  m4s: false,
+  siggen: false,
+  siggen_ip: '10.173.170.235',
+  siggen_power: -30,
+  siggen_freq: 2000,
+  option: 1,
+  hw_versions_selected: [],
+  mode: 'compatibility',
+  scaleMax: -30,
+  scaleMin: -110,
+  algorithm: 'Cubic',
+};
+
+const initialDisplay: Display = {
+  resetScale: false,
+  scaleChanged: false,
+  scaleMax: -30,
+  scaleMin: -110,
+  scan_boundaries: 0,
+  max_hold: false,
+  ref_lock: false,
+  ref_level: undefined,
+  ref_range: undefined,
+  ref_interval: undefined,
+  maxHoldValues: {},
+};
+
+const initialChart: Chart = {
+  theme: 'light2',
+  animationEnabled: false,
+  zoomEnabled: true,
+  zoomType: 'xy',
+  title: {
+    text: '',
   },
+  exportEnabled: true,
+  data: [
+    {
+      _id: undefined as string | undefined,
+      type: 'line',
+      dataPoints: [{ x: 1, y: 0 }],
+      name: 'template',
+      showInLegend: false,
+    },
+  ] as Data[],
+  axisX: {
+    title: '-',
+  },
+  axisY: {
+    interval: 10,
+    includeZero: false,
+    viewportMinimum: -100,
+    viewportMaximum: -40,
+    title: 'dBm per bin',
+    absoluteMinimum: undefined as number | undefined,
+    absoluteMaximum: undefined as number | undefined,
+  },
+  key: 0,
+};
+
+const initialScan: ScanState = {
+  isScanActive: false,
   lastScanOptions: undefined as ScanOptionsType | undefined,
   receivedHeatmap: false,
   scansRequested: 0,
@@ -68,38 +103,6 @@ const initialState: ScanState = {
   xMax: -100000,
   spinner: false,
   periodogram: undefined,
-  chart: {
-    theme: 'light2',
-    animationEnabled: false,
-    zoomEnabled: true,
-    zoomType: 'xy',
-    title: {
-      text: '',
-    },
-    exportEnabled: true,
-    data: [
-      {
-        _id: undefined as string | undefined,
-        type: 'line',
-        dataPoints: [{ x: 1, y: 0 }],
-        name: 'template',
-        showInLegend: false,
-      },
-    ] as Data[],
-    axisX: {
-      title: '-',
-    },
-    axisY: {
-      interval: 10,
-      includeZero: false,
-      viewportMinimum: -100,
-      viewportMaximum: -40,
-      title: 'dBm per bin',
-      absoluteMinimum: undefined as number | undefined,
-      absoluteMaximum: undefined as number | undefined,
-    },
-    key: 0,
-  },
   heatmapData: [] as Data[],
   scaleMin: undefined as number | undefined,
   scaleMax: undefined as number | undefined,
@@ -121,27 +124,23 @@ const WaterfallVisualization = ({
   const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
     settings.captureIndex,
   );
-  const [scan, setScan] = useState<ScanState>(initialState);
-  const scanDisplay = scan.display;
-  const setScanDisplay = (display: Display) => {
-    setScan((prevScan) => ({ ...prevScan, display }));
-  };
-  const scanOptions = scan.options;
+
+  const [scan, setScan] = useState<ScanState>(initialScan);
+  const [display, setDisplay] = useState<Display>(initialDisplay);
+  const [options, setOptions] = useState<ScanOptionsType>(initialOptions);
+  const [chart, setChart] = useState<Chart>(initialChart);
+
   const setScaleChanged = (scaleChanged: boolean) => {
-    setScan((prevScan) => ({
-      ...prevScan,
-      options: { ...prevScan.options, scaleChanged },
+    setOptions((prevOptions) => ({
+      ...prevOptions,
+      scaleChanged,
     }));
   };
   const setResetScale = (resetScale: boolean) => {
-    setScan((prevScan) => ({
-      ...prevScan,
-      options: { ...prevScan.options, resetScale },
+    setOptions((prevOptions) => ({
+      ...prevOptions,
+      resetScale,
     }));
-  };
-  const chart = scan.chart;
-  const setChart = (chart: Chart) => {
-    setScan((prevScan) => ({ ...prevScan, chart }));
   };
   const setWaterfall = (waterfall: WaterfallType) => {
     console.log('setWaterfall called with:', waterfall);
@@ -233,7 +232,7 @@ const WaterfallVisualization = ({
       m4sMedian = binaryStringToFloatArray(input.m4s_median, input.type);
     }
 
-    const tmpDisplay = _.cloneDeep(scanDisplay);
+    const tmpDisplay = _.cloneDeep(display);
 
     const yValues = dataArray?.map((i) =>
       Math.round(10 * (Math.log(i * 1000) / Math.log(10))),
@@ -243,9 +242,8 @@ const WaterfallVisualization = ({
 
     if (
       input.mac_address &&
-      (scanDisplay.maxHoldValues[input.mac_address] === undefined ||
-        dataArray?.length !==
-          scanDisplay.maxHoldValues[input.mac_address].length)
+      (display.maxHoldValues[input.mac_address] === undefined ||
+        dataArray?.length !== display.maxHoldValues[input.mac_address].length)
     ) {
       // console.log('resetting', dataArray.length, scan_display.maxHoldValues[input.mac_address].length)
       tmpDisplay.maxHoldValues[input.mac_address] = [];
@@ -268,7 +266,7 @@ const WaterfallVisualization = ({
           // if (yValue < minValue) { minValue = yValue; }
           // if (yValue > maxValue) { maxValue = yValue; }
 
-          if (scanDisplay.max_hold) {
+          if (display.max_hold) {
             // console.log("comparing", yValue,tmp_display.maxHoldValues[input.mac_address][i], tmp_display.maxHoldValues[input.mac_address].length)
             if (tmpDisplay.maxHoldValues[input.mac_address].length <= i) {
               tmpDisplay.maxHoldValues[input.mac_address].push({
@@ -355,8 +353,8 @@ const WaterfallVisualization = ({
     }
 
     if (
-      scanDisplay.max_hold &&
-      scanDisplay.maxHoldValues[input.mac_address].length > 0
+      display.max_hold &&
+      display.maxHoldValues[input.mac_address].length > 0
     ) {
       nextIndex = tmpChart.data.findIndex(
         (element) => element._id === 'maxhold_' + input.mac_address,
@@ -376,8 +374,8 @@ const WaterfallVisualization = ({
         toolTipContent: 'Max : {x}, {y}',
       };
 
-      if (!_.isEqual(scanDisplay, tmpDisplay)) {
-        setScanDisplay(tmpDisplay);
+      if (!_.isEqual(display, tmpDisplay)) {
+        setDisplay(tmpDisplay);
       }
     }
 
@@ -445,22 +443,22 @@ const WaterfallVisualization = ({
       //console.log("resetting minValue", minValue);
     }
 
-    if (scanDisplay.ref_level !== undefined) {
-      tmpChart.axisY.viewportMaximum = scanDisplay.ref_level;
+    if (display.ref_level !== undefined) {
+      tmpChart.axisY.viewportMaximum = display.ref_level;
     }
-    if (scanDisplay.ref_range !== undefined) {
+    if (display.ref_range !== undefined) {
       tmpChart.axisY.viewportMinimum =
-        Number(scanDisplay.ref_level) - scanDisplay.ref_range;
+        Number(display.ref_level) - display.ref_range;
     }
-    if (scanDisplay.ref_interval !== undefined) {
-      tmpChart.axisY.interval = scanDisplay.ref_interval;
+    if (display.ref_interval !== undefined) {
+      tmpChart.axisY.interval = display.ref_interval;
     }
 
     // If user requests X amount of bandwidth, lock the display to their request.
     // But not for other functions
     if (currentApplication.includes('PERIODOGRAM')) {
-      tmpChart.axisX.minimum = scanOptions.startingFrequency;
-      tmpChart.axisX.maximum = scanOptions.endingFrequency;
+      tmpChart.axisX.minimum = options.startingFrequency;
+      tmpChart.axisX.maximum = options.endingFrequency;
     } else {
       delete tmpChart.axisX.minimum;
       delete tmpChart.axisX.maximum;
@@ -570,6 +568,8 @@ const WaterfallVisualization = ({
       <br />
       <WaterfallPlot
         scan={scan}
+        options={options}
+        display={display}
         setWaterfall={setWaterfall}
         setScaleChanged={setScaleChanged}
         setResetScale={setResetScale}
