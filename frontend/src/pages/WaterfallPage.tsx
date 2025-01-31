@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 
 import { WaterfallVisualization } from '../components/waterfall';
-import { PeriodogramType } from '../components/waterfall/types';
+import { RadioHoundCapture } from '../components/waterfall/types';
 import WaterfallControls from '../components/waterfall/WaterfallControls';
 import { getCaptures, Capture, getFileContent } from '../apiClient/fileService';
 import ScanDetailsTable from '../components/ScanDetailsTable';
 
 interface WaterfallData {
   capture: Capture;
-  fileData: PeriodogramType;
+  fileData: RadioHoundCapture;
 }
 
 export interface WaterfallSettings {

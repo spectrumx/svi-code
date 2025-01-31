@@ -24,14 +24,12 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
 
   // Update local state when props change
   useEffect(() => {
-    console.log('Updating local capture index from props');
     setLocalCaptureIndex(settings.captureIndex);
   }, [settings.captureIndex]);
 
   // Debounced function to update parent state
   const debouncedSetSettings = useCallback(
     debounce((newValue: number) => {
-      console.log('Updating parent capture index from debounce');
       setSettings({
         ...settings,
         captureIndex: newValue,
@@ -44,7 +42,6 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
-      console.log('Cancelling debounce');
       debouncedSetSettings.cancel();
     };
   }, [debouncedSetSettings]);

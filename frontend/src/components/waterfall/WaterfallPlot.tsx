@@ -2,11 +2,13 @@ import { useRef, useEffect } from 'react';
 import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
-import { ScanState, WaterfallType } from './types';
+import { ScanState, WaterfallType, ScanOptionsType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
 interface WaterfallPlotProps {
   scan: ScanState;
+  options: ScanOptionsType;
+  display: Display;
   setWaterfall: (waterfall: WaterfallType) => void;
   setScaleChanged: (scaleChanged: boolean) => void;
   setResetScale: (resetScale: boolean) => void;
@@ -14,6 +16,8 @@ interface WaterfallPlotProps {
 
 function WaterfallPlot({
   scan,
+  options,
+  display,
   setWaterfall,
   setScaleChanged,
   setResetScale,
@@ -52,6 +56,8 @@ function WaterfallPlot({
     resetScaleCallback: () => void,
   ) {
     const scanCopy = _.cloneDeep(scan);
+    const displayCopy = _.cloneDeep(display);
+    const optionsCopy = _.cloneDeep(options);
     const allData = scanCopy.allData as number[][];
     let redrawLegend = 0;
 
@@ -68,14 +74,14 @@ function WaterfallPlot({
       };
       const width = canvas.width - margin.left - margin.right - labelWidth;
       const height = canvas.height - margin.top - margin.bottom;
-      const { startingFrequency, endingFrequency } = scanCopy.options;
+      const { startingFrequency, endingFrequency } = optionsCopy;
       const maxSize = WATERFALL_MAX_ROWS; //that.maxSize = that.seconds * that.jobsPerSecond;
       const rectHeight = height / maxSize;
       const rectWidth = width / (endingFrequency - startingFrequency);
       console.log('rectWidth, rectHeight:', rectWidth, rectHeight);
 
       let { yMin, yMax } = scanCopy;
-      const { scaleMin, scaleMax } = scanCopy.display;
+      const { scaleMin, scaleMax } = displayCopy;
 
       const x = scaleLinear().range([0, width]);
       x.domain([0, allData[0].length - 1]);
@@ -94,7 +100,7 @@ function WaterfallPlot({
             // .interpolate(d3.interpolateHcl)
             undefined;
 
-      if (scanCopy.display.resetScale && context) {
+      if (displayCopy.resetScale && context) {
         console.log('rescaling and redrawing');
         // Rescale the color gradient to min/max values and redraw entire graph
 
@@ -123,8 +129,8 @@ function WaterfallPlot({
 
         //waterfall.display.scaleMin = Math.round(yMin * 100) / 100;
         //waterfall.display.scaleMax = Math.round(yMax * 100) / 100;
-        scanCopy.display.scaleMin = yMin;
-        scanCopy.display.scaleMax = yMax;
+        displayCopy.scaleMin = yMin;
+        displayCopy.scaleMax = yMax;
         if (yMin < scanCopy.yMin) {
           scanCopy.yMin = yMin;
         }
@@ -138,7 +144,7 @@ function WaterfallPlot({
         setWaterfall(scanCopy);
 
         colorScale = scaleLinear(
-          [scanCopy.display.scaleMin, scanCopy.display.scaleMax],
+          [displayCopy.scaleMin, displayCopy.scaleMax],
           [rgb('#0000FF'), rgb('#FF0000')],
         ).interpolate(interpolateHslLong);
 
@@ -169,9 +175,7 @@ function WaterfallPlot({
       }
 
       if (
-        (isCanvasBlank(canvas) ||
-          redrawLegend ||
-          scanCopy.display.scaleChanged) &&
+        (isCanvasBlank(canvas) || redrawLegend || displayCopy.scaleChanged) &&
         context
       ) {
         // Legend
@@ -200,8 +204,8 @@ function WaterfallPlot({
           context.strokeStyle = dbValColor;
           context.fillStyle = dbValColor;
           if (
-            dbVal > Number(scanCopy.display.scaleMin) &&
-            dbVal < Number(scanCopy.display.scaleMax)
+            dbVal > Number(displayCopy.scaleMin) &&
+            dbVal < Number(displayCopy.scaleMax)
           ) {
             context.fillRect(2, legend, 20, 1);
           }
@@ -249,7 +253,7 @@ function WaterfallPlot({
     if (canvasRef.current) {
       processWaterfall(canvasRef.current, () => setResetScale(false));
     }
-  }, [scan]);
+  }, [scan, options, display]);
 
   return (
     <div style={{ width: '100%', height: '500px' }}>
