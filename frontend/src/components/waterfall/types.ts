@@ -1,6 +1,5 @@
 /**
  * Types for waterfall data and visualization.
- * TODO: Refine using the newly-created official RadioHound format definition.
  */
 
 export type DataPoint = {
@@ -119,7 +118,15 @@ export interface Display {
   errors?: ScanOptionsType['errors'];
 }
 
-export interface PeriodogramType {
+/*
+  RadioHound-format capture for periodograms
+
+  Schema definition:
+  https://github.com/spectrumx/schema-definitions/tree/master/definitions/sds/metadata-formats/radiohound
+
+  TODO: Update this type to match schema
+*/
+export interface RadioHoundCapture {
   short_name?: string;
   mac_address: string;
   metadata?: {
@@ -171,13 +178,13 @@ export interface ScanState {
   receivedHeatmap: boolean;
   scansRequested: number;
   // I inferred allData's type, but it doesn't seem correct
-  allData: (Data | PeriodogramType | number[])[];
+  allData: (Data | RadioHoundCapture | number[])[];
   yMin: number;
   yMax: number;
   xMin?: number;
   xMax?: number;
   spinner: boolean;
-  periodogram?: PeriodogramType | number[];
+  periodogram?: RadioHoundCapture | number[];
   chart: Chart;
   heatmapData: Data[];
   scaleMin: number | undefined;

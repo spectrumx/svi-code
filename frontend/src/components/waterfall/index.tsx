@@ -12,7 +12,7 @@ import {
   ScanState,
   ScanOptionsType,
   WaterfallType,
-  PeriodogramType,
+  RadioHoundCapture,
   Display,
   ApplicationType,
 } from './types';
@@ -110,7 +110,7 @@ export const WATERFALL_MAX_ROWS = 80;
 export type Application = ApplicationType | ApplicationType[];
 
 interface WaterfallVisualizationProps {
-  data: PeriodogramType[];
+  data: RadioHoundCapture[];
   settings: WaterfallSettings;
 }
 
@@ -169,7 +169,7 @@ const WaterfallVisualization = ({
   };
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
 
-  const processPeriodogramData = (input: PeriodogramType) => {
+  const processPeriodogramData = (input: RadioHoundCapture) => {
     let dataArray: FloatArray | number[] | undefined;
     let arrayLength: number | undefined = Number(input.metadata?.xcount);
     const pointArr: DataPoint[] = [];
@@ -481,7 +481,7 @@ const WaterfallVisualization = ({
   /**
    * Processes multiple captures for the waterfall display
    */
-  const processWaterfallData = (captures: PeriodogramType[]) => {
+  const processWaterfallData = (captures: RadioHoundCapture[]) => {
     const processedData: number[][] = [];
     let globalMinValue = 100000;
     let globalMaxValue = -100000;
@@ -592,12 +592,13 @@ export const binaryStringToFloatArray = (
   // use bytes.buffer
   if (dataTypeStr === 'float64') {
     dataValues = new Float64Array(bytes.buffer, 0, len / 8);
-  } else if (dataTypeStr === 'float32') {
+  } else if (dataTypeStr === 'float32' || !dataTypeStr) {
+    // Assume float32 if not specified
     dataValues = new Float32Array(bytes.buffer, 0, len / 4);
     // } else if (dataTypeStr==='float16') {
     //     dataValues = new Float16Array(dBuf,0,len/2);
   } else {
-    console.log('Cannot convert data type: ' + dataTypeStr);
+    console.error('Cannot convert data type: ' + dataTypeStr);
   }
   return dataValues;
 };
