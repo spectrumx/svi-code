@@ -6,6 +6,7 @@ import { WaterfallVisualization } from '../components/waterfall';
 import { PeriodogramType } from '../components/waterfall/types';
 import WaterfallControls from '../components/waterfall/WaterfallControls';
 import { getCaptures, Capture, getFileContent } from '../apiClient/fileService';
+import ScanDetailsTable from '../components/ScanDetailsTable';
 
 interface WaterfallData {
   capture: Capture;
@@ -118,6 +119,9 @@ export const WaterfallPage = () => {
             settings={settings}
           />
         </Col>
+      </Row>
+      <Row>
+       <ScanDetailsTable />
       </Row>
     </>
   );
