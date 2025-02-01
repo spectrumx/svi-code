@@ -1,43 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Link } from 'react-router';
+
 import Button from '../components/Button';
 
-import DatasetTable from '../components/DatasetTable';
-import FileUploadModal from '../components/FileUploadModal';
-import { getDatasets, SigMFFilePairResponse } from '../apiClient/fileService';
-import { useAppContext } from '../utils/AppContext';
+interface Visualization {
+  id: string;
+  name: string;
+}
 
 const WorkspacePage = () => {
-  const context = useAppContext();
-  const [showModal, setShowModal] = useState(false);
-  const [datasets, setDatasets] = useState<SigMFFilePairResponse>([]);
-
-  const syncDatasets = async () => {
-    setDatasets(await getDatasets());
-  };
-
-  useEffect(() => {
-    syncDatasets();
-  }, []);
+  const [visualizations, _setVisualizations] = useState<Visualization[]>([]);
 
   return (
     <>
-      <h5>Select a Dataset to Visualize</h5>
-      <DatasetTable datasets={datasets} />
+      <Link to="/visualization/new">
+        <Button variant="primary">
+          <i className="bi bi-plus-lg" style={{ marginRight: '5px' }}></i>
+          Create Visualization
+        </Button>
+      </Link>
       <br />
-      <h5>Add a New Dataset</h5>
-      <Button
-        variant="primary"
-        onClick={() => setShowModal(true)}
-        disabled={!context?.username}
-        disabledHelpText="You must be logged in to upload a dataset"
-      >
-        Upload Dataset
-      </Button>
-      <FileUploadModal
-        show={showModal}
-        handleClose={() => setShowModal(false)}
-        handleSuccess={syncDatasets}
-      />
+      <hr />
+      <h5>Visualizations</h5>
+      {visualizations.length > 0 ? (
+        visualizations.map((visualization) => (
+          <Button key={visualization.id}>{visualization.name}</Button>
+        ))
+      ) : (
+        <div>No visualizations created. Make one now!</div>
+      )}
     </>
   );
 };

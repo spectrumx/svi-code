@@ -12,7 +12,7 @@ interface JobStatusDisplayProps {
  * Displays the current status of a job with appropriate styling and loading indicators
  */
 const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
-  if (!isSubmitting && !jobInfo.job_id) return null;
+  if (!isSubmitting && !jobInfo.job_id && !jobInfo.message) return null;
 
   const variants: { [key: string]: string } = {
     pending: 'info',
@@ -21,6 +21,7 @@ const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
     fetching_results: 'info',
     completed: 'success',
     failed: 'danger',
+    error: 'danger',
   };
 
   const isActive =
@@ -33,12 +34,16 @@ const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
     <Alert variant={isSubmitting ? 'info' : variants[jobInfo.status || 'info']}>
       <div className="d-flex align-items-center">
         {isActive && (
-          <Spinner
-            animation="border"
-            size="sm"
-            className="me-2"
-            variant={isSubmitting ? 'info' : variants[jobInfo.status || 'info']}
-          />
+          <div>
+            <Spinner
+              animation="border"
+              size="sm"
+              className="me-2"
+              variant={
+                isSubmitting ? 'info' : variants[jobInfo.status || 'info']
+              }
+            />
+          </div>
         )}
         <div>
           {isSubmitting ? (

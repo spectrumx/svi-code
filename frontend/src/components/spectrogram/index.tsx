@@ -1,4 +1,4 @@
-interface SpectrogramProps {
+interface SpectrogramVisualizationProps {
   imageUrl: string | null;
   hasError: boolean;
 }
@@ -8,7 +8,10 @@ interface SpectrogramProps {
  * @param imageUrl - URL of the spectrogram image to display
  * @param hasError - Whether there was an error generating the spectrogram
  */
-const Spectrogram = ({ imageUrl, hasError }: SpectrogramProps) => {
+const SpectrogramVisualization = ({
+  imageUrl,
+  hasError,
+}: SpectrogramVisualizationProps) => {
   return (
     <div
       style={{
@@ -24,7 +27,12 @@ const Spectrogram = ({ imageUrl, hasError }: SpectrogramProps) => {
         <img
           src={imageUrl}
           alt="Spectrogram visualization"
-          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            aspectRatio: window.innerWidth / window.innerHeight,
+            objectFit: 'contain',
+          }}
         />
       ) : (
         <p className="text-muted">
@@ -37,4 +45,4 @@ const Spectrogram = ({ imageUrl, hasError }: SpectrogramProps) => {
   );
 };
 
-export default Spectrogram;
+export { SpectrogramVisualization };
