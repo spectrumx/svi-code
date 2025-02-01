@@ -375,3 +375,5 @@ SPECTRUMX_HOST = env("SPECTRUMX_HOST", default="sds.crc.nd.edu")
 SVI_SERVER_API_KEY: str = env("SVI_SERVER_API_KEY", default="svi-server-api-key")
 SVI_SERVER_URL: str = env("SVI_SERVER_URL", default="https://sds.crc.nd.edu")
 SDS_CLIENT_URL: str = env("SDS_CLIENT_URL", default="sds.crc.nd.edu")
+
+SOCIALACCOUNT_LOGIN_ON_GET = True
