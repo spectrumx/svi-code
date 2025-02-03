@@ -6,41 +6,31 @@ import { NavLink } from 'react-router';
 import { api_host } from '../apiClient';
 import { useAppContext } from '../utils/AppContext';
 import Navlinks from './Navlinks';
+import { Image } from 'react-bootstrap';
+import logo from '../img/logo.svg';
 
 const Header = () => {
   const context = useAppContext();
 
   return (
     <>
-      <Navbar expand="lg" className="bg-body-tertiary sx-navbar">
-        <Container>
-          <NavLink to="/" className="nav-link">
-            <Navbar.Brand className="sx-navbar-brand">
-              SpectrumX Visualization Platform
-            </Navbar.Brand>
-          </NavLink>
-          {context?.username ? (
-            <Dropdown className="nav-item-dropdown">
-              <Dropdown.Toggle id="dropdown-basic" className="nav-link">
-                {context.username}
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <NavLink to="/token" className="dropdown-item">
-                  API Token
-                </NavLink>
-                <Dropdown.Divider />
-                <Dropdown.Item href={api_host + '/accounts/logout'}>
-                  Logout
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          ) : (
-            <Nav.Link href={api_host + '/accounts/auth0/login'}>Login</Nav.Link>
-          )}
+      <div className="rainbow-bar"></div>
+      <Navbar expand="lg" className="bg-body-tertiary site-header">
+        <Container className="container">
+          <div className="header-content">
+            <div>
+              <NavLink to="/">
+                <Navbar.Brand className="logo">
+                  <Image src={logo} alt="SpectrumX Logo" />
+                </Navbar.Brand>
+              </NavLink>
+            </div>
+            <div>
+              <Navlinks />
+            </div>
+          </div>
         </Container>
       </Navbar>
-      <div className="rainbow-bar"></div>
-      <Navlinks />
     </>
   );
 };
