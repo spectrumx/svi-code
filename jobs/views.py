@@ -41,7 +41,12 @@ def submit_job(request):
     Returns:
         Response: JSON response indicating submission status
     """
-    request_job_submission("spectrogram", request.user, ["data.csv"])
+    request_job_submission(
+        request.data.get("type"),
+        request.user,
+        request.data.get("local_files"),
+        request.data.get("config"),
+    )
     return Response({"status": "success"})
 
 

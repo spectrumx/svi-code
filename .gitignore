@@ -70,6 +70,7 @@ celerybeat-schedule
 venv/
 venv*/
 ENV/
+my_env/
 
 # Rope project settings
 .ropeproject
@@ -265,6 +266,10 @@ dump.rdb
 
 ### Project template
 spectrumx_visualization_platform/media/
+
+# Job files
+jobs/job_files/
+jobs/job_results/
 
 .pytest_cache/
 .ipython/

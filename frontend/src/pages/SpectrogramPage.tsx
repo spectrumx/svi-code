@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { Row, Col, Button } from 'react-bootstrap';
 
-import Spectrogram from '../components/spectrogram';
+import { SpectrogramVisualization } from '../components/spectrogram';
 import SpectrogramControls from '../components/spectrogram/SpectrogramControls';
 import { JobStatusDisplay } from '../components/JobStatusDisplay';
 import {
@@ -23,7 +23,8 @@ export interface JobInfo {
 }
 
 const SpectrogramPage = () => {
-  const { datasetId } = useParams();
+  const { captureId: captureIdString } = useParams();
+  const captureId = Number(captureIdString);
 
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
@@ -39,15 +40,20 @@ const SpectrogramPage = () => {
 
   const createSpectrogramJob = async () => {
     setIsSubmitting(true);
+    const width = window.innerWidth / 100; // added to increase/decrease size of spectrogram image
+    const height = window.innerHeight / 100; // added to increase/decrease size of spectrogram image
 
     try {
       const response = await postSpectrogramJob(
-        datasetId as string,
-        spectrogramSettings.fftSize,
+        captureId,
+        // spectrogramSettings.fftSize,
+        width,
+        height,
       );
       setJobInfo({
         job_id: response.job_id ?? null,
-        status: response.data?.status ?? null,
+        status: response.status ?? null,
+        message: response.message ?? response.detail,
       });
     } catch (error) {
       console.error('Error creating spectrogram job:', error);
@@ -104,8 +110,8 @@ const SpectrogramPage = () => {
             setJobInfo((prevStatus) => ({
               ...prevStatus,
               status: 'fetching_results',
-              message: 'Fetching spectrogram results...',
               results_id: resultsId,
+              message: undefined,
             }));
             await fetchSpectrogramImage(resultsId);
           } else {
@@ -139,7 +145,7 @@ const SpectrogramPage = () => {
 
   return (
     <>
-      <h5>Spectrogram for dataset {datasetId}</h5>
+      <h5>Spectrogram for capture {captureId}</h5>
       <br />
       <Row>
         <Col xs={3} style={{ maxWidth: 200 }}>
@@ -155,9 +161,9 @@ const SpectrogramPage = () => {
           </div>
         </Col>
         <Col>
-          <Spectrogram
+          <SpectrogramVisualization
             imageUrl={spectrogramUrl}
-            hasError={jobInfo.status === 'failed'}
+            hasError={jobInfo.status === 'failed' || jobInfo.status === 'error'}
           />
         </Col>
       </Row>
