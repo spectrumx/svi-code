@@ -31,9 +31,7 @@ const LandingPage = () => {
             <Card className="hero-box">
               <Card.Body>
                 <Card.Title>Workspace</Card.Title>
-                <Card.Text>
-                  Visualize recordings that you have uploaded
-                </Card.Text>
+                <Card.Text>Visualize recordings that you've uploaded</Card.Text>
               </Card.Body>
               <Card.Footer>
                 <Link to={'workspace'} className="btn btn-primary px-4">

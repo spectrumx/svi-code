@@ -1,4 +1,7 @@
 import { Routes, Route } from 'react-router';
+import Container from 'react-bootstrap/Container';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
 
@@ -12,38 +15,49 @@ import NewVisualizationPage from './pages/NewVisualizationPage';
 import WaterfallPage from './pages/WaterfallPage';
 import SearchPage from './pages/SearchPage';
 import Header from './components/Header';
+import Footer from './components/Footer';
 import { useFetchSessionInfo } from './apiClient';
 
 function App() {
   useFetchSessionInfo();
 
   return (
-    <div>
-      <Header />
-      <div className="content-container">
-        <Routes>
-          {/* Div elements are placeholders until pages are implemented */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="dashboard" element={<div>Dashboard</div>} />
-          <Route path="workspace" element={<WorkspacePage />} />
-          <Route path="mydata" element={<MyDataPage />} />
-          <Route path="search" element={<SearchPage />} />
-          <Route path="tutorials" element={<div>Tutorials</div>} />
-          <Route path="visualization/new" element={<NewVisualizationPage />} />
-          <Route
-            path="visualization/spectrogram/:captureId"
-            element={<SpectrogramPage />}
-          />
-          <Route
-            // path="visualization/waterfall/:captureId"
-            path="visualization/waterfall"
-            element={<WaterfallPage />}
-          />
-          <Route path="token" element={<TokenPage />} />
-          <Route path="*" element={<div>Uh-oh, page not found!</div>} />
-        </Routes>
-      </div>
-    </div>
+    <Container fluid className="min-vh-100 d-flex flex-column">
+      <Row className="px-0 vw-100">
+        <Header />
+      </Row>
+      <Row className="flex-grow-1 vw-100">
+        <div className="content-container px-0 h-100 vw-100">
+          <Routes>
+            {/* Div elements are placeholders until pages are implemented */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="dashboard" element={<div>Dashboard</div>} />
+            <Route path="workspace" element={<WorkspacePage />} />
+            <Route path="mydata" element={<MyDataPage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="tutorials" element={<div>Tutorials</div>} />
+            <Route
+              path="visualization/new"
+              element={<NewVisualizationPage />}
+            />
+            <Route
+              path="visualization/spectrogram/:captureId"
+              element={<SpectrogramPage />}
+            />
+            <Route
+              // path="visualization/waterfall/:captureId"
+              path="visualization/waterfall"
+              element={<WaterfallPage />}
+            />
+            <Route path="token" element={<TokenPage />} />
+            <Route path="*" element={<div>Uh-oh, page not found!</div>} />
+          </Routes>
+        </div>
+      </Row>
+      <Row className="vw-100">
+        <Footer />
+      </Row>
+    </Container>
   );
 }
 
