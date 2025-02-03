@@ -32,14 +32,14 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route
               path="dashboard"
-              element={<div className="content-container">Dashboard</div>}
+              element={<div className="page-container">Dashboard</div>}
             />
             <Route path="workspace" element={<WorkspacePage />} />
             <Route path="mydata" element={<MyDataPage />} />
             <Route path="search" element={<SearchPage />} />
             <Route
               path="tutorials"
-              element={<div className="content-container">Tutorials</div>}
+              element={<div className="page-container">Tutorials</div>}
             />
             <Route
               path="visualization/new"
@@ -58,7 +58,7 @@ function App() {
             <Route
               path="*"
               element={
-                <div className="content-container">Uh-oh, page not found!</div>
+                <div className="page-container">Uh-oh, page not found!</div>
               }
             />
           </Routes>

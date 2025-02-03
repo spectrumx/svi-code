@@ -144,7 +144,7 @@ const SpectrogramPage = () => {
   }, [jobInfo.job_id, spectrogramUrl]);
 
   return (
-    <div className="content-container">
+    <div className="page-container">
       <h5>Spectrogram for capture {captureId}</h5>
       <br />
       <Row>

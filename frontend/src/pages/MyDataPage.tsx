@@ -17,7 +17,7 @@ const MyDataPage = () => {
   }, [syncCaptures]);
 
   return (
-    <div className="content-container">
+    <div className="page-container">
       <h5>Captures</h5>
       {captures.length > 0 ? (
         <DatasetTable captures={captures} />

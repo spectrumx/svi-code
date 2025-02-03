@@ -12,7 +12,7 @@ const WorkspacePage = () => {
   const [visualizations, _setVisualizations] = useState<Visualization[]>([]);
 
   return (
-    <div className="content-container">
+    <div className="page-container">
       <Link to="/visualization/new">
         <Button variant="primary">
           <i className="bi bi-plus-lg" style={{ marginRight: '5px' }}></i>

@@ -19,7 +19,7 @@ export const SearchPage = () => {
   }, [syncCaptures]);
 
   return (
-    <div className="content-container">
+    <div className="page-container">
       <div
         style={{
           padding: '10px',

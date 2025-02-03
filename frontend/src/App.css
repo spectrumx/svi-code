@@ -1,77 +1,3 @@
-/*
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.sx-navbar {
-  background-color: #1c4688 !important;
-  color: #ffffff !important;
-}
-
-.sx-navbar-brand {
-  color: #ffffff !important;
-  font-weight: bold;
-}
-
-.sx-navbar .nav-link {
-  padding-top: 1rem !important;
-  padding-bottom: 1rem !important;
-}
-
-.nav-link {
-  padding-top: 0.5rem !important;
-  padding-bottom: 0.5rem !important;
-}
-
-.rainbow-bar {
-  height: 10px;
-  background: url(./img/rule-rainbow.svg) 0 0 / cover no-repeat;
-}
-*/
-
-.content-container {
-  padding-top: 2.5rem;
-  padding-left: 5rem;
-  padding-right: 5rem;
-  padding-bottom: 2.5rem;
-}
-
 :root {
   --primary-color: #002147;
   --secondary-color: #0056b3;
@@ -89,6 +15,10 @@
 body {
   line-height: 1.6;
   color: var(--text-color);
+}
+
+.page-container {
+  padding: 2.5rem 5rem;
 }
 
 .container {

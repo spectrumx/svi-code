@@ -57,7 +57,7 @@ export default function TokenPage() {
   };
 
   return (
-    <div className="content-container">
+    <div className="page-container">
       <h5>API Token Management</h5>
       <div className="mt-4">
         <div className="form-group">
