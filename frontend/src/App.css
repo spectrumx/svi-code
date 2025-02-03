@@ -163,6 +163,7 @@ body {
 
 /* Hero Section */
 .hero {
+  height: 100%;
   background-color: var(--primary-color);
   color: var(--white);
   padding: 4.25rem 0 4rem;
@@ -238,7 +239,6 @@ body {
   background: #000;
   color: var(--white);
   padding: 4rem 0;
-  margin-bottom: 1rem;
 }
 
 .footer-content {

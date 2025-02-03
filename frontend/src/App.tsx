@@ -26,7 +26,7 @@ function App() {
         <Header />
       </Row>
       <Row className="flex-grow-1 vw-100">
-        <main className="px-0 h-100 vw-100">
+        <main className="px-0 vw-100">
           <Routes>
             {/* Div elements are placeholders until pages are implemented */}
             <Route path="/" element={<LandingPage />} />
