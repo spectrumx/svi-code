@@ -19,7 +19,6 @@ const Footer = () => {
               University of Notre Dame.
             </p>
           </div>
-
           <p className="copyright">©2024 SpectrumX | All Rights Reserved</p>
         </div>
       </div>

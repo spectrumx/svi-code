@@ -9,8 +9,8 @@ const Header = () => {
   return (
     <>
       <div className="rainbow-bar"></div>
-      <Navbar expand="lg" className="bg-body-tertiary site-header">
-        <Container className="container">
+      <Navbar expand="lg" className="site-header">
+        <Container>
           <div className="header-content">
             <div>
               <NavLink to="/">

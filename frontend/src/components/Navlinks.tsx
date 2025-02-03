@@ -10,7 +10,7 @@ const Navlinks = () => {
   const { username } = useAppContext();
 
   return (
-    <Navbar expand="lg" className="bg-body-tertiary main-nav">
+    <Navbar expand="lg" className="main-nav">
       <Container className="primary-menu">
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
