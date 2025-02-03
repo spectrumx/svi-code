@@ -122,7 +122,6 @@ body {
 .site-header {
   background: var(--white);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  position: fixed;
   width: 100%;
   top: 4px; /* Changed from 0 to 4px to account for rainbow bar */
   z-index: 1000;
@@ -189,6 +188,7 @@ body {
 
 .hero-box {
   background: rgba(255, 255, 255, 0.1);
+  color: var(--white);
   padding: 2rem;
   border-radius: 8px;
 }
@@ -201,7 +201,6 @@ body {
 /* Add these styles for links in blue background sections */
 .hero a {
   color: var(--white);
-  text-decoration: underline;
   transition: opacity 0.3s;
 }
 
@@ -212,7 +211,6 @@ body {
 /* Update hero box styles to ensure proper contrast */
 .hero-box a {
   color: var(--white);
-  text-decoration: underline;
   transition: opacity 0.3s;
 }
 

@@ -1,16 +1,18 @@
 import { Routes, Route } from 'react-router';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
+
 import './App.css';
+import LandingPage from './pages/LandingPage';
 import WorkspacePage from './pages/WorkspacePage';
 import MyDataPage from './pages/MyDataPage';
 import SpectrogramPage from './pages/SpectrogramPage';
 import TokenPage from './pages/TokenPage';
 import NewVisualizationPage from './pages/NewVisualizationPage';
-import Header from './components/Header';
-import { useFetchSessionInfo } from './apiClient';
 import WaterfallPage from './pages/WaterfallPage';
 import SearchPage from './pages/SearchPage';
+import Header from './components/Header';
+import { useFetchSessionInfo } from './apiClient';
 
 function App() {
   useFetchSessionInfo();
@@ -21,7 +23,8 @@ function App() {
       <div className="content-container">
         <Routes>
           {/* Div elements are placeholders until pages are implemented */}
-          <Route path="/" element={<div>Home/Dashboard</div>} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="dashboard" element={<div>Dashboard</div>} />
           <Route path="workspace" element={<WorkspacePage />} />
           <Route path="mydata" element={<MyDataPage />} />
           <Route path="search" element={<SearchPage />} />
