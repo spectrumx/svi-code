@@ -150,6 +150,10 @@ ignore = [
   "BLE001", # This is dumb and I don't like it
   "DJ001", # null=True is required for fields that are added after the model is created
   "T201", # Allow print statements
+  "COM812", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
+  "ISC001", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
+  "TRY400", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
+  "TRY300", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
   "UP038" # Checks for uses of isinstance/issubclass that take a tuple
           # of types for comparison.
           # Deactivated because it can make the code slow:
