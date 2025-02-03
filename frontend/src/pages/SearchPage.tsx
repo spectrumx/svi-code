@@ -33,7 +33,7 @@ const SearchPage = () => {
   };
 
   return (
-    <>
+    <div className="content-container">
       <div
         style={{
           padding: '10px',
@@ -86,7 +86,7 @@ const SearchPage = () => {
           <CaptureTable captures={captures} />
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

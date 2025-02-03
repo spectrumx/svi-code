@@ -57,7 +57,7 @@ export default function TokenPage() {
   };
 
   return (
-    <>
+    <div className="content-container">
       <h5>API Token Management</h5>
       <div className="mt-4">
         <div className="form-group">
@@ -93,6 +93,6 @@ export default function TokenPage() {
           <div className="alert alert-success mt-3">Connection successful</div>
         )}
       </div>
-    </>
+    </div>
   );
 }

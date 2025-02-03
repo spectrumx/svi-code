@@ -99,7 +99,7 @@ export const WaterfallPage = () => {
   }
 
   return (
-    <>
+    <div className="content-container">
       <h5>Waterfall</h5>
       <br />
       <Row>
@@ -119,7 +119,7 @@ export const WaterfallPage = () => {
           />
         </Col>
       </Row>
-    </>
+    </div>
   );
 };
 

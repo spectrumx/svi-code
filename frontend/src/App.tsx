@@ -1,7 +1,6 @@
 import { Routes, Route } from 'react-router';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
 
@@ -27,15 +26,21 @@ function App() {
         <Header />
       </Row>
       <Row className="flex-grow-1 vw-100">
-        <div className="content-container px-0 h-100 vw-100">
+        <main className="px-0 h-100 vw-100">
           <Routes>
             {/* Div elements are placeholders until pages are implemented */}
             <Route path="/" element={<LandingPage />} />
-            <Route path="dashboard" element={<div>Dashboard</div>} />
+            <Route
+              path="dashboard"
+              element={<div className="content-container">Dashboard</div>}
+            />
             <Route path="workspace" element={<WorkspacePage />} />
             <Route path="mydata" element={<MyDataPage />} />
             <Route path="search" element={<SearchPage />} />
-            <Route path="tutorials" element={<div>Tutorials</div>} />
+            <Route
+              path="tutorials"
+              element={<div className="content-container">Tutorials</div>}
+            />
             <Route
               path="visualization/new"
               element={<NewVisualizationPage />}
@@ -50,9 +55,14 @@ function App() {
               element={<WaterfallPage />}
             />
             <Route path="token" element={<TokenPage />} />
-            <Route path="*" element={<div>Uh-oh, page not found!</div>} />
+            <Route
+              path="*"
+              element={
+                <div className="content-container">Uh-oh, page not found!</div>
+              }
+            />
           </Routes>
-        </div>
+        </main>
       </Row>
       <Row className="vw-100">
         <Footer />

@@ -188,7 +188,7 @@ const NewVisualizationPage = () => {
   };
 
   return (
-    <div>
+    <div className="content-container">
       <h5>Create a New Visualization</h5>
       <div className="mt-4">
         {/* Step 1 */}

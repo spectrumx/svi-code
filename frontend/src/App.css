@@ -63,6 +63,7 @@
   height: 10px;
   background: url(./img/rule-rainbow.svg) 0 0 / cover no-repeat;
 }
+*/
 
 .content-container {
   padding-top: 2.5rem;
@@ -70,7 +71,6 @@
   padding-right: 5rem;
   padding-bottom: 2.5rem;
 }
-*/
 
 :root {
   --primary-color: #002147;
@@ -112,9 +112,6 @@ body {
     /* Blue */ #4b0082,
     /* Indigo */ #8f00ff /* Violet */
   );
-  position: fixed;
-  top: 0;
-  left: 0;
   z-index: 1001;
 }
 
@@ -123,7 +120,6 @@ body {
   background: var(--white);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   width: 100%;
-  top: 4px; /* Changed from 0 to 4px to account for rainbow bar */
   z-index: 1000;
   padding: 0;
 }
