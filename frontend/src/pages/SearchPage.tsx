@@ -1,36 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { Form } from 'react-bootstrap';
 
 import CaptureTable from '../components/CaptureTable';
 import { useSyncCaptures } from '../apiClient/fileService';
 import { useAppContext } from '../utils/AppContext';
 
-const SearchPage = () => {
+/**
+ * SearchPage component that displays a search interface for RF captures
+ * with filtering capabilities
+ */
+export const SearchPage = () => {
   const context = useAppContext();
   const { captures } = context;
   const syncCaptures = useSyncCaptures();
 
-  interface CheckboxProps {
-    label: string;
-  }
-
   useEffect(() => {
     syncCaptures();
   }, [syncCaptures]);
-
-  const Checkbox: React.FC<CheckboxProps> = ({ label }) => {
-    const [isChecked, setIsChecked] = useState(false);
-
-    const handleChange = () => {
-      setIsChecked(!isChecked);
-    };
-
-    return (
-      <div>
-        <input type="checkbox" checked={isChecked} onChange={handleChange} />
-        <label>{label}</label>
-      </div>
-    );
-  };
 
   return (
     <div className="content-container">
@@ -41,7 +27,7 @@ const SearchPage = () => {
           backgroundColor: '#ffffff',
         }}
       >
-        <h5> Search</h5>
+        <h5>Search</h5>
         <input
           type="text"
           placeholder="Search..."
@@ -76,11 +62,28 @@ const SearchPage = () => {
             }}
           >
             <h5>Filters</h5>
-            <div>
-              <Checkbox label="Frequency" />
-              <Checkbox label="Category 2" />
-              <Checkbox label="Category 3" />
-            </div>
+            <Form>
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="checkbox"
+                  id="filter-frequency"
+                  label="Frequency"
+                  aria-label="Frequency filter checkbox"
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="filter-category-2"
+                  label="Category 2"
+                  aria-label="Category 2 filter checkbox"
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="filter-category-3"
+                  label="Category 3"
+                  aria-label="Category 3 filter checkbox"
+                />
+              </Form.Group>
+            </Form>
           </div>
           <div></div>
           <CaptureTable captures={captures} />
