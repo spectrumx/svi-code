@@ -20,16 +20,13 @@ class CaptureViewSet(viewsets.ModelViewSet):
     serializer_class = CaptureSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+    def get_queryset(self):
+        """Get the queryset of captures for the current user.
 
-        serializer = self.get_serializer(queryset, many=True)
-
-        print("Capture list:")
-        for item in serializer.data:
-            print(item)
-
-        return Response(serializer.data)
+        Returns:
+            QuerySet: Filtered queryset containing only the user's captures.
+        """
+        return Capture.objects.filter(owner=self.request.user)
 
     @action(detail=True, methods=["post"])
     def create_spectrogram(self, request, pk=None):
