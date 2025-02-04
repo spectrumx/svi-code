@@ -144,7 +144,7 @@ const SpectrogramPage = () => {
   }, [jobInfo.job_id, spectrogramUrl]);
 
   return (
-    <>
+    <div className="page-container">
       <h5>Spectrogram for capture {captureId}</h5>
       <br />
       <Row>
@@ -167,7 +167,7 @@ const SpectrogramPage = () => {
           />
         </Col>
       </Row>
-    </>
+    </div>
   );
 };
 
