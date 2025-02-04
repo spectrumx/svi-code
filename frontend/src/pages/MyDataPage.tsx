@@ -17,7 +17,7 @@ const MyDataPage = () => {
   }, [syncCaptures]);
 
   return (
-    <>
+    <div className="page-container">
       <h5>Captures</h5>
       {captures.length > 0 ? (
         <DatasetTable captures={captures} />
@@ -39,7 +39,7 @@ const MyDataPage = () => {
         handleClose={() => setShowModal(false)}
         handleSuccess={syncCaptures}
       />
-    </>
+    </div>
   );
 };
 

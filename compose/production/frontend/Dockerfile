@@ -11,6 +11,7 @@ WORKDIR /app
 
 # Copy source code and build the app
 COPY . .
+RUN npm install
 RUN npm run build
 
 # Step 2: Serve the application with Nginx

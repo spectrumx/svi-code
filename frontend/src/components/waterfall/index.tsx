@@ -240,10 +240,10 @@ const WaterfallVisualization = ({
     const tmpDisplay = _.cloneDeep(display);
 
     const yValues = dataArray?.map((i) =>
-      Math.round(10 * (Math.log(i * 1000) / Math.log(10))),
+      Math.round(10 * Math.log10(i * 1000)),
     );
-    minValue = yValues && Math.min(...Array.from(yValues));
-    maxValue = yValues && Math.max(...Array.from(yValues));
+    minValue = yValues ? _.min(yValues) : undefined;
+    maxValue = yValues ? _.max(yValues) : undefined;
 
     if (
       input.mac_address &&
@@ -493,14 +493,18 @@ const WaterfallVisualization = ({
       // Convert to dB values
       // const intArray: number[] = [];
       const yValues = dataArray.map((i) =>
-        Math.round(10 * (Math.log(i * 1000) / Math.log(10))),
+        Math.round(10 * Math.log10(i * 1000)),
       );
 
       // Update global min/max
-      const minValue = Math.min(...Array.from(yValues));
-      const maxValue = Math.max(...Array.from(yValues));
-      globalMinValue = Math.min(globalMinValue, minValue);
-      globalMaxValue = Math.max(globalMaxValue, maxValue);
+      const minValue = _.min(yValues);
+      const maxValue = _.max(yValues);
+      globalMinValue = minValue
+        ? Math.min(globalMinValue, minValue)
+        : globalMinValue;
+      globalMaxValue = maxValue
+        ? Math.max(globalMaxValue, maxValue)
+        : globalMaxValue;
 
       // Update x range
       const currentXMin = Number(capture.metadata?.xstart);

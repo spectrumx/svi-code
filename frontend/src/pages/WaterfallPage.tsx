@@ -100,7 +100,7 @@ export const WaterfallPage = () => {
   }
 
   return (
-    <>
+    <div className="page-container">
       <h5>Waterfall</h5>
       <br />
       <Row>
@@ -125,7 +125,7 @@ export const WaterfallPage = () => {
           capture={waterfallData[settings.captureIndex].fileData}
         />
       </Row>
-    </>
+    </div>
   );
 };
 
