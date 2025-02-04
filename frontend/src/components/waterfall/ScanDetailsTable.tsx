@@ -7,14 +7,14 @@ import { RadioHoundCapture } from './types';
 
 interface DetailRowProps {
   label: string;
-  value: React.ReactNode;
+  value?: string;
 }
 
 function DetailRow({ label, value }: DetailRowProps): JSX.Element {
   return (
     <tr>
       <td>{label}</td>
-      <td>{value || ''}</td>
+      <td>{value ?? ''}</td>
     </tr>
   );
 }
