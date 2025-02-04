@@ -1,4 +1,5 @@
 .capture-index-number-input {
+  /* Hide the native up/down buttons */
   -webkit-appearance: none;
   -moz-appearance: textfield;
   appearance: textfield;
