@@ -120,6 +120,7 @@ export const WaterfallPage = () => {
           />
         </Col>
       </Row>
+      <br />
       <Row>
         <ScanDetailsTable
           capture={waterfallData[settings.captureIndex].fileData}

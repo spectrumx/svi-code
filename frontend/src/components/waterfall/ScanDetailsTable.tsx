@@ -1,23 +1,21 @@
-import { CSSProperties, useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Button, Table } from 'react-bootstrap';
 import _ from 'lodash';
 
 import { formatHertz } from './index';
 import { RadioHoundCapture } from './types';
 
-export interface ScanDetailProps {
-  data: object | undefined;
+interface DetailRowProps {
   label: string;
-  labelStyle: CSSProperties;
-  value: string | (() => string) | (() => JSX.Element);
+  value: React.ReactNode;
 }
 
-export function ScanDetail({ label, labelStyle, value }: ScanDetailProps) {
+function DetailRow({ label, value }: DetailRowProps): JSX.Element {
   return (
-    <>
-      <span style={labelStyle}>{label}</span>{' '}
-      {value !== undefined ? value() : ''}
-    </>
+    <tr>
+      <td>{label}</td>
+      <td>{value || ''}</td>
+    </tr>
   );
 }
 
@@ -25,185 +23,122 @@ interface ScanDetailsProps {
   capture: RadioHoundCapture;
 }
 
-function ScanDetails({ capture }: ScanDetailsProps) {
-  function downloadJSON() {
-    const element = document.createElement('a');
-    const file = new Blob([JSON.stringify(capture, null, 4)], {
-      type: 'text/plain',
+export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
+  const downloadUrl = useMemo(() => {
+    const blob = new Blob([JSON.stringify(capture, null, 4)], {
+      type: 'application/json',
     });
-    element.href = URL.createObjectURL(file);
-    element.download =
-      capture.short_name +
-      ' ' +
-      formatHertz(capture.metadata.fmin) +
-      '-' +
-      formatHertz(capture.metadata.fmax) +
-      '.json';
-    document.body.appendChild(element); // Required for this to work in FireFox
-    element.click();
-  }
+    return URL.createObjectURL(blob);
+  }, [capture]);
+  const fileName = useMemo(() => {
+    return `${capture.short_name} ${formatHertz(
+      capture.metadata?.fmin ?? 0,
+    )}-${formatHertz(capture.metadata?.fmax ?? 0)}.json`;
+  }, [capture]);
 
-  const labelStyle = useMemo(
-    () => ({
-      //fontFamily: 'Segoe UI, Arial, Helvetica',
-      fontSize: 16,
-      width: '100%',
-    }),
-    [],
-  );
+  // Clean up the URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+      }
+    };
+  }, [downloadUrl]);
 
-  const scanDetails = useMemo(
-    () =>
-      [
-        {
-          label: 'Node:',
-          value: () =>
-            _.has(capture, 'short_name')
-              ? _.get(capture, 'short_name') +
-                (_.get(capture, 'mac_address')
-                  ? ` (${_.get(capture, 'mac_address')})`
-                  : '')
-              : '',
-        },
-        {
-          label: 'Scan Time:',
-          value: () =>
-            _.has(capture, 'metadata.scan_time')
-              ? Math.round(
-                  Number(_.get(capture, 'metadata.scan_time')) * 1000,
-                ) /
-                  1000 +
-                's'
-              : '',
-        },
-        {
-          label: 'Sample Rate:',
-          value: () =>
-            _.has(capture, 'sample_rate') ? (
-              <span>{_.get(capture, 'sample_rate')}</span>
-            ) : (
-              ''
-            ),
-        },
-        {
-          label: 'Gain:',
-          value: () =>
-            _.has(capture, 'gain') ? <span>{_.get(capture, 'gain')}</span> : '',
-        },
-        {
-          label: 'Freq Min:',
-          value: () =>
-            _.has(capture, 'metadata.fmin') ? (
-              <span>{formatHertz(_.get(capture, 'metadata.fmin'))}</span>
-            ) : (
-              ''
-            ),
-        },
-        {
-          label: 'Freq Max:',
-          value: () =>
-            _.has(capture, 'metadata.fmax') ? (
-              <span>{formatHertz(_.get(capture, 'metadata.fmax', 0))}</span>
-            ) : (
-              ''
-            ),
-        },
-        {
-          label: 'Num of Samples:',
-          value: () =>
-            _.has(capture, 'metadata.xcount') ? (
-              <span>{_.get(capture, 'metadata.xcount')}</span>
-            ) : (
-              ''
-            ),
-        },
-        {
-          label: 'Timestamp:',
-          value: () =>
-            capture !== undefined && _.has(capture, 'timestamp') ? (
-              <span>
-                {_.get(capture, 'timestamp').substring(0, 19).replace('T', ' ')}{' '}
-                (UTC)
-              </span>
-            ) : (
-              ''
-            ),
-        },
-        {
-          label: 'GPS Lock:',
-          value: () =>
-            capture !== undefined && _.has(capture, 'metadata.gps_lock') ? (
-              <span>
-                {_.get(capture, 'metadata.gps_lock') ? 'True' : 'False'}
-              </span>
-            ) : (
-              ''
-            ),
-        },
-        {
-          label: 'Job:',
-          value: () =>
-            capture !== undefined && _.has(capture, 'metadata.name') ? (
-              <span>{_.get(capture, 'metadata.name')}</span>
-            ) : (
-              ''
-            ),
-        },
-      ].map((detail) => ({
-        labelStyle,
-        ...detail,
-      })) as ScanDetailProps[],
-    [capture, labelStyle],
-  );
-  // console.log('scanDetails', scanDetails, scanDetails[0])
-
-  const rows = [];
-  for (let i = 0; i < scanDetails.length; i += 2) {
-    const detail1 = scanDetails[i];
-    const detail2 = scanDetails[i + 1];
-
-    rows.push({
-      key: i,
-      data: (
-        <>
-          <td key={i}>
-            <ScanDetail {...detail1} />
-          </td>
-          <td key={i + 1}>
-            <ScanDetail {...detail2} />
-          </td>
-        </>
-      ),
-    });
-  }
+  // Helper function to safely get nested values
+  const getCaptureValue = <T,>(
+    path: string,
+    defaultValue?: T,
+  ): T | undefined => {
+    return _.get(capture, path, defaultValue) as T;
+  };
 
   return (
-    <div style={labelStyle}>
-      <div style={{ fontWeight: '700' }}>Details</div>
+    <div className="px-5">
+      <h5>Details</h5>
       <Table striped bordered size="sm">
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.key}>{row.data}</tr>
-          ))}
-          <tr>
-            <td>Comments:</td>
-            <td>
-              {' '}
-              {'metadata' in capture &&
-                capture.metadata !== undefined &&
-                'comments' in capture.metadata && (
-                  <span>{capture.metadata.comments}</span>
-                )}
-            </td>
-          </tr>
+          <DetailRow
+            label="Node"
+            value={`${getCaptureValue('short_name')}${
+              getCaptureValue('mac_address')
+                ? ` (${getCaptureValue('mac_address')})`
+                : ''
+            }`}
+          />
+          <DetailRow
+            label="Scan Time"
+            value={
+              getCaptureValue('metadata.scan_time')
+                ? `${
+                    Math.round(
+                      Number(getCaptureValue('metadata.scan_time')) * 1000,
+                    ) / 1000
+                  }s`
+                : undefined
+            }
+          />
+          <DetailRow
+            label="Sample Rate"
+            value={getCaptureValue('sample_rate')}
+          />
+          <DetailRow label="Gain" value={getCaptureValue('gain')} />
+          <DetailRow
+            label="Frequency Minimum"
+            value={
+              getCaptureValue('metadata.fmin')
+                ? formatHertz(getCaptureValue('metadata.fmin') as number)
+                : undefined
+            }
+          />
+          <DetailRow
+            label="Frequency Maximum"
+            value={
+              getCaptureValue('metadata.fmax')
+                ? formatHertz(getCaptureValue('metadata.fmax') as number)
+                : undefined
+            }
+          />
+          <DetailRow
+            label="Number of Samples"
+            value={
+              typeof getCaptureValue('metadata.xcount') === 'number'
+                ? (
+                    getCaptureValue('metadata.xcount') as number
+                  ).toLocaleString()
+                : undefined
+            }
+          />
+          <DetailRow
+            label="Timestamp"
+            value={
+              getCaptureValue('timestamp')
+                ? `${getCaptureValue<string>('timestamp')
+                    ?.substring(0, 19)
+                    .replace('T', ' ')} (UTC)`
+                : undefined
+            }
+          />
+          <DetailRow
+            label="GPS Lock"
+            value={
+              getCaptureValue('metadata.gps_lock') !== undefined
+                ? getCaptureValue('metadata.gps_lock')
+                  ? 'True'
+                  : 'False'
+                : undefined
+            }
+          />
+          <DetailRow label="Job" value={getCaptureValue('metadata.name')} />
+          <DetailRow
+            label="Comments"
+            value={getCaptureValue('metadata.comments')}
+          />
         </tbody>
       </Table>
-
-      {Object.keys(capture).length > 0 && (
-        <Button onClick={downloadJSON} variant="outline-primary" size="sm">
-          Download Data
-        </Button>
-      )}
+      <Button as="a" href={downloadUrl} download={fileName}>
+        Download Data
+      </Button>
     </div>
   );
 }
