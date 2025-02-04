@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { Form, InputGroup, Button } from 'react-bootstrap';
 import debounce from 'lodash/debounce';
+import './waterfall.css';
 
 import { WaterfallSettings } from '../../pages/WaterfallPage';
 import _ from 'lodash';
@@ -135,12 +136,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
                 onKeyDown={handleCaptureIndexKeyDown}
                 min={1}
                 max={numCaptures}
-                style={{
-                  // Hide up/down buttons
-                  WebkitAppearance: 'none',
-                  MozAppearance: 'textfield',
-                  textAlign: 'center',
-                }}
+                className="capture-index-number-input"
                 aria-label="Capture index number input"
               />
             </InputGroup.Text>
