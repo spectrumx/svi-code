@@ -6,6 +6,7 @@ import { WaterfallVisualization } from '../components/waterfall';
 import { RadioHoundCapture } from '../components/waterfall/types';
 import WaterfallControls from '../components/waterfall/WaterfallControls';
 import { getCaptures, Capture, getFileContent } from '../apiClient/fileService';
+import ScanDetailsTable from '../components/waterfall/ScanDetailsTable';
 
 interface WaterfallData {
   capture: Capture;
@@ -118,6 +119,12 @@ export const WaterfallPage = () => {
             settings={settings}
           />
         </Col>
+      </Row>
+      <br />
+      <Row>
+        <ScanDetailsTable
+          capture={waterfallData[settings.captureIndex].fileData}
+        />
       </Row>
     </div>
   );
