@@ -2,12 +2,11 @@ import { useRef, useEffect } from 'react';
 import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
-import { ScanState, WaterfallType, ScanOptionsType, Display } from './types';
+import { ScanState, WaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
 interface WaterfallPlotProps {
   scan: ScanState;
-  options: ScanOptionsType;
   display: Display;
   setWaterfall: (waterfall: WaterfallType) => void;
   setScaleChanged: (scaleChanged: boolean) => void;
@@ -16,7 +15,6 @@ interface WaterfallPlotProps {
 
 function WaterfallPlot({
   scan,
-  options,
   display,
   setWaterfall,
   setScaleChanged,
@@ -57,11 +55,9 @@ function WaterfallPlot({
   ) {
     const scanCopy = _.cloneDeep(scan);
     const displayCopy = _.cloneDeep(display);
-    const optionsCopy = _.cloneDeep(options);
     const allData = scanCopy.allData as number[][];
     let redrawLegend = 0;
 
-    console.log('in processWaterfall: scan object', scan);
     if (allData && allData.length > 0) {
       const context = canvas.getContext('2d');
       const labelWidth = 60;
@@ -74,22 +70,18 @@ function WaterfallPlot({
       };
       const width = canvas.width - margin.left - margin.right - labelWidth;
       const height = canvas.height - margin.top - margin.bottom;
-      const { startingFrequency, endingFrequency } = optionsCopy;
-      const maxSize = WATERFALL_MAX_ROWS; //that.maxSize = that.seconds * that.jobsPerSecond;
-      const rectHeight = height / maxSize;
-      const rectWidth = width / (endingFrequency - startingFrequency);
-      console.log('rectWidth, rectHeight:', rectWidth, rectHeight);
+      const rectWidth = width / allData[0].length;
+      const rectHeight = height / Math.min(allData.length, WATERFALL_MAX_ROWS);
 
       let { yMin, yMax } = scanCopy;
       const { scaleMin, scaleMax } = displayCopy;
 
-      const x = scaleLinear().range([0, width]);
-      x.domain([0, allData[0].length - 1]);
+      // const x = scaleLinear().range([0, width]);
+      // x.domain([0, allData[0].length - 1]);
 
-      const y = scaleLinear().range([0, height]);
-      y.domain([0, maxSize]);
+      // const y = scaleLinear().range([0, height]);
+      // y.domain([0, maxSize]);
 
-      // console.log('scalemin/max', waterfall.display.scaleMin, waterfall.display.scaleMax)
       let colorScale =
         scaleMin && scaleMax
           ? scaleLinear(
@@ -101,7 +93,6 @@ function WaterfallPlot({
             undefined;
 
       if (displayCopy.resetScale && context) {
-        console.log('rescaling and redrawing');
         // Rescale the color gradient to min/max values and redraw entire graph
 
         // The following block of code clears the entire canvas without
@@ -138,9 +129,6 @@ function WaterfallPlot({
           scanCopy.yMax = yMax;
         }
 
-        // We made a dispatch call to reset the min/max values
-        // But, unset periodogram so we aren't duplicating it inside allData
-        scanCopy.periodogram = undefined;
         setWaterfall(scanCopy);
 
         colorScale = scaleLinear(
@@ -165,7 +153,7 @@ function WaterfallPlot({
                 rectHeight,
               );
             } else {
-              console.log('color scale is undefined');
+              console.error('color scale is undefined');
             }
           });
         });
@@ -178,38 +166,60 @@ function WaterfallPlot({
         (isCanvasBlank(canvas) || redrawLegend || displayCopy.scaleChanged) &&
         context
       ) {
-        // Legend
+        // Draw the color legend
+        // Reset the canvas transform matrix and move down 5 pixels
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.translate(0, 5);
-        let dbVal: number;
-        let skipCount = 0;
-        let saveDbVal = -20;
+
+        let lastDrawnVal: number | undefined = undefined;
+
+        // Create white background for legend
         context.fillStyle = 'white';
         context.fillRect(0, 0, labelWidth, height);
-        for (let legend = 0; legend < height + 2; legend++) {
-          dbVal = -130 + ((height - legend) / height) * 90;
-          if (skipCount === 0) {
-            context.fillStyle = 'black';
-            saveDbVal = Math.ceil(dbVal / 10) * 10;
-            //context.fillText(saveDbVal + 'dBm', margin.left + 20, legend + 3);
-            context.fillText(String(saveDbVal), margin.left + 25, legend + 3);
-            context.fillText('dBm', margin.left + 25, legend + 12);
-            skipCount++;
+
+        // Iterate through each pixel height of the legend
+        for (let legendPixel = 0; legendPixel < height + 2; legendPixel++) {
+          // Calculate dB value for this position
+          const dbVal =
+            scaleMin && scaleMax
+              ? scaleMin +
+                ((height - legendPixel) / height) * (scaleMax - scaleMin)
+              : -130 + ((height - legendPixel) / height) * 90;
+          const dbValRounded = Math.round(dbVal);
+
+          // If the dB value is less than the minimum scale value,
+          // stop drawing labels
+          if (scaleMin && dbVal < scaleMin) {
+            break;
           }
 
-          if (Math.ceil(dbVal / 10) * 10 < saveDbVal) {
-            skipCount = 0;
+          // Add text labels at every multiple of 10 dB
+          if (dbValRounded % 10 === 0 && dbValRounded !== lastDrawnVal) {
+            context.fillStyle = 'black';
+            context.fillText(
+              String(dbValRounded),
+              margin.left + 25,
+              legendPixel + 3,
+            );
+            lastDrawnVal = dbValRounded;
+            context.fillText('dBm', margin.left + 25, legendPixel + 12);
           }
+
+          // Get color for this dB value using the same color scale as the main plot
           const dbValColor = colorScale?.(dbVal) ?? 'black';
           context.strokeStyle = dbValColor;
           context.fillStyle = dbValColor;
+
+          // Draw a colored line if the value is within the current scale range
           if (
             dbVal > Number(displayCopy.scaleMin) &&
             dbVal < Number(displayCopy.scaleMax)
           ) {
-            context.fillRect(2, legend, 20, 1);
+            context.fillRect(2, legendPixel, 20, 1);
           }
         }
+
+        // Move context back for main plot
         context.translate(labelWidth + margin.left, margin.top);
         setScaleChanged(false);
       }
@@ -225,7 +235,6 @@ function WaterfallPlot({
         // );
         // context.putImageData(periodogram, labelWidth, rectHeight + margin.top);
 
-        console.log('Drawing all waterfalldata');
         // Draw all data at once instead of moving existing data
         allData.forEach((row, rowIndex) => {
           row.forEach((value, colIndex) => {
@@ -241,7 +250,7 @@ function WaterfallPlot({
                 rectHeight,
               );
             } else {
-              console.log('color scale is undefined');
+              console.error('color scale is undefined');
             }
           });
         });
@@ -253,7 +262,7 @@ function WaterfallPlot({
     if (canvasRef.current) {
       processWaterfall(canvasRef.current, () => setResetScale(false));
     }
-  }, [scan, options, display]);
+  }, [scan, display]);
 
   return (
     <div style={{ width: '100%', height: '500px' }}>
@@ -271,8 +280,15 @@ function drawCanvasSquare(
   rectWidth: number,
   rectHeight: number,
 ) {
+  const adjustedWidth = Math.max(rectWidth, 1);
+  const adjustedHeight = Math.max(rectHeight, 1);
   ctx.fillStyle = colorScale(yValue);
-  ctx.fillRect(xValue * rectWidth, yPos * rectHeight, rectWidth, rectHeight);
+  ctx.fillRect(
+    xValue * rectWidth,
+    yPos * rectHeight,
+    adjustedWidth,
+    adjustedHeight,
+  );
 }
 
 function isCanvasBlank(canvas: HTMLCanvasElement) {
