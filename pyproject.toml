@@ -154,6 +154,13 @@ ignore = [
   "ISC001", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
   "TRY400", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
   "TRY300", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
+  "EM102",
+  "FBT001",
+  "G004",
+  "B904",
+  "TRY003",
+  "G201",
+  "PTH123",
   "UP038" # Checks for uses of isinstance/issubclass that take a tuple
           # of types for comparison.
           # Deactivated because it can make the code slow:

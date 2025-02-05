@@ -276,3 +276,6 @@ jobs/job_results/
 .env
 .envs/*
 .envs/.local/*
+
+# we'll use the data directory for storing the RadioHound JSON files locally
+data/
