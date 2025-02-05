@@ -10,39 +10,38 @@ import {
   DataPoint,
   FloatArray,
   ScanState,
-  ScanOptionsType,
   WaterfallType,
   RadioHoundCapture,
   Display,
   ApplicationType,
 } from './types';
 
-const initialOptions: ScanOptionsType = {
-  selectedNodes: [],
-  startingFrequency: 1990,
-  endingFrequency: 2010,
-  centerFrequency: 2000,
-  gain: 1,
-  nsamples: 1024,
-  interval: 0.2, // handler for recurring scan
-  bandwidth: 20,
-  errors: {},
-  selectedGroups: [],
-  rbw: 23437.5,
-  showLiveData: false,
-  archiveResult: true,
-  m4s: false,
-  siggen: false,
-  siggen_ip: '10.173.170.235',
-  siggen_power: -30,
-  siggen_freq: 2000,
-  option: 1,
-  hw_versions_selected: [],
-  mode: 'compatibility',
-  scaleMax: -30,
-  scaleMin: -110,
-  algorithm: 'Cubic',
-};
+// const initialOptions: ScanOptionsType = {
+//   selectedNodes: [],
+//   startingFrequency: 1990,
+//   endingFrequency: 2010,
+//   centerFrequency: 2000,
+//   gain: 1,
+//   nsamples: 1024,
+//   interval: 0.2, // handler for recurring scan
+//   bandwidth: 20,
+//   errors: {},
+//   selectedGroups: [],
+//   rbw: 23437.5,
+//   showLiveData: false,
+//   archiveResult: true,
+//   m4s: false,
+//   siggen: false,
+//   siggen_ip: '10.173.170.235',
+//   siggen_power: -30,
+//   siggen_freq: 2000,
+//   option: 1,
+//   hw_versions_selected: [],
+//   mode: 'compatibility',
+//   scaleMax: -30,
+//   scaleMin: -110,
+//   algorithm: 'Cubic',
+// };
 
 const initialDisplay: Display = {
   resetScale: false,
@@ -93,7 +92,7 @@ const initialChart: Chart = {
 
 const initialScan: ScanState = {
   isScanActive: false,
-  lastScanOptions: undefined as ScanOptionsType | undefined,
+  lastScanOptions: undefined,
   receivedHeatmap: false,
   scansRequested: 0,
   allData: [] as Data[],
@@ -102,15 +101,12 @@ const initialScan: ScanState = {
   xMin: 100000,
   xMax: -100000,
   spinner: false,
-  periodogram: undefined,
   heatmapData: [] as Data[],
   scaleMin: undefined as number | undefined,
   scaleMax: undefined as number | undefined,
 };
 
 export const WATERFALL_MAX_ROWS = 80;
-
-export type Application = ApplicationType | ApplicationType[];
 
 interface WaterfallVisualizationProps {
   data: RadioHoundCapture[];
@@ -121,7 +117,7 @@ const WaterfallVisualization = ({
   data,
   settings,
 }: WaterfallVisualizationProps) => {
-  const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as Application;
+  const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as ApplicationType[];
   const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
     settings.captureIndex,
   );
@@ -132,23 +128,21 @@ const WaterfallVisualization = ({
 
   const [scan, setScan] = useState<ScanState>(initialScan);
   const [display, setDisplay] = useState<Display>(initialDisplay);
-  const [options, setOptions] = useState<ScanOptionsType>(initialOptions);
   const [chart, setChart] = useState<Chart>(initialChart);
 
   const setScaleChanged = (scaleChanged: boolean) => {
-    setOptions((prevOptions) => ({
-      ...prevOptions,
+    setDisplay((prevDisplay) => ({
+      ...prevDisplay,
       scaleChanged,
     }));
   };
   const setResetScale = (resetScale: boolean) => {
-    setOptions((prevOptions) => ({
-      ...prevOptions,
+    setDisplay((prevDisplay) => ({
+      ...prevDisplay,
       resetScale,
     }));
   };
   const setWaterfall = (waterfall: WaterfallType) => {
-    console.log('setWaterfall called with:', waterfall);
     const localScaleMin = waterfall.scaleMin ?? scan.scaleMin;
     const localScaleMax = waterfall.scaleMax ?? scan.scaleMax;
     const tmpData = _.cloneDeep(waterfall.allData ?? scan.allData);
@@ -159,7 +153,6 @@ const WaterfallVisualization = ({
       tmpData.shift();
     }
     const tmpScan = _.cloneDeep(scan);
-    tmpScan.periodogram = waterfall.periodogram;
     tmpScan.allData = tmpData;
     tmpScan.yMin = Math.min(Number(waterfall.yMin), tmpScan.yMin);
     tmpScan.yMax = Math.max(Number(waterfall.yMax), tmpScan.yMax);
@@ -173,14 +166,13 @@ const WaterfallVisualization = ({
   };
 
   const processPeriodogramData = (input: RadioHoundCapture) => {
-    console.log('Processing periodogram data');
     let dataArray: FloatArray | number[] | undefined;
     let arrayLength: number | undefined = Number(input.metadata?.xcount);
     const pointArr: DataPoint[] = [];
-    const intArray: number[] = [];
     let yValue: number | undefined,
       xValue: number,
       fMin: number,
+      fMax: number,
       freqStep: number,
       centerFreq: number | undefined;
     let minValue: number | undefined = 1000000;
@@ -203,7 +195,7 @@ const WaterfallVisualization = ({
       // Null data can get base64 encoded and sent along which appears as all A's
       // Check start of string for A's and skip processing.
       if (input.data.slice(0, 8) === 'AAAAAAAA') {
-        console.log('Invalid data, not processing', input['data']);
+        console.error('Invalid data, not processing', input['data']);
         return;
       }
       // console.log("data before decoding: ", input['data']);
@@ -218,11 +210,13 @@ const WaterfallVisualization = ({
     if (input.metadata?.xstart == null) {
       // OLD
       fMin = Number(input.center_frequency) - Number(input.sample_rate) / 2;
+      fMax = Number(input.center_frequency) + Number(input.sample_rate) / 2;
       freqStep = Number(input.sample_rate) / Number(input.metadata?.nfft);
       centerFreq = input.center_frequency;
     } else {
       // NEW Icarus
       fMin = Number(input.metadata.xstart);
+      fMax = Number(input.metadata.xstop);
       freqStep =
         (Number(input.metadata.xstop) - Number(input.metadata.xstart)) /
         Number(input.metadata.xcount);
@@ -267,7 +261,6 @@ const WaterfallVisualization = ({
           xValue = (fMin + i * freqStep) / 1000000;
           //console.log("xvalue:",xValue,"yValue:",yValue);
           pointArr.push({ x: xValue, y: yValue });
-          intArray.push(Math.floor(yValue)); //waterfall wants int values so it's less data to keep
           // if (yValue < minValue) { minValue = yValue; }
           // if (yValue > maxValue) { maxValue = yValue; }
 
@@ -351,7 +344,7 @@ const WaterfallVisualization = ({
     //     + " (" + input.mac_address.substring(input.mac_address.length - 4) + ')';
     // }
 
-    if (currentApplication === 'WATERFALL') {
+    if (_.isEqual(currentApplication, ['WATERFALL'])) {
       tmpChart.axisX.title = '';
       tmpChart.data[nextIndex].showInLegend = false;
       tmpChart.data[nextIndex].name = input.short_name;
@@ -440,16 +433,14 @@ const WaterfallVisualization = ({
       tmpChart.axisY.interval = display.ref_interval;
     }
 
-    // If user requests X amount of bandwidth, lock the display to their request.
-    // But not for other functions
     if (currentApplication.includes('PERIODOGRAM')) {
-      tmpChart.axisX.minimum = options.startingFrequency;
-      tmpChart.axisX.maximum = options.endingFrequency;
+      tmpChart.axisX.minimum = fMin / 1e6;
+      tmpChart.axisX.maximum = fMax / 1e6;
     } else {
       delete tmpChart.axisX.minimum;
       delete tmpChart.axisX.maximum;
     }
-    //console.log(chart);
+
     if (!_.isEqual(chart, tmpChart)) {
       tmpChart.key = Math.random();
       setChart(tmpChart);
@@ -459,19 +450,17 @@ const WaterfallVisualization = ({
     // {
     //   console.log("Finished processing periodogram at:", Date.now());
     // }
-    return;
   };
 
   /**
    * Processes multiple captures for the waterfall display
    */
   const processWaterfallData = (captures: RadioHoundCapture[]) => {
-    console.log('Processing waterfall data');
     const processedData: number[][] = [];
     let globalMinValue = 100000;
     let globalMaxValue = -100000;
-    let xMin = Number.MAX_VALUE;
-    let xMax = Number.MIN_VALUE;
+    let xMin = Infinity;
+    let xMax = -Infinity;
 
     captures.forEach((capture) => {
       let dataArray: FloatArray | number[] | undefined;
@@ -480,7 +469,7 @@ const WaterfallVisualization = ({
       // Process the data array similar to existing logic
       if (typeof capture.data === 'string') {
         if (capture.data.slice(0, 8) === 'AAAAAAAA') {
-          console.log('Invalid data, skipping capture');
+          console.error('Invalid data, skipping capture');
           return;
         }
         dataArray = binaryStringToFloatArray(capture.data, capture.type);
@@ -507,8 +496,15 @@ const WaterfallVisualization = ({
         : globalMaxValue;
 
       // Update x range
-      const currentXMin = Number(capture.metadata?.xstart);
-      const currentXMax = Number(capture.metadata?.xstop);
+      let currentXMin = Infinity;
+      let currentXMax = -Infinity;
+      if (capture.metadata?.xstart && capture.metadata?.xstop) {
+        currentXMin = capture.metadata.xstart;
+        currentXMax = capture.metadata.xstop;
+      } else if (capture.center_frequency && capture.sample_rate) {
+        currentXMin = capture.center_frequency - capture.sample_rate / 2;
+        currentXMax = capture.center_frequency + capture.sample_rate / 2;
+      }
       xMin = Math.min(xMin, currentXMin);
       xMax = Math.max(xMax, currentXMax);
 
@@ -521,16 +517,21 @@ const WaterfallVisualization = ({
       processedData.shift();
     }
 
+    setDisplay((prevDisplay) => ({
+      ...prevDisplay,
+      scaleMin: globalMinValue,
+      scaleMax: globalMaxValue,
+    }));
+
     // Update waterfall state
     const newWaterfall: WaterfallType = {
-      periodogram: processedData[processedData.length - 1], // Most recent capture for periodogram
       allData: processedData,
-      xMin,
-      xMax,
+      xMin: xMin / 1e6,
+      xMax: xMax / 1e6,
       yMin: globalMinValue,
       yMax: globalMaxValue,
-      scaleMin: scan.scaleMin,
-      scaleMax: scan.scaleMax,
+      scaleMin: globalMinValue,
+      scaleMax: globalMaxValue,
     };
 
     setWaterfall(newWaterfall);
@@ -572,7 +573,6 @@ const WaterfallVisualization = ({
       <br />
       <WaterfallPlot
         scan={scan}
-        options={options}
         display={display}
         setWaterfall={setWaterfall}
         setScaleChanged={setScaleChanged}
