@@ -280,8 +280,15 @@ function drawCanvasSquare(
   rectWidth: number,
   rectHeight: number,
 ) {
+  const adjustedWidth = Math.max(rectWidth, 1);
+  const adjustedHeight = Math.max(rectHeight, 1);
   ctx.fillStyle = colorScale(yValue);
-  ctx.fillRect(xValue * rectWidth, yPos * rectHeight, rectWidth, rectHeight);
+  ctx.fillRect(
+    xValue * rectWidth,
+    yPos * rectHeight,
+    adjustedWidth,
+    adjustedHeight,
+  );
 }
 
 function isCanvasBlank(canvas: HTMLCanvasElement) {
