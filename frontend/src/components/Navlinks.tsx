@@ -27,10 +27,6 @@ const Navlinks = () => {
                     {username}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    <NavLink to="/token" className="dropdown-item">
-                      API Token
-                    </NavLink>
-                    <Dropdown.Divider />
                     <Dropdown.Item href={api_host + '/accounts/logout'}>
                       Logout
                     </Dropdown.Item>
