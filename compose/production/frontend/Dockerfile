@@ -18,7 +18,7 @@ RUN npm run build
 FROM nginx:1.17.8-alpine
 
 # Copy Nginx configuration file (optional, only needed for custom config)
-# COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy build output to Nginx HTML folder
 COPY --from=build /app/build /usr/share/nginx/html
@@ -26,5 +26,8 @@ COPY --from=build /app/build /usr/share/nginx/html
 # Expose port 80
 EXPOSE 80
 
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Add a startup script
+COPY docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
