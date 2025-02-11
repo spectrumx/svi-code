@@ -2,18 +2,18 @@ import { useCallback } from 'react';
 
 import apiClient from '.';
 import { useAppContext } from '../utils/AppContext';
-import { z } from 'zod';
+import { z as zod } from 'zod';
 
-const FileMetadataSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  content_url: z.string(),
-  media_type: z.string(),
-  created_at: z.string(),
-  updated_at: z.string(),
+const FileMetadataSchema = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  content_url: zod.string(),
+  media_type: zod.string(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
 });
 
-export type FileMetadata = z.infer<typeof FileMetadataSchema>;
+export type FileMetadata = zod.infer<typeof FileMetadataSchema>;
 
 export const getFileMetadata = async (
   fileId: number,
@@ -45,29 +45,29 @@ export const useSyncFiles = () => {
   return syncFiles;
 };
 
-const CaptureTypeSchema = z.enum(['drf', 'rh', 'sigmf']);
-export type CaptureType = z.infer<typeof CaptureTypeSchema>;
+const CaptureTypeSchema = zod.enum(['drf', 'rh', 'sigmf']);
+export type CaptureType = zod.infer<typeof CaptureTypeSchema>;
 
-const CaptureSourceSchema = z.enum(['sds', 'svi_public', 'svi_user']);
-export type CaptureSource = z.infer<typeof CaptureSourceSchema>;
+const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
+export type CaptureSource = zod.infer<typeof CaptureSourceSchema>;
 
-const CaptureSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  owner: z.number(),
-  created_at: z.string(),
-  timestamp: z.string(),
+const CaptureSchema = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  owner: zod.number(),
+  created_at: zod.string(),
+  timestamp: zod.string(),
   type: CaptureTypeSchema,
   source: CaptureSourceSchema,
-  files: z.array(FileMetadataSchema),
+  files: zod.array(FileMetadataSchema),
 });
 
-export type Capture = z.infer<typeof CaptureSchema>;
+export type Capture = zod.infer<typeof CaptureSchema>;
 
 export const getCaptures = async (): Promise<Capture[]> => {
   try {
     const response = await apiClient.get('/api/captures/');
-    return z.array(CaptureSchema).parse(response.data);
+    return zod.array(CaptureSchema).parse(response.data);
   } catch (error) {
     console.error('Error fetching captures:', error);
     throw error;
