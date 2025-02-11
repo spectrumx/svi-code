@@ -18,6 +18,7 @@ interface VisualizationType {
   description: string;
   icon: string;
   supportedCaptureTypes: CaptureType[];
+  multipleSelection: boolean;
 }
 
 export const VISUALIZATION_TYPES: VisualizationType[] = [
@@ -26,6 +27,7 @@ export const VISUALIZATION_TYPES: VisualizationType[] = [
     description: 'Visualize signal strength across frequency and time',
     icon: 'bi-graph-up',
     supportedCaptureTypes: ['sigmf'],
+    multipleSelection: false,
   },
   {
     name: 'waterfall',
@@ -33,6 +35,7 @@ export const VISUALIZATION_TYPES: VisualizationType[] = [
       'View signal data as a scrolling waterfall display with periodogram',
     icon: 'bi-water',
     supportedCaptureTypes: ['rh'],
+    multipleSelection: true,
   },
 ];
 
@@ -55,11 +58,6 @@ const NewVisualizationPage = () => {
   const filteredCaptures = selectedCaptureType
     ? captures.filter((capture) => capture.type === selectedCaptureType)
     : captures;
-
-  // For now, we're just displaying all RadioHound captures in the
-  // waterfall visualization
-  const captureIdParam =
-    selectedVizType === 'waterfall' ? '' : String(selectedCaptureIds[0]);
 
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
@@ -89,16 +87,24 @@ const NewVisualizationPage = () => {
 
   const handleCaptureSelect = useCallback((ids: number[]) => {
     setSelectedCaptureIds(ids);
-    setCurrentStep(3);
+    setCurrentStep(4);
   }, []);
 
   const handleTypeSelect = useCallback(
     async (type: VisualizationType['name']) => {
       setSelectedVizType(type);
-      setCurrentStep(4);
+      setCurrentStep(3);
     },
     [],
   );
+
+  const selectionMode = useMemo(() => {
+    if (!selectedVizType) return 'single';
+    const vizType = VISUALIZATION_TYPES.find(
+      (type) => type.name === selectedVizType,
+    );
+    return vizType?.multipleSelection ? 'multiple' : 'single';
+  }, [selectedVizType]);
 
   const renderCaptureTypeStep = () => (
     <Row className="g-4">
@@ -261,6 +267,56 @@ const NewVisualizationPage = () => {
     );
   };
 
+  // Update the capture table section to use dynamic selection mode
+  const renderDataSourceStep = () => (
+    <div>
+      <h6>
+        Select {selectionMode === 'multiple' ? 'one or more' : 'a'}{' '}
+        {CAPTURE_TYPES[selectedCaptureType!].name}{' '}
+        {selectionMode === 'multiple' ? 'captures' : 'capture'} to visualize:
+      </h6>
+      <CaptureTable
+        captures={filteredCaptures}
+        selectedIds={selectedCaptureIds}
+        onSelect={handleCaptureSelect}
+        selectionMode={selectionMode}
+      />
+      {currentStep === 2 && (
+        <div className="d-flex gap-2 mt-3">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setCurrentStep((prev) => prev - 1);
+              setSelectedCaptureType(null);
+              setSelectedCaptureIds([]);
+            }}
+          >
+            Back
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => setCurrentStep(3)}
+            disabled={selectedCaptureIds.length === 0}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Update the final URL construction
+  const getVisualizationUrl = () => {
+    if (!selectedVizType) return '';
+
+    if (selectedVizType === 'waterfall') {
+      const captureIds = selectedCaptureIds.join(',');
+      return `/visualization/waterfall?captures=${captureIds}`;
+    }
+
+    return `/visualization/${selectedVizType}/${selectedCaptureIds[0]}`;
+  };
+
   useEffect(() => {
     syncCaptures();
   }, [syncCaptures]);
@@ -279,47 +335,47 @@ const NewVisualizationPage = () => {
           )}
         </div>
 
-        {/* Step 2 - Select Data Source */}
+        {/* Step 2 - Choose Visualization Type */}
         {currentStep >= 2 && (
           <div className="mb-4">
-            {renderStepHeader(2, 'Select Data Source')}
+            {renderStepHeader(2, 'Select Visualization Type')}
             <div className={currentStep > 2 ? 'opacity-75' : ''}>
-              <div>
-                <h6>
-                  Select a {CAPTURE_TYPES[selectedCaptureType!].name} capture to
-                  visualize:
-                </h6>
-                <CaptureTable
-                  captures={filteredCaptures}
-                  selectedIds={selectedCaptureIds}
-                  onSelect={handleCaptureSelect}
-                  selectionMode="single"
-                />
-                {currentStep === 2 && (
-                  <div className="d-flex gap-2 mt-3">
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setCurrentStep((prev) => prev - 1);
-                        setSelectedCaptureType(null);
-                        setSelectedCaptureIds([]);
-                      }}
-                    >
-                      Back
-                    </Button>
-                  </div>
-                )}
-              </div>
+              {renderVizTypeStep()}
+              {currentStep === 2 && (
+                <div className="d-flex gap-2 mt-3">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setCurrentStep((prev) => prev - 1);
+                      setSelectedCaptureType(null);
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => setCurrentStep(3)}
+                    disabled={!selectedVizType}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Step 3 - Choose Visualization Type */}
+        {/* Step 3 - Select Data Source */}
         {currentStep >= 3 && (
           <div className="mb-4">
-            {renderStepHeader(3, 'Choose Visualization Type')}
+            {renderStepHeader(
+              3,
+              `Choose ${
+                selectionMode === 'multiple' ? 'one or more' : 'a'
+              } Capture${selectionMode === 'multiple' ? 's' : ''} to Visualize`,
+            )}
             <div className={currentStep > 3 ? 'opacity-75' : ''}>
-              {renderVizTypeStep()}
+              {renderDataSourceStep()}
               {currentStep === 3 && (
                 <div className="d-flex gap-2 mt-3">
                   <Button
@@ -330,6 +386,13 @@ const NewVisualizationPage = () => {
                     }}
                   >
                     Back
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => setCurrentStep(4)}
+                    disabled={selectedCaptureIds.length === 0}
+                  >
+                    Next
                   </Button>
                 </div>
               )}
@@ -348,14 +411,12 @@ const NewVisualizationPage = () => {
                   variant="secondary"
                   onClick={() => {
                     setCurrentStep((prev) => prev - 1);
-                    setSelectedVizType(null);
+                    setSelectedCaptureIds([]);
                   }}
                 >
                   Back
                 </Button>
-                <Link
-                  to={`/visualization/${selectedVizType}/${captureIdParam}`}
-                >
+                <Link to={getVisualizationUrl()}>
                   <Button
                     variant="primary"
                     disabled={

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-// import { useParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 
 import { WaterfallVisualization } from '../components/waterfall';
@@ -18,6 +18,7 @@ export interface WaterfallSettings {
 }
 
 export const WaterfallPage = () => {
+  const [searchParams] = useSearchParams();
   const [waterfallData, setWaterfallData] = useState<WaterfallData[]>([]);
   const [settings, setSettings] = useState<WaterfallSettings>({
     captureIndex: 0,
@@ -31,15 +32,26 @@ export const WaterfallPage = () => {
         setIsLoading(true);
         setError(null);
 
-        // Fetch all captures and filter for RadioHound data
+        // Get capture IDs from URL parameters
+        const captureParam = searchParams.get('captures');
+        if (!captureParam) {
+          throw new Error('No captures specified');
+        }
+
+        const captureIds = captureParam.split(',').map(Number);
+
+        // Fetch all specified captures
         const captures = await getCaptures();
-        const radiohoundCaptures = captures.filter(
-          (capture) => capture.type === 'rh',
+        const selectedCaptures = captures.filter(
+          (capture) => captureIds.includes(capture.id) && capture.type === 'rh',
         );
 
-        // Fetch file content for each RadioHound capture
-        const waterfallPromises = radiohoundCaptures.map(async (capture) => {
-          // Assuming we want the first file from each capture
+        if (selectedCaptures.length === 0) {
+          throw new Error('No valid RadioHound captures found');
+        }
+
+        // Fetch file content for each selected capture
+        const waterfallPromises = selectedCaptures.map(async (capture) => {
           const fileId = capture.files[0]?.id;
           if (!fileId) {
             throw new Error(`No files found for capture ${capture.id}`);
@@ -65,7 +77,7 @@ export const WaterfallPage = () => {
     };
 
     fetchRadiohoundData();
-  }, []);
+  }, [searchParams]);
 
   if (isLoading) {
     return (
