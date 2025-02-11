@@ -1,13 +1,19 @@
 import mimetypes
+from datetime import datetime
 
 from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import serializers
 
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
+from spectrumx_visualization_platform.spx_vis.utils.timestamp_extractors import (
+    extract_radiohound_timestamp,
+)
+from spectrumx_visualization_platform.spx_vis.utils.timestamp_extractors import (
+    extract_sigmf_timestamp,
+)
 
 
 class FileSerializer(serializers.ModelSerializer[File]):
@@ -97,6 +103,30 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         ]
         read_only_fields = ["owner", "created_at", "timestamp", "source"]
 
+    def _extract_timestamp(
+        self, files: list[UploadedFile], capture_type: str
+    ) -> datetime | None:
+        """Extract timestamp from uploaded files based on capture type.
+
+        Args:
+            files: List of uploaded files
+            capture_type: Type of capture (sigmf, drf, rh)
+
+        Returns:
+            datetime: Extracted timestamp or None if not found
+        """
+        if capture_type == CaptureType.SigMF:
+            meta_file = next((f for f in files if f.name.endswith(".sigmf-meta")), None)
+            if meta_file:
+                return extract_sigmf_timestamp(meta_file)
+
+        elif capture_type == CaptureType.RadioHound:
+            rh_file = next((f for f in files if f.name.endswith(".json")), None)
+            if rh_file:
+                return extract_radiohound_timestamp(rh_file)
+
+        return None
+
     def create(self, validated_data: dict) -> Capture:
         """Create a new Capture with associated File objects.
 
@@ -110,7 +140,11 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
 
         # Set defaults for required fields
         validated_data["owner"] = self.context["request"].user
-        validated_data["timestamp"] = timezone.now()
+
+        # Extract timestamp from files based on capture type
+        timestamp = self._extract_timestamp(uploaded_files, validated_data["type"])
+        validated_data["timestamp"] = timestamp or None
+
         validated_data["source"] = "svi_user"  # Default source for user uploads
 
         # Create the capture instance
