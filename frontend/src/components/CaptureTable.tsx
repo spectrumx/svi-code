@@ -17,7 +17,7 @@ interface CaptureTableProps {
 
 /**
  * Displays a table of captures with optional selection functionality
- * Supports both single and multiple selection modes
+ * Supports both single and multiple selection modes with "Select all" capability
  */
 const CaptureTable = ({
   captures,
@@ -39,12 +39,43 @@ const CaptureTable = ({
     }
   };
 
+  // Helper function to handle "Select All"
+  const handleSelectAll = () => {
+    if (!onSelect) return;
+
+    const allSelected = captures.length === selectedIds?.length;
+    if (allSelected) {
+      onSelect([]);
+    } else {
+      onSelect(captures.map((capture) => capture.id));
+    }
+  };
+
   return (
     <Table striped bordered hover>
       <thead>
         <tr>
           {onSelect && (
-            <th className="text-center" style={{ width: '50px' }}></th>
+            <th className="text-center" style={{ width: '50px' }}>
+              {selectionMode === 'multiple' && captures.length > 0 && (
+                <input
+                  type="checkbox"
+                  checked={
+                    captures.length > 0 &&
+                    captures.length === selectedIds?.length
+                  }
+                  ref={(input) => {
+                    if (input) {
+                      input.indeterminate =
+                        selectedIds!.length > 0 &&
+                        selectedIds!.length < captures.length;
+                    }
+                  }}
+                  onChange={handleSelectAll}
+                  aria-label="Select all captures"
+                />
+              )}
+            </th>
           )}
           <th>ID</th>
           <th>Name</th>
@@ -82,12 +113,14 @@ const CaptureTable = ({
               }}
             >
               {onSelect && (
-                <td className="text-center align-middle">
+                <td
+                  className="text-center align-middle"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <input
                     type={selectionMode === 'multiple' ? 'checkbox' : 'radio'}
                     checked={isSelected}
                     onChange={() => handleSelect(capture.id)}
-                    onClick={(e) => e.stopPropagation()}
                     aria-label={`Select capture ${capture.id}`}
                   />
                 </td>
@@ -95,7 +128,12 @@ const CaptureTable = ({
               <td className="align-middle">{capture.id}</td>
               <td className="align-middle">{capture.name}</td>
               <td className="align-middle">
-                {new Date(capture.timestamp).toLocaleDateString()}
+                {capture.timestamp
+                  ? new Date(capture.timestamp)
+                      .toISOString()
+                      .replace('Z', ' +00:00')
+                      .replace('T', ' ')
+                  : 'None'}
               </td>
               <td className="align-middle">
                 {CAPTURE_TYPES[capture.type].name}

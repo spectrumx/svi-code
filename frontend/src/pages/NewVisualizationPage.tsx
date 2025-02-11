@@ -87,12 +87,17 @@ const NewVisualizationPage = () => {
 
   const handleCaptureSelect = useCallback((ids: number[]) => {
     setSelectedCaptureIds(ids);
-    setCurrentStep(4);
+    if (ids.length > 0) {
+      setCurrentStep(4);
+    } else {
+      setCurrentStep(3);
+    }
   }, []);
 
-  const handleTypeSelect = useCallback(
+  const handleVizTypeSelect = useCallback(
     async (type: VisualizationType['name']) => {
       setSelectedVizType(type);
+      setSelectedCaptureIds([]);
       setCurrentStep(3);
     },
     [],
@@ -120,11 +125,13 @@ const NewVisualizationPage = () => {
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 setSelectedCaptureType(type);
+                setSelectedVizType(null);
                 setCurrentStep(2);
               }}
               onKeyPress={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   setSelectedCaptureType(type);
+                  setSelectedVizType(null);
                   setCurrentStep(2);
                 }
               }}
@@ -169,11 +176,11 @@ const NewVisualizationPage = () => {
                 cursor: typeIsSupported ? 'pointer' : 'not-allowed',
               }}
               onClick={() =>
-                typeIsSupported && handleTypeSelect(visualizationType.name)
+                typeIsSupported && handleVizTypeSelect(visualizationType.name)
               }
               onKeyPress={(e) => {
                 if (typeIsSupported && (e.key === 'Enter' || e.key === ' ')) {
-                  handleTypeSelect(visualizationType.name);
+                  handleVizTypeSelect(visualizationType.name);
                 }
               }}
             >
@@ -206,7 +213,7 @@ const NewVisualizationPage = () => {
       {selectedVizType === 'spectrogram' && (
         <div>
           <h6>Spectrogram Settings:</h6>
-          <label htmlFor="fftSize">FFT Size:</label>
+          <label htmlFor="fftSize">FFT Size: </label>
           <select
             id="fftSize"
             value={spectrogramSettings.fftSize}
@@ -293,13 +300,6 @@ const NewVisualizationPage = () => {
           >
             Back
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => setCurrentStep(3)}
-            disabled={selectedCaptureIds.length === 0}
-          >
-            Next
-          </Button>
         </div>
       )}
     </div>
@@ -352,13 +352,6 @@ const NewVisualizationPage = () => {
                   >
                     Back
                   </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => setCurrentStep(3)}
-                    disabled={!selectedVizType}
-                  >
-                    Next
-                  </Button>
                 </div>
               )}
             </div>
@@ -386,13 +379,6 @@ const NewVisualizationPage = () => {
                     }}
                   >
                     Back
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => setCurrentStep(4)}
-                    disabled={selectedCaptureIds.length === 0}
-                  >
-                    Next
                   </Button>
                 </div>
               )}

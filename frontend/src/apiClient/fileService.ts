@@ -46,11 +46,11 @@ export const useSyncFiles = () => {
 };
 
 export const CAPTURE_TYPES = {
-  sigmf: { name: 'SigMF' },
-  drf: { name: 'Digital RF' },
   rh: { name: 'RadioHound' },
+  drf: { name: 'Digital RF' },
+  sigmf: { name: 'SigMF' },
 } as const;
-const CaptureTypeSchema = zod.enum(['drf', 'rh', 'sigmf']);
+const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
 export type CaptureType = keyof typeof CAPTURE_TYPES;
 
 export const CAPTURE_SOURCES = {
