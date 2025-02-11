@@ -1,7 +1,11 @@
 import Table from 'react-bootstrap/Table';
 import { Link } from 'react-router';
 
-import { Capture } from '../apiClient/fileService';
+import {
+  Capture,
+  CAPTURE_TYPES,
+  CAPTURE_SOURCES,
+} from '../apiClient/fileService';
 import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
 
 interface CaptureTableProps {
@@ -74,9 +78,13 @@ const CaptureTable = ({
               <td className="align-middle">
                 {new Date(capture.timestamp).toLocaleDateString()}
               </td>
-              <td className="align-middle">{capture.type}</td>
+              <td className="align-middle">
+                {CAPTURE_TYPES[capture.type].name}
+              </td>
               <td className="align-middle">{capture.files.length}</td>
-              <td className="align-middle">{capture.source}</td>
+              <td className="align-middle">
+                {CAPTURE_SOURCES[capture.source].name}
+              </td>
               {!onSelect && visualizationType ? (
                 <td className="align-middle text-center">
                   <Link

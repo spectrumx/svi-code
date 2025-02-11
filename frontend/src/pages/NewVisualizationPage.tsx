@@ -7,7 +7,11 @@ import Button from '../components/Button';
 import CaptureTable from '../components/CaptureTable';
 import { useAppContext } from '../utils/AppContext';
 import { SpectrogramSettings } from './SpectrogramPage';
-import { useSyncCaptures, CaptureType } from '../apiClient/fileService';
+import {
+  useSyncCaptures,
+  CaptureType,
+  CAPTURE_TYPES,
+} from '../apiClient/fileService';
 import { Capture } from '../apiClient/fileService';
 
 interface VisualizationType {
@@ -135,7 +139,9 @@ const NewVisualizationPage = () => {
                   <br />
                   <span className="text-muted">
                     <span>Supported capture types: </span>
-                    {visualizationType.supportedCaptureTypes.join(', ')}
+                    {visualizationType.supportedCaptureTypes.map(
+                      (type) => CAPTURE_TYPES[type].name,
+                    )}
                   </span>
                 </Card.Text>
               </Card.Body>

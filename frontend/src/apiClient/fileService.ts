@@ -45,11 +45,21 @@ export const useSyncFiles = () => {
   return syncFiles;
 };
 
+export const CAPTURE_TYPES = {
+  drf: { name: 'Digital RF' },
+  rh: { name: 'RadioHound' },
+  sigmf: { name: 'SigMF' },
+} as const;
 const CaptureTypeSchema = zod.enum(['drf', 'rh', 'sigmf']);
-export type CaptureType = zod.infer<typeof CaptureTypeSchema>;
+export type CaptureType = keyof typeof CAPTURE_TYPES;
 
+export const CAPTURE_SOURCES = {
+  sds: { name: 'SDS' },
+  svi_public: { name: 'SVI Public' },
+  svi_user: { name: 'SVI User' },
+} as const;
 const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
-export type CaptureSource = zod.infer<typeof CaptureSourceSchema>;
+export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
 const CaptureSchema = zod.object({
   id: zod.number(),
@@ -61,7 +71,6 @@ const CaptureSchema = zod.object({
   source: CaptureSourceSchema,
   files: zod.array(FileMetadataSchema),
 });
-
 export type Capture = zod.infer<typeof CaptureSchema>;
 
 export const getCaptures = async (): Promise<Capture[]> => {
