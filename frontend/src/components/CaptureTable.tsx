@@ -10,18 +10,35 @@ import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
 
 interface CaptureTableProps {
   captures: Capture[];
-  selectedId?: number | null;
-  onSelect?: (id: number) => void;
+  selectedIds?: number[] | null;
+  onSelect?: (ids: number[]) => void;
+  selectionMode?: 'single' | 'multiple';
 }
 
 /**
  * Displays a table of captures with optional selection functionality
+ * Supports both single and multiple selection modes
  */
 const CaptureTable = ({
   captures,
-  selectedId,
+  selectedIds = [],
   onSelect,
+  selectionMode = 'single',
 }: CaptureTableProps) => {
+  // Helper function to handle selection
+  const handleSelect = (id: number) => {
+    if (!onSelect) return;
+
+    if (selectionMode === 'single') {
+      onSelect([id]);
+    } else {
+      const newSelectedIds = selectedIds?.includes(id)
+        ? selectedIds.filter((selectedId) => selectedId !== id)
+        : [...(selectedIds || []), id];
+      onSelect(newSelectedIds);
+    }
+  };
+
   return (
     <Table striped bordered hover>
       <thead>
@@ -45,29 +62,31 @@ const CaptureTable = ({
           );
           // For now, we're just displaying all RadioHound captures in the
           // waterfall visualization
-          const captureId =
-            visualizationType?.name === 'waterfall' ? '' : capture.id;
+          const captureIdParam =
+            visualizationType?.name === 'waterfall' ? '' : String(capture.id);
+
+          const isSelected = selectedIds?.includes(capture.id);
 
           return (
             <tr
               key={capture.id}
-              className={selectedId === capture.id ? 'table-primary' : ''}
-              onClick={() => onSelect?.(capture.id)}
+              className={isSelected ? 'table-primary' : ''}
+              onClick={() => onSelect && handleSelect(capture.id)}
               style={onSelect ? { cursor: 'pointer' } : undefined}
               role={onSelect ? 'button' : undefined}
               tabIndex={onSelect ? 0 : undefined}
               onKeyPress={(e) => {
                 if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
-                  onSelect(capture.id);
+                  handleSelect(capture.id);
                 }
               }}
             >
               {onSelect && (
                 <td className="text-center align-middle">
                   <input
-                    type="radio"
-                    checked={selectedId === capture.id}
-                    onChange={() => onSelect(capture.id)}
+                    type={selectionMode === 'multiple' ? 'checkbox' : 'radio'}
+                    checked={isSelected}
+                    onChange={() => handleSelect(capture.id)}
                     onClick={(e) => e.stopPropagation()}
                     aria-label={`Select capture ${capture.id}`}
                   />
@@ -88,7 +107,7 @@ const CaptureTable = ({
               {!onSelect && visualizationType ? (
                 <td className="align-middle text-center">
                   <Link
-                    to={`/visualization/${visualizationType.name}/${captureId}`}
+                    to={`/visualization/${visualizationType.name}/${captureIdParam}`}
                     className="btn btn-primary btn-sm px-4"
                   >
                     Visualize
