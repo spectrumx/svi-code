@@ -5,15 +5,13 @@ from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
 
+from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
+    RadioHoundUtility,
+)
+from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
-from spectrumx_visualization_platform.spx_vis.utils.timestamp_extractors import (
-    extract_radiohound_timestamp,
-)
-from spectrumx_visualization_platform.spx_vis.utils.timestamp_extractors import (
-    extract_sigmf_timestamp,
-)
 
 
 class FileSerializer(serializers.ModelSerializer[File]):
@@ -118,12 +116,12 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         if capture_type == CaptureType.SigMF:
             meta_file = next((f for f in files if f.name.endswith(".sigmf-meta")), None)
             if meta_file:
-                return extract_sigmf_timestamp(meta_file)
+                return SigMFUtility.extract_timestamp(meta_file)
 
         elif capture_type == CaptureType.RadioHound:
             rh_file = next((f for f in files if f.name.endswith(".json")), None)
             if rh_file:
-                return extract_radiohound_timestamp(rh_file)
+                return RadioHoundUtility.extract_timestamp(rh_file)
 
         return None
 
