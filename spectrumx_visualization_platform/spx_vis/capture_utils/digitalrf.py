@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 from datetime import datetime
 
 from django.core.files.uploadedfile import UploadedFile
@@ -28,3 +29,15 @@ class DigitalRFUtility(CaptureUtility):
         # This would depend on the specific format of your DigitalRF files
         logger.warning("DigitalRF format not yet supported")
         return None
+
+    @staticmethod
+    def get_media_type(file: UploadedFile) -> str:
+        """Get the media type for a DigitalRF file.
+
+        Returns:
+            str: The media type for the DigitalRF file
+        """
+        media_type, _ = mimetypes.guess_type(file.name)
+        if media_type is None:
+            media_type = "application/octet-stream"
+        return media_type

@@ -13,12 +13,24 @@ class CaptureUtility(ABC):
 
     @staticmethod
     @abstractmethod
-    def extract_timestamp(file: UploadedFile) -> datetime | None:
+    def extract_timestamp(files: list[UploadedFile]) -> datetime | None:
         """Extract timestamp from capture file.
+
+        Args:
+            files: The uploaded capture files
+
+        Returns:
+            datetime: The extracted timestamp if found, None otherwise
+        """
+
+    @staticmethod
+    @abstractmethod
+    def get_media_type(file: UploadedFile) -> str:
+        """Get the media type for a capture file.
 
         Args:
             file: The uploaded capture file
 
         Returns:
-            datetime: The extracted timestamp if found, None otherwise
+            str: The media type for the capture file
         """

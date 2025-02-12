@@ -8,9 +8,9 @@ from rest_framework.parsers import FormParser
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
-from jobs.submission import request_job_submission
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
+from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import File
 
@@ -49,46 +49,35 @@ class CaptureViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "status": "error",
-                    "message": "Spectrogram generation is only supported for\
-                    SigMF captures",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Find the data and metadata files associated with this capture
-        data_file = capture.files.filter(name__endswith=".sigmf-data").first()
-        meta_file = capture.files.filter(name__endswith=".sigmf-meta").first()
-
-        if not data_file or not meta_file:
-            return Response(
-                {
-                    "status": "error",
-                    "message": "Required SigMF files (data and/or metadata) not found",
+                    "message": "Spectrogram generation is currently only supported for\
+                        SigMF captures",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         width = request.data.get("width", 10)
         height = request.data.get("height", 10)
-        dimensions = {"width": width, "height": height}
 
-        local_files = [data_file.file.name, meta_file.file.name]
+        try:
+            job = SigMFUtility.submit_spectrogram_job(
+                request.user, capture.files, width, height
+            )
 
-        # Submit the job
-        job = request_job_submission(
-            visualization_type="spectrogram",
-            owner=request.user,
-            local_files=local_files,
-            config=dimensions,
-        )
-
-        return Response(
-            {
-                "job_id": job.id,
-                "status": "submitted",
-            },
-            status=status.HTTP_201_CREATED,
-        )
+            return Response(
+                {
+                    "job_id": job.id,
+                    "status": "submitted",
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except ValueError as e:
+            return Response(
+                {
+                    "status": "error",
+                    "message": str(e),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class FileViewSet(viewsets.ModelViewSet):

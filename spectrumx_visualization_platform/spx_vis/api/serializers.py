@@ -1,6 +1,3 @@
-import mimetypes
-from datetime import datetime
-
 from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
@@ -101,30 +98,6 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         ]
         read_only_fields = ["owner", "created_at", "timestamp", "source"]
 
-    def _extract_timestamp(
-        self, files: list[UploadedFile], capture_type: str
-    ) -> datetime | None:
-        """Extract timestamp from uploaded files based on capture type.
-
-        Args:
-            files: List of uploaded files
-            capture_type: Type of capture (sigmf, drf, rh)
-
-        Returns:
-            datetime: Extracted timestamp or None if not found
-        """
-        if capture_type == CaptureType.SigMF:
-            meta_file = next((f for f in files if f.name.endswith(".sigmf-meta")), None)
-            if meta_file:
-                return SigMFUtility.extract_timestamp(meta_file)
-
-        elif capture_type == CaptureType.RadioHound:
-            rh_file = next((f for f in files if f.name.endswith(".json")), None)
-            if rh_file:
-                return RadioHoundUtility.extract_timestamp(rh_file)
-
-        return None
-
     def create(self, validated_data: dict) -> Capture:
         """Create a new Capture with associated File objects.
 
@@ -134,14 +107,20 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         Returns:
             The created Capture instance
         """
-        uploaded_files = validated_data.pop("uploaded_files")
+        uploaded_files: list[UploadedFile] = validated_data.pop("uploaded_files")
 
         # Set defaults for required fields
         validated_data["owner"] = self.context["request"].user
 
+        if validated_data["type"] == CaptureType.RadioHound:
+            capture_utility = RadioHoundUtility
+        elif validated_data["type"] == CaptureType.SigMF:
+            capture_utility = SigMFUtility
+        else:
+            raise ValueError(f"Unsupported capture type: {validated_data['type']}")
+
         # Extract timestamp from files based on capture type
-        timestamp = self._extract_timestamp(uploaded_files, validated_data["type"])
-        validated_data["timestamp"] = timestamp or None
+        validated_data["timestamp"] = capture_utility.extract_timestamp(uploaded_files)
 
         validated_data["source"] = "svi_user"  # Default source for user uploads
 
@@ -152,25 +131,7 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         for uploaded_file in uploaded_files:
             if not isinstance(uploaded_file, UploadedFile):
                 continue
-
-            # Determine media type based on capture type
-            if capture.type == CaptureType.DigitalRF:
-                media_type = "application/octet-stream"
-            elif capture.type == CaptureType.RadioHound:
-                media_type = "application/json"
-            elif capture.type == CaptureType.SigMF:
-                # Check file extension for SigMF
-                if uploaded_file.name.endswith(".sigmf-meta"):
-                    media_type = "application/json"
-                elif uploaded_file.name.endswith(".sigmf-data"):
-                    media_type = "application/octet-stream"
-                else:
-                    media_type = "application/octet-stream"
-            else:
-                # Try to guess media type based on file extension
-                media_type, _ = mimetypes.guess_type(uploaded_file.name)
-                if media_type is None:
-                    media_type = "application/octet-stream"
+            media_type = capture_utility.get_media_type(uploaded_file)
 
             File.objects.create(
                 owner=validated_data["owner"],
