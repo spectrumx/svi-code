@@ -4,7 +4,6 @@ import { Row, Col, Card } from 'react-bootstrap';
 import _ from 'lodash';
 
 import Button from '../components/Button';
-import CaptureTable from '../components/CaptureTable';
 import { useAppContext } from '../utils/AppContext';
 import { SpectrogramSettings } from './SpectrogramPage';
 import {
@@ -12,6 +11,7 @@ import {
   CaptureType,
   CAPTURE_TYPES,
 } from '../apiClient/fileService';
+import CaptureSearch from '../components/CaptureSearch';
 
 interface VisualizationType {
   name: 'spectrogram' | 'waterfall';
@@ -213,7 +213,9 @@ const NewVisualizationPage = () => {
       {selectedVizType === 'spectrogram' && (
         <div>
           <h6>Spectrogram Settings:</h6>
-          <label htmlFor="fftSize">FFT Size: </label>
+          <label htmlFor="fftSize" style={{ marginRight: '10px' }}>
+            FFT Size:
+          </label>
           <select
             id="fftSize"
             value={spectrogramSettings.fftSize}
@@ -282,11 +284,14 @@ const NewVisualizationPage = () => {
         {CAPTURE_TYPES[selectedCaptureType!].name}{' '}
         {selectionMode === 'multiple' ? 'captures' : 'capture'} to visualize:
       </h6>
-      <CaptureTable
+      <CaptureSearch
         captures={filteredCaptures}
-        selectedIds={selectedCaptureIds}
-        onSelect={handleCaptureSelect}
-        selectionMode={selectionMode}
+        selectedCaptureIds={selectedCaptureIds}
+        setSelectedCaptureIds={handleCaptureSelect}
+        tableProps={{
+          selectionMode,
+        }}
+        hideCaptureTypeFilter
       />
       {currentStep === 2 && (
         <div className="d-flex gap-2 mt-3">

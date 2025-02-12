@@ -8,7 +8,7 @@ import {
 } from '../apiClient/fileService';
 import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
 
-interface CaptureTableProps {
+export interface CaptureTableProps {
   captures: Capture[];
   selectedIds?: number[] | null;
   onSelect?: (ids: number[]) => void;
