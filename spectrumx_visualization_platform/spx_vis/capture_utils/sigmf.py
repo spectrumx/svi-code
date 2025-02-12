@@ -64,6 +64,31 @@ class SigMFUtility(CaptureUtility):
         return media_type
 
     @staticmethod
+    def get_capture_names(files: list[UploadedFile], name: str | None) -> list[str]:
+        """Infer the capture name from the files.
+
+        Args:
+            files: The uploaded SigMF files
+            name: The requested name for the capture
+
+        Returns:
+            list[str]: The inferred capture name
+
+        Raises:
+            ValueError: If the required SigMF files are not found
+        """
+        if name:
+            return [name]
+
+        meta_file = next((f for f in files if f.name.endswith(".sigmf-meta")), None)
+        if not meta_file:
+            error_message = "Required SigMF metadata file not found"
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+        return [".".join(meta_file.name.split(".")[:-1])]
+
+    @staticmethod
     def submit_spectrogram_job(user, capture_files, width=10, height=10):
         """Get the SigMF data and metadata files needed for spectrogram generation.
 

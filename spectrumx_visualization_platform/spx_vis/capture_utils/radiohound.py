@@ -16,7 +16,7 @@ class RadioHoundUtility(CaptureUtility):
     Provides utilities for processing and extracting information from RadioHound files.
     """
 
-    file_extensions = (".json", ".rh", ".rh.json")
+    file_extensions = (".json", ".rh")
 
     @staticmethod
     def extract_timestamp(files: list[UploadedFile]) -> datetime | None:
@@ -65,3 +65,37 @@ class RadioHoundUtility(CaptureUtility):
         if media_type is None:
             media_type = "application/octet-stream"
         return media_type
+
+    @staticmethod
+    def get_capture_names(files: list[UploadedFile], name: str | None) -> list[str]:
+        """Infer the capture names from the files.
+
+        Args:
+            files: The uploaded RadioHound files
+            name: The requested name for the captures. If provided, will be used as the
+                  base name with an incrementing number appended.
+
+        Returns:
+            list[str]: The inferred capture names
+
+        Raises:
+            ValueError: If files list is empty
+        """
+        if not files:
+            error_message = "Cannot generate capture name: no files provided"
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+        capture_names = []
+
+        for i, file in enumerate(files):
+            if name:
+                if len(files) > 1:
+                    capture_names.append(f"{name}_{i + 1}")
+                else:
+                    capture_names.append(name)
+            else:
+                # Get the file name and remove last extension
+                capture_names.append(".".join(file.name.split(".")[:-1]))
+
+        return capture_names

@@ -34,3 +34,15 @@ class CaptureUtility(ABC):
         Returns:
             str: The media type for the capture file
         """
+
+    @staticmethod
+    @abstractmethod
+    def get_capture_names(files: list[UploadedFile], name: str | None) -> list[str]:
+        """Infer the capture names from the files.
+
+        Args:
+            files: The uploaded capture files
+
+        Returns:
+            list[str]: The inferred capture names
+        """

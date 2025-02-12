@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
-import { postCapture, CaptureType } from '../apiClient/fileService';
+import {
+  postCaptures,
+  CaptureType,
+  inferCaptureName,
+} from '../apiClient/fileService';
 import { Alert } from 'react-bootstrap';
 
 interface FileUploadModalProps {
@@ -13,31 +17,35 @@ interface FileUploadModalProps {
 
 interface CaptureTypeInfo {
   label: string;
-  fileCount: number;
+  fileExtensions: string[];
   description: string;
+  minFiles: number;
+  maxFiles: number;
 }
 
 const CAPTURE_TYPE_INFO: Record<CaptureType, CaptureTypeInfo> = {
   rh: {
     label: 'RadioHound',
-    fileCount: 1,
-    description: 'Upload a single RadioHound file.',
+    fileExtensions: ['.json', '.rh'],
+    minFiles: 1,
+    maxFiles: 100,
+    description:
+      'Upload one or more RadioHound files (max of 100). Each file will create a separate capture.',
   },
   drf: {
     label: 'Digital RF',
-    fileCount: 1,
+    fileExtensions: ['.drf'],
+    minFiles: 1,
+    maxFiles: 1,
     description: 'Upload a single Digital RF file.',
   },
   sigmf: {
     label: 'SigMF',
-    fileCount: 2,
+    fileExtensions: ['.sigmf-data', '.sigmf-meta'],
+    minFiles: 2,
+    maxFiles: 2,
     description: 'Upload one .sigmf-data and one .sigmf-meta file.',
   },
-};
-
-const getBaseFilename = (filename: string): string => {
-  // Remove last extension from filename
-  return filename.split('.').slice(0, -1).join('.');
 };
 
 const FileUploadModal = ({
@@ -53,6 +61,8 @@ const FileUploadModal = ({
   const [validationError, setValidationError] = useState<string>('');
   const [captureName, setCaptureName] = useState<string>('');
   const [isFormValid, setIsFormValid] = useState(false);
+
+  const captureTypeInfo = CAPTURE_TYPE_INFO[selectedType];
 
   // Reset state when modal is opened/closed
   useEffect(() => {
@@ -77,13 +87,42 @@ const FileUploadModal = ({
 
     const typeInfo = CAPTURE_TYPE_INFO[type];
 
-    if (files.length !== typeInfo.fileCount) {
+    if (files.length < typeInfo.minFiles) {
       setValidationError(
-        `${typeInfo.label} captures require exactly ${typeInfo.fileCount} file${
-          typeInfo.fileCount > 1 ? 's' : ''
+        `${typeInfo.label} captures require at least ${typeInfo.minFiles} file${
+          typeInfo.minFiles > 1 ? 's' : ''
         }`,
       );
       return false;
+    }
+
+    if (files.length > typeInfo.maxFiles) {
+      setValidationError(
+        `Too many files selected. Max files: ${typeInfo.maxFiles}`,
+      );
+      return false;
+    }
+
+    if (type === 'rh') {
+      if (files.length === 0) {
+        setValidationError('Please select at least one RadioHound file');
+        return false;
+      }
+      // Verify all files have valid extensions
+      const invalidFiles = Array.from(files).filter(
+        (file) =>
+          !typeInfo.fileExtensions.some((ext) => file.name.endsWith(ext)),
+      );
+      if (invalidFiles.length > 0) {
+        setValidationError(
+          `Allowed RadioHound file extensions: ${typeInfo.fileExtensions.join(
+            ', ',
+          )}`,
+        );
+        return false;
+      }
+      setValidationError('');
+      return true;
     }
 
     if (type === 'sigmf') {
@@ -123,9 +162,10 @@ const FileUploadModal = ({
       const nameInput =
         document.querySelector<HTMLInputElement>('input[name="name"]');
       if (nameInput && !nameInput.value) {
-        const newName = getBaseFilename(files[0].name);
-        setCaptureName(newName);
-        nameInput.value = newName;
+        const newName = inferCaptureName(Array.from(files), selectedType);
+        if (newName) {
+          setCaptureName(newName);
+        }
       }
     }
 
@@ -152,7 +192,7 @@ const FileUploadModal = ({
     }
 
     try {
-      await postCapture(name, type, files);
+      await postCaptures(type, files, name);
       handleSuccess();
       handleClose();
     } catch (error) {
@@ -169,12 +209,9 @@ const FileUploadModal = ({
   // Update validation when relevant fields change
   useEffect(() => {
     const isValid =
-      !!selectedType &&
-      !!selectedFiles?.length &&
-      !validationError &&
-      !!captureName?.trim();
+      !!selectedType && !!selectedFiles?.length && !validationError;
     setIsFormValid(isValid);
-  }, [selectedType, selectedFiles, validationError, captureName]);
+  }, [selectedType, selectedFiles, validationError]);
 
   return (
     <Modal show={show} onHide={handleClose}>
@@ -212,22 +249,16 @@ const FileUploadModal = ({
             <Form.Label>Files</Form.Label>
             <br />
             <Form.Text className="text-muted">
-              {selectedType ? CAPTURE_TYPE_INFO[selectedType].description : ''}
+              {captureTypeInfo.description}
             </Form.Text>
             <br />
             <Form.Control
               type="file"
               name="files"
               required
-              multiple={selectedType === 'sigmf'}
+              multiple={captureTypeInfo.maxFiles > 1}
               onChange={handleFileChange}
-              accept={
-                selectedType === 'sigmf'
-                  ? '.sigmf-data,.sigmf-meta'
-                  : selectedType === 'rh'
-                    ? '.json'
-                    : undefined
-              }
+              accept={captureTypeInfo.fileExtensions.join(',')}
             />
             {validationError && (
               <Form.Text className="text-danger">{validationError}</Form.Text>
@@ -236,12 +267,15 @@ const FileUploadModal = ({
           <br />
           <Form.Group controlId="name">
             <Form.Label>Name</Form.Label>
+            <br />
+            <Form.Text className="text-muted">
+              If left blank, the file's base name will be used.
+            </Form.Text>
+            <br />
             <Form.Control
               type="text"
               name="name"
-              required
               maxLength={255}
-              placeholder="Enter a name for this capture"
               value={captureName}
               onChange={(e) => setCaptureName(e.target.value)}
             />

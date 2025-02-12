@@ -28,6 +28,34 @@ class CaptureViewSet(viewsets.ModelViewSet):
         """
         return Capture.objects.filter(owner=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        """Create a new capture or captures.
+
+        For RadioHound captures, creates multiple captures (one per file).
+        For other types, creates a single capture with multiple files.
+
+        Returns:
+            Response: Created capture(s) data with appropriate status code
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+
+        # Handle RadioHound multi-capture case
+        if isinstance(result, list):
+            # Serialize the list of captures
+            serializer = self.get_serializer(result, many=True)
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+
+        # Handle single capture case (other types)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
     @action(detail=True, methods=["post"])
     def create_spectrogram(self, request, pk=None):
         """

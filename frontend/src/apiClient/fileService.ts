@@ -91,23 +91,42 @@ export const useSyncCaptures = () => {
   return syncCaptures;
 };
 
-export const postCapture = async (
-  name: string,
+export const postCaptures = async (
   type: CaptureType,
-  files: Blob[],
+  files: File[],
+  name?: string,
 ): Promise<void> => {
   const formData = new FormData();
-  formData.append('name', name);
-  formData.append('type', type);
+  const finalName = name ?? inferCaptureName(files, type);
 
-  // Append each file to the uploaded_files array
+  if (finalName) {
+    formData.append('name', finalName);
+  }
+
   files.forEach((file) => {
     formData.append('uploaded_files', file);
   });
+
+  formData.append('type', type);
 
   await apiClient.post('/api/captures/', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+};
+
+export const getBaseFilename = (filename: string): string => {
+  // Remove last extension from filename
+  return filename.split('.').slice(0, -1).join('.');
+};
+
+export const inferCaptureName = (
+  files: File[],
+  type: CaptureType,
+): string | undefined => {
+  if (type !== 'rh' || files.length === 1) {
+    return getBaseFilename(files[0].name);
+  }
+  return undefined;
 };

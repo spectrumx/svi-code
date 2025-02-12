@@ -73,6 +73,7 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     """Serializer for Capture model with automatic field handling.
 
     Handles creation of associated File objects and automatic field population.
+    For RadioHound captures, each uploaded file creates a separate capture.
     """
 
     files = FileSerializer(many=True, read_only=True)
@@ -82,6 +83,7 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         write_only=True,
         required=True,
     )
+    name = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
         model = Capture
@@ -98,31 +100,82 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         ]
         read_only_fields = ["owner", "created_at", "timestamp", "source"]
 
-    def create(self, validated_data: dict) -> Capture:
-        """Create a new Capture with associated File objects.
+    def create(self, validated_data: dict) -> Capture | list[Capture]:
+        """Create one or more Captures with associated File objects.
+
+        For RadioHound captures, each uploaded file creates a separate capture.
+        For other capture types, creates a single capture with multiple files.
 
         Args:
             validated_data: Validated data including uploaded files
 
         Returns:
-            The created Capture instance
+            Either a single Capture instance or a list of Capture instances for
+            RadioHound
         """
         uploaded_files: list[UploadedFile] = validated_data.pop("uploaded_files")
+        capture_type = validated_data["type"]
+
+        if capture_type == CaptureType.RadioHound:
+            capture_utility = RadioHoundUtility
+        elif capture_type == CaptureType.SigMF:
+            capture_utility = SigMFUtility
+        else:
+            raise ValueError(f"Unsupported capture type: {capture_type}")
 
         # Set defaults for required fields
         validated_data["owner"] = self.context["request"].user
+        validated_data["source"] = "svi_user"  # Default source for user uploads
 
-        if validated_data["type"] == CaptureType.RadioHound:
-            capture_utility = RadioHoundUtility
-        elif validated_data["type"] == CaptureType.SigMF:
+        if capture_type == CaptureType.RadioHound:
+            # Create separate capture for each RadioHound file
+            capture_names = capture_utility.get_capture_names(
+                uploaded_files, validated_data.get("name")
+            )
+            captures = []
+
+            for i, uploaded_file in enumerate(uploaded_files):
+                if not isinstance(uploaded_file, UploadedFile):
+                    continue
+
+                # Create new validated data for each capture
+                file_validated_data = validated_data.copy()
+
+                # Extract timestamp for this specific file
+                file_validated_data["timestamp"] = RadioHoundUtility.extract_timestamp(
+                    [uploaded_file]
+                )
+
+                file_validated_data["name"] = capture_names[i]
+
+                # Create capture instance
+                capture = super().create(file_validated_data)
+
+                # Create associated File object
+                File.objects.create(
+                    owner=file_validated_data["owner"],
+                    file=uploaded_file,
+                    media_type=RadioHoundUtility.get_media_type(uploaded_file),
+                    name=uploaded_file.name,
+                    capture=capture,
+                )
+
+                captures.append(capture)
+
+            return captures
+
+        # For other capture types, proceed with existing logic
+        if capture_type == CaptureType.SigMF:
             capture_utility = SigMFUtility
         else:
-            raise ValueError(f"Unsupported capture type: {validated_data['type']}")
+            raise ValueError(f"Unsupported capture type: {capture_type}")
 
         # Extract timestamp from files based on capture type
         validated_data["timestamp"] = capture_utility.extract_timestamp(uploaded_files)
 
-        validated_data["source"] = "svi_user"  # Default source for user uploads
+        validated_data["name"] = capture_utility.get_capture_names(
+            uploaded_files, validated_data.get("name")
+        )[0]
 
         # Create the capture instance
         capture = super().create(validated_data)
