@@ -29,6 +29,36 @@ export const SearchPage = () => {
     new Set(),
   );
 
+  // Update state to use string type since datetime-local works with ISO strings
+  const [startDatetime, setStartDatetime] = useState<string>('');
+  const [endDatetime, setEndDatetime] = useState<string>('');
+
+  // Initialize datetime range when captures load
+  useEffect(() => {
+    if (captures.length > 0) {
+      // Find min and max timestamps
+      const timestamps = captures.map((capture) =>
+        new Date(capture.timestamp).getTime(),
+      );
+      const minTimestamp = new Date(Math.min(...timestamps));
+      const maxTimestamp = new Date(Math.max(...timestamps));
+
+      // Add/subtract one day from min/max
+      const minWithBuffer = new Date(minTimestamp);
+      minWithBuffer.setDate(minWithBuffer.getDate() - 1);
+      const maxWithBuffer = new Date(maxTimestamp);
+      maxWithBuffer.setDate(maxWithBuffer.getDate() + 1);
+
+      // Format to ISO string and remove milliseconds and timezone
+      const formatDateTime = (date: Date) => {
+        return date.toISOString().slice(0, 16);
+      };
+
+      setStartDatetime(formatDateTime(minWithBuffer));
+      setEndDatetime(formatDateTime(maxWithBuffer));
+    }
+  }, [captures]);
+
   useEffect(() => {
     syncCaptures();
   }, [syncCaptures]);
@@ -49,9 +79,26 @@ export const SearchPage = () => {
       const matchesSource =
         selectedSources.size === 0 || selectedSources.has(capture.source);
 
-      return matchesSearch && matchesType && matchesSource;
+      console.log('capture.timestamp', capture.timestamp);
+      console.log('startDatetime', startDatetime);
+      console.log('endDatetime', endDatetime);
+
+      // Update timestamp filtering logic
+      const captureDate = new Date(capture.timestamp).getTime();
+      const matchesTimeRange =
+        (!startDatetime || captureDate >= new Date(startDatetime).getTime()) &&
+        (!endDatetime || captureDate <= new Date(endDatetime).getTime());
+
+      return matchesSearch && matchesType && matchesSource && matchesTimeRange;
     });
-  }, [captures, searchQuery, selectedTypes, selectedSources]);
+  }, [
+    captures,
+    searchQuery,
+    selectedTypes,
+    selectedSources,
+    startDatetime,
+    endDatetime,
+  ]);
 
   // Handle checkbox changes for type filters
   const handleTypeChange = (type: CaptureType) => {
@@ -127,6 +174,49 @@ export const SearchPage = () => {
           >
             <h5>Filters</h5>
             <Form>
+              <Form.Group className="mb-3">
+                <h6>Time Range</h6>
+                <div className="mb-2">
+                  <label htmlFor="start-time" className="d-block mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="start-time"
+                    className="form-control"
+                    value={startDatetime}
+                    onChange={(e) => setStartDatetime(e.target.value)}
+                    max={endDatetime || undefined}
+                    aria-label="Select start date and time"
+                  />
+                </div>
+                <div className="mb-2">
+                  <label htmlFor="end-time" className="d-block mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="end-time"
+                    className="form-control"
+                    value={endDatetime}
+                    onChange={(e) => setEndDatetime(e.target.value)}
+                    min={startDatetime || undefined}
+                    aria-label="Select end date and time"
+                  />
+                </div>
+                <button
+                  className="btn btn-link btn-sm p-0"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setStartDatetime('');
+                    setEndDatetime('');
+                  }}
+                  aria-label="Clear date range"
+                >
+                  Clear dates
+                </button>
+              </Form.Group>
+
               <Form.Group className="mb-3">
                 <h6>Capture Type</h6>
                 {Object.entries(CAPTURE_TYPES).map(([id, info]) => (
