@@ -53,16 +53,15 @@ const NewVisualizationPage = () => {
     VisualizationType['name'] | null
   >(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<number[]>([]);
+  const [spectrogramSettings, setSpectrogramSettings] =
+    useState<SpectrogramSettings>({
+      fftSize: 1024,
+    });
 
   // Filter captures based on selected type
   const filteredCaptures = selectedCaptureType
     ? captures.filter((capture) => capture.type === selectedCaptureType)
     : captures;
-
-  const [spectrogramSettings, setSpectrogramSettings] =
-    useState<SpectrogramSettings>({
-      fftSize: 1024,
-    });
 
   // Check if a visualization type is supported for a given capture type
   const isSupported = (
@@ -85,6 +84,14 @@ const NewVisualizationPage = () => {
       .map(([type, details]) => ({ type: type as CaptureType, ...details }));
   }, [captures]);
 
+  const selectionMode = useMemo(() => {
+    if (!selectedVizType) return 'single';
+    const vizType = VISUALIZATION_TYPES.find(
+      (type) => type.name === selectedVizType,
+    );
+    return vizType?.multipleSelection ? 'multiple' : 'single';
+  }, [selectedVizType]);
+
   const handleCaptureSelect = useCallback((ids: number[]) => {
     setSelectedCaptureIds(ids);
     if (ids.length > 0) {
@@ -102,14 +109,6 @@ const NewVisualizationPage = () => {
     },
     [],
   );
-
-  const selectionMode = useMemo(() => {
-    if (!selectedVizType) return 'single';
-    const vizType = VISUALIZATION_TYPES.find(
-      (type) => type.name === selectedVizType,
-    );
-    return vizType?.multipleSelection ? 'multiple' : 'single';
-  }, [selectedVizType]);
 
   const renderCaptureTypeStep = () => (
     <Row className="g-4">
@@ -208,6 +207,40 @@ const NewVisualizationPage = () => {
     </Row>
   );
 
+  // Update the capture table section to use dynamic selection mode
+  const renderDataSourceStep = () => (
+    <div>
+      <h6>
+        Select {selectionMode === 'multiple' ? 'one or more' : 'a'}{' '}
+        {CAPTURE_TYPES[selectedCaptureType!].name}{' '}
+        {selectionMode === 'multiple' ? 'captures' : 'capture'} to visualize:
+      </h6>
+      <CaptureSearch
+        captures={filteredCaptures}
+        selectedCaptureIds={selectedCaptureIds}
+        setSelectedCaptureIds={handleCaptureSelect}
+        tableProps={{
+          selectionMode,
+        }}
+        hideCaptureTypeFilter
+      />
+      {currentStep === 2 && (
+        <div className="d-flex gap-2 mt-3">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setCurrentStep((prev) => prev - 1);
+              setSelectedCaptureType(null);
+              setSelectedCaptureIds([]);
+            }}
+          >
+            Back
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   const renderExtraConfigStep = () => (
     <div>
       {selectedVizType === 'spectrogram' && (
@@ -276,40 +309,6 @@ const NewVisualizationPage = () => {
     );
   };
 
-  // Update the capture table section to use dynamic selection mode
-  const renderDataSourceStep = () => (
-    <div>
-      <h6>
-        Select {selectionMode === 'multiple' ? 'one or more' : 'a'}{' '}
-        {CAPTURE_TYPES[selectedCaptureType!].name}{' '}
-        {selectionMode === 'multiple' ? 'captures' : 'capture'} to visualize:
-      </h6>
-      <CaptureSearch
-        captures={filteredCaptures}
-        selectedCaptureIds={selectedCaptureIds}
-        setSelectedCaptureIds={handleCaptureSelect}
-        tableProps={{
-          selectionMode,
-        }}
-        hideCaptureTypeFilter
-      />
-      {currentStep === 2 && (
-        <div className="d-flex gap-2 mt-3">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setCurrentStep((prev) => prev - 1);
-              setSelectedCaptureType(null);
-              setSelectedCaptureIds([]);
-            }}
-          >
-            Back
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-
   // Update the final URL construction
   const getVisualizationUrl = () => {
     if (!selectedVizType) return '';
@@ -330,7 +329,7 @@ const NewVisualizationPage = () => {
     <div className="page-container">
       <h5>Create a New Visualization</h5>
       <div className="mt-4">
-        {/* Step 1 - Select Capture Type */}
+        {/* Step 1 */}
         <div className="mb-4">
           {renderStepHeader(1, 'Select Capture Type')}
           {currentStep >= 1 && (
@@ -340,7 +339,7 @@ const NewVisualizationPage = () => {
           )}
         </div>
 
-        {/* Step 2 - Choose Visualization Type */}
+        {/* Step 2 */}
         {currentStep >= 2 && (
           <div className="mb-4">
             {renderStepHeader(2, 'Select Visualization Type')}
@@ -363,7 +362,7 @@ const NewVisualizationPage = () => {
           </div>
         )}
 
-        {/* Step 3 - Select Data Source */}
+        {/* Step 3 */}
         {currentStep >= 3 && (
           <div className="mb-4">
             {renderStepHeader(
@@ -391,7 +390,7 @@ const NewVisualizationPage = () => {
           </div>
         )}
 
-        {/* Step 4 - Configure Settings */}
+        {/* Step 4 */}
         {currentStep >= 4 && (
           <div className="mb-4">
             {renderStepHeader(4, 'Configure Settings')}
