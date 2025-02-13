@@ -156,12 +156,12 @@ const CaptureTable = ({
                 const visualizationType = VISUALIZATION_TYPES.find((visType) =>
                   visType.supportedCaptureTypes.includes(capture.type),
                 );
-                // For now, we're just displaying all RadioHound captures in the
-                // waterfall visualization
                 const captureIdParam =
                   visualizationType?.name === 'waterfall'
-                    ? ''
-                    : String(capture.id);
+                    ? `?captures=${capture.id}`
+                    : visualizationType?.name === 'spectrogram'
+                      ? `/${capture.id}`
+                      : '';
 
                 const isSelected = selectedIds?.includes(capture.id);
 
@@ -216,7 +216,7 @@ const CaptureTable = ({
                     {!onSelect && captures.length > 0 && visualizationType ? (
                       <td className="align-middle text-center">
                         <Link
-                          to={`/visualization/${visualizationType.name}/${captureIdParam}`}
+                          to={`/visualization/${visualizationType.name}${captureIdParam}`}
                           className="btn btn-primary btn-sm px-4"
                         >
                           Visualize
