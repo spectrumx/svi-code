@@ -274,9 +274,11 @@ export const CaptureSearch = ({
           style={{
             flex: 1,
             minWidth: 0,
-            height: 600,
+            maxHeight: '600px',
             backgroundColor: '#ffffff',
             borderRadius: '4px',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           <CaptureTable

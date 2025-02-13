@@ -63,139 +63,149 @@ const CaptureTable = ({
       style={{
         width: '100%',
         height: '100%',
-        overflowY: 'auto',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
-      <Table striped bordered hover responsive style={{ marginBottom: 0 }}>
-        <thead>
-          <tr>
-            {onSelect && captures.length > 0 && (
-              <th className="text-center" style={{ width: '50px' }}>
-                {selectionMode === 'multiple' && (
-                  <input
-                    type="checkbox"
-                    checked={
-                      captures.length > 0 &&
-                      captures.length === selectedIds?.length
-                    }
-                    ref={(input) => {
-                      if (input) {
-                        input.indeterminate =
-                          selectedIds!.length > 0 &&
-                          selectedIds!.length < captures.length;
-                      }
-                    }}
-                    onChange={handleSelectAll}
-                    aria-label="Select all captures"
-                  />
-                )}
-              </th>
-            )}
-            <th style={{ maxWidth: '80px' }}>ID</th>
-            <th style={textCellStyle}>Name</th>
-            <th style={{ maxWidth: '200px' }}>Timestamp</th>
-            <th style={{ maxWidth: '120px' }}>Type</th>
-            <th style={{ maxWidth: '80px' }}>Files</th>
-            <th style={{ maxWidth: '120px' }}>Source</th>
-            {!onSelect && captures.length > 0 && (
-              <th style={{ maxWidth: '100px' }}></th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {captures.length === 0 ? (
+      <div
+        style={{
+          overflowY: 'auto',
+          flex: 1,
+        }}
+      >
+        <Table striped bordered hover responsive style={{ marginBottom: 0 }}>
+          <thead>
             <tr>
-              <td
-                colSpan={onSelect ? 8 : 7}
-                style={{
-                  padding: '2rem',
-                  textAlign: 'center',
-                  color: '#6c757d',
-                }}
-              >
-                No captures found
-              </td>
+              {onSelect && captures.length > 0 && (
+                <th className="text-center" style={{ width: '50px' }}>
+                  {selectionMode === 'multiple' && (
+                    <input
+                      type="checkbox"
+                      checked={
+                        captures.length > 0 &&
+                        captures.length === selectedIds?.length
+                      }
+                      ref={(input) => {
+                        if (input) {
+                          input.indeterminate =
+                            selectedIds!.length > 0 &&
+                            selectedIds!.length < captures.length;
+                        }
+                      }}
+                      onChange={handleSelectAll}
+                      aria-label="Select all captures"
+                    />
+                  )}
+                </th>
+              )}
+              <th style={{ maxWidth: '80px' }}>ID</th>
+              <th style={textCellStyle}>Name</th>
+              <th style={{ maxWidth: '200px' }}>Timestamp</th>
+              <th style={{ maxWidth: '120px' }}>Type</th>
+              <th style={{ maxWidth: '80px' }}>Files</th>
+              <th style={{ maxWidth: '120px' }}>Source</th>
+              {!onSelect && captures.length > 0 && (
+                <th style={{ maxWidth: '100px' }}></th>
+              )}
             </tr>
-          ) : (
-            captures.map((capture) => {
-              const visualizationType = VISUALIZATION_TYPES.find((visType) =>
-                visType.supportedCaptureTypes.includes(capture.type),
-              );
-              // For now, we're just displaying all RadioHound captures in the
-              // waterfall visualization
-              const captureIdParam =
-                visualizationType?.name === 'waterfall'
-                  ? ''
-                  : String(capture.id);
-
-              const isSelected = selectedIds?.includes(capture.id);
-
-              return (
-                <tr
-                  key={capture.id}
-                  className={isSelected ? 'table-primary' : ''}
-                  onClick={() => onSelect && handleSelect(capture.id)}
-                  style={onSelect ? { cursor: 'pointer' } : undefined}
-                  role={onSelect ? 'button' : undefined}
-                  tabIndex={onSelect ? 0 : undefined}
-                  onKeyPress={(e) => {
-                    if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
-                      handleSelect(capture.id);
-                    }
+          </thead>
+          <tbody>
+            {captures.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={onSelect ? 8 : 7}
+                  style={{
+                    padding: '2rem',
+                    textAlign: 'center',
+                    color: '#6c757d',
                   }}
                 >
-                  {onSelect && captures.length > 0 && (
-                    <td
-                      className="text-center align-middle"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type={
-                          selectionMode === 'multiple' ? 'checkbox' : 'radio'
-                        }
-                        checked={isSelected}
-                        onChange={() => handleSelect(capture.id)}
-                        aria-label={`Select capture ${capture.id}`}
-                      />
-                    </td>
-                  )}
-                  <td className="align-middle">{capture.id}</td>
-                  <td className="align-middle" style={textCellStyle}>
-                    {capture.name}
-                  </td>
-                  <td className="align-middle">
-                    {capture.timestamp
-                      ? new Date(capture.timestamp)
-                          .toISOString()
-                          .replace('Z', '')
-                          .replace('T', ' ')
-                      : 'None'}
-                  </td>
-                  <td className="align-middle">
-                    {CAPTURE_TYPES[capture.type].name}
-                  </td>
-                  <td className="align-middle">{capture.files.length}</td>
-                  <td className="align-middle">
-                    {CAPTURE_SOURCES[capture.source].name}
-                  </td>
-                  {!onSelect && captures.length > 0 && visualizationType ? (
-                    <td className="align-middle text-center">
-                      <Link
-                        to={`/visualization/${visualizationType.name}/${captureIdParam}`}
-                        className="btn btn-primary btn-sm px-4"
+                  No captures found
+                </td>
+              </tr>
+            ) : (
+              captures.map((capture) => {
+                const visualizationType = VISUALIZATION_TYPES.find((visType) =>
+                  visType.supportedCaptureTypes.includes(capture.type),
+                );
+                // For now, we're just displaying all RadioHound captures in the
+                // waterfall visualization
+                const captureIdParam =
+                  visualizationType?.name === 'waterfall'
+                    ? ''
+                    : String(capture.id);
+
+                const isSelected = selectedIds?.includes(capture.id);
+
+                return (
+                  <tr
+                    key={capture.id}
+                    className={isSelected ? 'table-primary' : ''}
+                    onClick={() => onSelect && handleSelect(capture.id)}
+                    style={onSelect ? { cursor: 'pointer' } : undefined}
+                    role={onSelect ? 'button' : undefined}
+                    tabIndex={onSelect ? 0 : undefined}
+                    onKeyPress={(e) => {
+                      if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+                        handleSelect(capture.id);
+                      }
+                    }}
+                  >
+                    {onSelect && captures.length > 0 && (
+                      <td
+                        className="text-center align-middle"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        Visualize
-                      </Link>
+                        <input
+                          type={
+                            selectionMode === 'multiple' ? 'checkbox' : 'radio'
+                          }
+                          checked={isSelected}
+                          onChange={() => handleSelect(capture.id)}
+                          aria-label={`Select capture ${capture.id}`}
+                        />
+                      </td>
+                    )}
+                    <td className="align-middle">{capture.id}</td>
+                    <td className="align-middle" style={textCellStyle}>
+                      {capture.name}
                     </td>
-                  ) : !onSelect ? (
-                    <td></td>
-                  ) : null}
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </Table>
+                    <td className="align-middle">
+                      {capture.timestamp
+                        ? new Date(capture.timestamp)
+                            .toISOString()
+                            .replace('Z', '')
+                            .replace('T', ' ')
+                        : 'None'}
+                    </td>
+                    <td className="align-middle">
+                      {CAPTURE_TYPES[capture.type].name}
+                    </td>
+                    <td className="align-middle">{capture.files.length}</td>
+                    <td className="align-middle">
+                      {CAPTURE_SOURCES[capture.source].name}
+                    </td>
+                    {!onSelect && captures.length > 0 && visualizationType ? (
+                      <td className="align-middle text-center">
+                        <Link
+                          to={`/visualization/${visualizationType.name}/${captureIdParam}`}
+                          className="btn btn-primary btn-sm px-4"
+                        >
+                          Visualize
+                        </Link>
+                      </td>
+                    ) : !onSelect ? (
+                      <td></td>
+                    ) : null}
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </Table>
+      </div>
     </div>
   );
 };
