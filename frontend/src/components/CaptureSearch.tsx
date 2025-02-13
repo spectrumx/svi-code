@@ -53,19 +53,8 @@ export const CaptureSearch = ({
       const minTimestamp = new Date(Math.min(...timestamps));
       const maxTimestamp = new Date(Math.max(...timestamps));
 
-      // Add/subtract one day from min/max
-      const minWithBuffer = new Date(minTimestamp);
-      minWithBuffer.setDate(minWithBuffer.getDate() - 1);
-      const maxWithBuffer = new Date(maxTimestamp);
-      maxWithBuffer.setDate(maxWithBuffer.getDate() + 1);
-
-      // Format to ISO string and remove milliseconds and timezone
-      const formatDateTime = (date: Date) => {
-        return date.toISOString().slice(0, 16);
-      };
-
-      setStartDatetime(formatDateTime(minWithBuffer));
-      setEndDatetime(formatDateTime(maxWithBuffer));
+      setStartDatetime(minTimestamp.toISOString());
+      setEndDatetime(maxTimestamp.toISOString());
     }
   }, [captures]);
 
@@ -205,8 +194,8 @@ export const CaptureSearch = ({
                   type="datetime-local"
                   id="start-time"
                   className="form-control"
-                  value={startDatetime}
-                  onChange={(e) => setStartDatetime(e.target.value)}
+                  value={startDatetime.replace('Z', '')}
+                  onChange={(e) => setStartDatetime(e.target.value + 'Z')}
                   max={endDatetime || undefined}
                   aria-label="Select start date and time"
                 />
@@ -219,8 +208,8 @@ export const CaptureSearch = ({
                   type="datetime-local"
                   id="end-time"
                   className="form-control"
-                  value={endDatetime}
-                  onChange={(e) => setEndDatetime(e.target.value)}
+                  value={endDatetime.replace('Z', '')}
+                  onChange={(e) => setEndDatetime(e.target.value + 'Z')}
                   min={startDatetime || undefined}
                   aria-label="Select end date and time"
                 />

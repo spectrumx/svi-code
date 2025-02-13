@@ -176,7 +176,7 @@ const CaptureTable = ({
                       {capture.timestamp
                         ? new Date(capture.timestamp)
                             .toISOString()
-                            .replace('Z', '')
+                            .replace('Z', ' UTC')
                             .replace('T', ' ')
                         : 'None'}
                     </td>
