@@ -207,7 +207,6 @@ const NewVisualizationPage = () => {
     </Row>
   );
 
-  // Update the capture table section to use dynamic selection mode
   const renderDataSourceStep = () => (
     <div>
       <h6>
@@ -309,16 +308,17 @@ const NewVisualizationPage = () => {
     );
   };
 
-  // Update the final URL construction
   const getVisualizationUrl = () => {
     if (!selectedVizType) return '';
 
     if (selectedVizType === 'waterfall') {
       const captureIds = selectedCaptureIds.join(',');
       return `/visualization/waterfall?captures=${captureIds}`;
+    } else if (selectedVizType === 'spectrogram') {
+      return `/visualization/spectrogram/${selectedCaptureIds[0]}`;
+    } else {
+      return '';
     }
-
-    return `/visualization/${selectedVizType}/${selectedCaptureIds[0]}`;
   };
 
   useEffect(() => {

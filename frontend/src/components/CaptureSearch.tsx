@@ -38,8 +38,6 @@ export const CaptureSearch = ({
   const [selectedSources, setSelectedSources] = useState<Set<CaptureSource>>(
     new Set(),
   );
-
-  // Update state to use string type since datetime-local works with ISO strings
   const [startDatetime, setStartDatetime] = useState<string>('');
   const [endDatetime, setEndDatetime] = useState<string>('');
 
@@ -61,20 +59,16 @@ export const CaptureSearch = ({
   // Filter captures based on search query and selected filters
   const filteredCaptures = useMemo(() => {
     return captures.filter((capture) => {
-      // Check if capture matches search query
       const matchesSearch = capture.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
 
-      // Check if capture matches selected types
       const matchesType =
         selectedTypes.size === 0 || selectedTypes.has(capture.type);
 
-      // Check if capture matches selected sources
       const matchesSource =
         selectedSources.size === 0 || selectedSources.has(capture.source);
 
-      // Update timestamp filtering logic
       const captureDate = new Date(capture.timestamp).getTime();
       const matchesTimeRange =
         (!startDatetime || captureDate >= new Date(startDatetime).getTime()) &&
@@ -139,8 +133,7 @@ export const CaptureSearch = ({
     });
   };
 
-  // Calculate the number of hidden captures
-  const hiddenCaptures = captures.length - filteredCaptures.length;
+  const numHiddenCaptures = captures.length - filteredCaptures.length;
 
   return (
     <div style={{ width: '100%' }}>
@@ -224,9 +217,9 @@ export const CaptureSearch = ({
                   setStartDatetime('');
                   setEndDatetime('');
                 }}
-                aria-label="Clear date range"
+                aria-label="Clear time range"
               >
-                Clear dates
+                Clear time range
               </button>
             </Form.Group>
 
@@ -278,7 +271,7 @@ export const CaptureSearch = ({
             selectedIds={selectedCaptureIds}
             onSelect={setSelectedCaptureIds}
             totalCaptures={captures.length}
-            hiddenCaptures={hiddenCaptures}
+            numHiddenCaptures={numHiddenCaptures}
             {...tableProps}
           />
         </main>

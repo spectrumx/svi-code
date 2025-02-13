@@ -14,7 +14,7 @@ export interface CaptureTableProps {
   onSelect?: (ids: number[]) => void;
   selectionMode?: 'single' | 'multiple';
   totalCaptures?: number;
-  hiddenCaptures?: number;
+  numHiddenCaptures?: number;
 }
 
 // Add a style object for table cells that might contain long text
@@ -34,7 +34,7 @@ const CaptureTable = ({
   onSelect,
   selectionMode = 'single',
   totalCaptures,
-  hiddenCaptures,
+  numHiddenCaptures: hiddenCaptures,
 }: CaptureTableProps) => {
   // Helper function to handle selection
   const handleSelect = (id: number) => {
