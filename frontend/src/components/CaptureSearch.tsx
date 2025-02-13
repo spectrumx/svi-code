@@ -139,6 +139,9 @@ export const CaptureSearch = ({
     });
   };
 
+  // Calculate the number of hidden captures
+  const hiddenCaptures = captures.length - filteredCaptures.length;
+
   return (
     <div style={{ width: '100%' }}>
       <div
@@ -274,6 +277,8 @@ export const CaptureSearch = ({
             captures={filteredCaptures}
             selectedIds={selectedCaptureIds}
             onSelect={setSelectedCaptureIds}
+            totalCaptures={captures.length}
+            hiddenCaptures={hiddenCaptures}
             {...tableProps}
           />
         </main>

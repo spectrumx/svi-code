@@ -13,6 +13,8 @@ export interface CaptureTableProps {
   selectedIds?: number[] | null;
   onSelect?: (ids: number[]) => void;
   selectionMode?: 'single' | 'multiple';
+  totalCaptures?: number;
+  hiddenCaptures?: number;
 }
 
 // Add a style object for table cells that might contain long text
@@ -31,6 +33,8 @@ const CaptureTable = ({
   selectedIds = [],
   onSelect,
   selectionMode = 'single',
+  totalCaptures,
+  hiddenCaptures,
 }: CaptureTableProps) => {
   // Helper function to handle selection
   const handleSelect = (id: number) => {
@@ -69,6 +73,28 @@ const CaptureTable = ({
         overflow: 'hidden',
       }}
     >
+      <div
+        style={{
+          padding: '0.5rem 1rem',
+          fontSize: '0.9rem',
+          color: '#6c757d',
+        }}
+        role="status"
+        aria-live="polite"
+      >
+        <span>
+          {totalCaptures !== undefined ? (
+            <>
+              Showing {captures.length} of {totalCaptures} captures
+              {hiddenCaptures ? ` (${hiddenCaptures} hidden by filters)` : ''}
+            </>
+          ) : (
+            `${captures.length} captures`
+          )}
+          {selectedIds?.length ? ` • ${selectedIds.length} selected` : ''}
+        </span>
+      </div>
+
       <div
         style={{
           overflowY: 'auto',
