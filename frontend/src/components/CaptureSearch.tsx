@@ -151,7 +151,7 @@ export const CaptureSearch = ({
   };
 
   return (
-    <div>
+    <div style={{ width: '100%' }}>
       <div
         style={{
           padding: '10px',
@@ -167,6 +167,7 @@ export const CaptureSearch = ({
           style={{
             padding: '10px',
             width: '800px',
+            maxWidth: '100%',
             borderRadius: '20px',
             border: '1px solid #ccc',
             outline: 'none',
@@ -177,109 +178,114 @@ export const CaptureSearch = ({
       <div
         style={{
           display: 'flex',
-          justifyContent: 'center',
           width: '100%',
+          gap: '20px',
+          alignItems: 'flex-start',
         }}
       >
-        <div
+        <aside
           style={{
-            display: 'flex',
-            minWidth: '600px',
-            maxWidth: '1400px',
-            gap: '20px',
+            width: '250px',
+            flexShrink: 0,
+            padding: '15px',
+            backgroundColor: '#ffffff',
+            borderRadius: '4px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
           }}
         >
-          <div
-            style={{
-              width: '200px',
-            }}
-          >
-            <h5>Filters</h5>
-            <Form>
-              <Form.Group className="mb-3">
-                <h6>Time Range</h6>
-                <div className="mb-2">
-                  <label htmlFor="start-time" className="d-block mb-1">
-                    Start Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    id="start-time"
-                    className="form-control"
-                    value={startDatetime}
-                    onChange={(e) => setStartDatetime(e.target.value)}
-                    max={endDatetime || undefined}
-                    aria-label="Select start date and time"
-                  />
-                </div>
-                <div className="mb-2">
-                  <label htmlFor="end-time" className="d-block mb-1">
-                    End Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    id="end-time"
-                    className="form-control"
-                    value={endDatetime}
-                    onChange={(e) => setEndDatetime(e.target.value)}
-                    min={startDatetime || undefined}
-                    aria-label="Select end date and time"
-                  />
-                </div>
-                <button
-                  className="btn btn-link btn-sm p-0"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setStartDatetime('');
-                    setEndDatetime('');
-                  }}
-                  aria-label="Clear date range"
-                >
-                  Clear dates
-                </button>
-              </Form.Group>
+          <h5>Filters</h5>
+          <Form>
+            <Form.Group className="mb-3">
+              <h6>Time Range</h6>
+              <div className="mb-2">
+                <label htmlFor="start-time" className="d-block mb-1">
+                  Start Time
+                </label>
+                <input
+                  type="datetime-local"
+                  id="start-time"
+                  className="form-control"
+                  value={startDatetime}
+                  onChange={(e) => setStartDatetime(e.target.value)}
+                  max={endDatetime || undefined}
+                  aria-label="Select start date and time"
+                />
+              </div>
+              <div className="mb-2">
+                <label htmlFor="end-time" className="d-block mb-1">
+                  End Time
+                </label>
+                <input
+                  type="datetime-local"
+                  id="end-time"
+                  className="form-control"
+                  value={endDatetime}
+                  onChange={(e) => setEndDatetime(e.target.value)}
+                  min={startDatetime || undefined}
+                  aria-label="Select end date and time"
+                />
+              </div>
+              <button
+                className="btn btn-link btn-sm p-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setStartDatetime('');
+                  setEndDatetime('');
+                }}
+                aria-label="Clear date range"
+              >
+                Clear dates
+              </button>
+            </Form.Group>
 
-              {!hideCaptureTypeFilter && (
-                <Form.Group className="mb-3">
-                  <h6>Capture Type</h6>
-                  {Object.entries(CAPTURE_TYPES).map(([id, info]) => (
-                    <Form.Check
-                      key={id}
-                      type="checkbox"
-                      id={`filter-type-${id}`}
-                      label={info.name}
-                      checked={selectedTypes.has(id as CaptureType)}
-                      onChange={() => handleTypeChange(id as CaptureType)}
-                      aria-label={`${info.name} filter checkbox`}
-                    />
-                  ))}
-                </Form.Group>
-              )}
+            {!hideCaptureTypeFilter && (
               <Form.Group className="mb-3">
-                <h6>Source</h6>
-                {Object.entries(CAPTURE_SOURCES).map(([id, info]) => (
+                <h6>Capture Type</h6>
+                {Object.entries(CAPTURE_TYPES).map(([id, info]) => (
                   <Form.Check
                     key={id}
                     type="checkbox"
-                    id={`filter-source-${id}`}
+                    id={`filter-type-${id}`}
                     label={info.name}
-                    checked={selectedSources.has(id as CaptureSource)}
-                    onChange={() => handleSourceChange(id as CaptureSource)}
+                    checked={selectedTypes.has(id as CaptureType)}
+                    onChange={() => handleTypeChange(id as CaptureType)}
                     aria-label={`${info.name} filter checkbox`}
                   />
                 ))}
               </Form.Group>
-            </Form>
-          </div>
-          <div style={{ flex: 1 }}>
-            <CaptureTable
-              captures={filteredCaptures}
-              selectedIds={selectedCaptureIds}
-              onSelect={setSelectedCaptureIds}
-              {...tableProps}
-            />
-          </div>
-        </div>
+            )}
+            <Form.Group className="mb-3">
+              <h6>Source</h6>
+              {Object.entries(CAPTURE_SOURCES).map(([id, info]) => (
+                <Form.Check
+                  key={id}
+                  type="checkbox"
+                  id={`filter-source-${id}`}
+                  label={info.name}
+                  checked={selectedSources.has(id as CaptureSource)}
+                  onChange={() => handleSourceChange(id as CaptureSource)}
+                  aria-label={`${info.name} filter checkbox`}
+                />
+              ))}
+            </Form.Group>
+          </Form>
+        </aside>
+        <main
+          style={{
+            flex: 1,
+            minWidth: 0,
+            height: 600,
+            backgroundColor: '#ffffff',
+            borderRadius: '4px',
+          }}
+        >
+          <CaptureTable
+            captures={filteredCaptures}
+            selectedIds={selectedCaptureIds}
+            onSelect={setSelectedCaptureIds}
+            {...tableProps}
+          />
+        </main>
       </div>
     </div>
   );
