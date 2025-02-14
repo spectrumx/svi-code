@@ -6,8 +6,8 @@ import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
 
 interface CaptureTableProps {
   captures: Capture[];
-  selectedId?: number | null;
-  onSelect?: (id: number) => void;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
 }
 
 /**
@@ -47,14 +47,16 @@ const CaptureTable = ({
           return (
             <tr
               key={capture.id}
-              className={selectedId === capture.id ? 'table-primary' : ''}
-              onClick={() => onSelect?.(capture.id)}
+              className={
+                selectedId === String(capture.id) ? 'table-primary' : ''
+              }
+              onClick={() => onSelect?.(String(capture.id))}
               style={onSelect ? { cursor: 'pointer' } : undefined}
               role={onSelect ? 'button' : undefined}
               tabIndex={onSelect ? 0 : undefined}
               onKeyPress={(e) => {
                 if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
-                  onSelect(capture.id);
+                  onSelect(String(capture.id));
                 }
               }}
             >
@@ -62,8 +64,8 @@ const CaptureTable = ({
                 <td className="text-center align-middle">
                   <input
                     type="radio"
-                    checked={selectedId === capture.id}
-                    onChange={() => onSelect(capture.id)}
+                    checked={selectedId === String(capture.id)}
+                    onChange={() => onSelect(String(capture.id))}
                     onClick={(e) => e.stopPropagation()}
                     aria-label={`Select capture ${capture.id}`}
                   />

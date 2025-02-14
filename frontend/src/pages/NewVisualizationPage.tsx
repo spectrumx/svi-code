@@ -42,7 +42,7 @@ const NewVisualizationPage = () => {
   const [selectedType, setSelectedType] = useState<
     VisualizationType['name'] | null
   >(null);
-  const [selectedCaptureId, setSelectedCaptureId] = useState<number | null>(
+  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(
     null,
   );
   // For now, we're just displaying all RadioHound captures in the
@@ -75,7 +75,7 @@ const NewVisualizationPage = () => {
   }, [selectedType, captures]);
 
   // Handle capture selection and advance to next step
-  const handleCaptureSelect = useCallback((id: number) => {
+  const handleCaptureSelect = useCallback((id: string) => {
     setSelectedCaptureId(id);
     setCurrentStep(3);
   }, []);

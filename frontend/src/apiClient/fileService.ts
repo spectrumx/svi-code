@@ -5,18 +5,17 @@ import { useAppContext } from '../utils/AppContext';
 import { z } from 'zod';
 
 const FileMetadataSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
-  content_url: z.string(),
   media_type: z.string(),
-  created_at: z.string(),
-  updated_at: z.string(),
+  timestamp: z.string(),
+  source: z.string(),
 });
 
 export type FileMetadata = z.infer<typeof FileMetadataSchema>;
 
 export const getFileMetadata = async (
-  fileId: number,
+  fileId: string,
 ): Promise<FileMetadata> => {
   try {
     const response = await apiClient.get(`/api/files/${fileId}/`);
@@ -27,7 +26,7 @@ export const getFileMetadata = async (
   }
 };
 
-export const getFileContent = async (fileId: number): Promise<any> => {
+export const getFileContent = async (fileId: string): Promise<any> => {
   const response = await apiClient.get(`/api/files/${fileId}/content/`);
   return response.data;
 };
@@ -52,7 +51,7 @@ const CaptureSourceSchema = z.enum(['sds', 'svi_public', 'svi_user']);
 export type CaptureSource = z.infer<typeof CaptureSourceSchema>;
 
 const CaptureSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
   owner: z.number(),
   created_at: z.string(),
@@ -66,7 +65,7 @@ export type Capture = z.infer<typeof CaptureSchema>;
 
 export const getCaptures = async (): Promise<Capture[]> => {
   try {
-    const response = await apiClient.get('/api/captures/');
+    const response = await apiClient.get('/api/captures/list/');
     return z.array(CaptureSchema).parse(response.data);
   } catch (error) {
     console.error('Error fetching captures:', error);
@@ -96,7 +95,7 @@ export const postCapture = async (
     formData.append('uploaded_files', file);
   });
 
-  await apiClient.post('/api/captures/', formData, {
+  await apiClient.post('/api/captures/list/', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
