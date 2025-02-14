@@ -1,16 +1,16 @@
 import { AxiosError } from 'axios';
-import { z } from 'zod';
+import { z as zod } from 'zod';
 
 import apiClient from '.';
 
-const CreateSpectrogramResponseSchema = z.object({
-  status: z.string().optional(),
-  job_id: z.number().optional(),
-  message: z.string().optional(),
-  detail: z.string().optional(),
+const CreateSpectrogramResponseSchema = zod.object({
+  status: zod.string().optional(),
+  job_id: zod.number().optional(),
+  message: zod.string().optional(),
+  detail: zod.string().optional(),
 });
 
-export type CreateSpectrogramResponse = z.infer<
+export type CreateSpectrogramResponse = zod.infer<
   typeof CreateSpectrogramResponseSchema
 >;
 
