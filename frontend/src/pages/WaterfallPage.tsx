@@ -27,6 +27,8 @@ export const WaterfallPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchRadiohoundData = async () => {
       try {
         setIsLoading(true);
@@ -56,27 +58,39 @@ export const WaterfallPage = () => {
           if (!fileId) {
             throw new Error(`No files found for capture ${capture.id}`);
           }
-          const fileData = await getFileContent(fileId);
+          const fileData = await getFileContent(fileId, abortController.signal);
           return {
             capture,
             fileData,
           };
         });
 
+        console.log('Getting waterfall data');
         const results = await Promise.all(waterfallPromises);
+        console.log('Files downloaded');
         setWaterfallData(results);
       } catch (err) {
+        if (abortController.signal.aborted) {
+          console.log('Downloads aborted');
+          return;
+        }
         setError(
           err instanceof Error
             ? err.message
             : 'An error occurred while fetching RadioHound data',
         );
       } finally {
-        setIsLoading(false);
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchRadiohoundData();
+
+    return () => {
+      abortController.abort();
+    };
   }, [searchParams]);
 
   if (isLoading) {

@@ -4,7 +4,7 @@ import { NavLink } from 'react-router';
 import Navbar from 'react-bootstrap/esm/Navbar';
 import { useAppContext } from '../utils/AppContext';
 import Dropdown from 'react-bootstrap/Dropdown';
-import { api_host } from '../apiClient';
+import { API_HOST } from '../apiClient';
 
 const Navlinks = () => {
   const { username } = useAppContext();
@@ -27,13 +27,13 @@ const Navlinks = () => {
                     {username}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    <Dropdown.Item href={api_host + '/accounts/logout'}>
+                    <Dropdown.Item href={API_HOST + '/accounts/logout'}>
                       Logout
                     </Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                <Nav.Link href={api_host + '/accounts/auth0/login'}>
+                <Nav.Link href={API_HOST + '/accounts/auth0/login'}>
                   Login
                 </Nav.Link>
               )}

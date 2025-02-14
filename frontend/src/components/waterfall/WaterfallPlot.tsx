@@ -260,7 +260,9 @@ function WaterfallPlot({
 
   useEffect(() => {
     if (canvasRef.current) {
+      console.log('Drawing waterfall');
       processWaterfall(canvasRef.current, () => setResetScale(false));
+      console.log('Waterfall drawn');
     }
   }, [scan, display]);
 
