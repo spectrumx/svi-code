@@ -446,10 +446,6 @@ const WaterfallVisualization = ({
       setChart(tmpChart);
       setDisplayedCaptureIndex(settings.captureIndex);
     }
-    // if (process.env.REACT_APP_ENVIRONMENT === "development")
-    // {
-    //   console.log("Finished processing periodogram at:", Date.now());
-    // }
   };
 
   /**
@@ -466,7 +462,6 @@ const WaterfallVisualization = ({
       let dataArray: FloatArray | number[] | undefined;
       // const arrayLength = Number(capture.metadata?.xcount);
 
-      // Process the data array similar to existing logic
       if (typeof capture.data === 'string') {
         if (capture.data.slice(0, 8) === 'AAAAAAAA') {
           console.error('Invalid data, skipping capture');
@@ -511,11 +506,6 @@ const WaterfallVisualization = ({
       // Store processed values
       processedData.push(Array.from(yValues));
     });
-
-    // Trim to maximum rows if needed
-    while (processedData.length > WATERFALL_MAX_ROWS) {
-      processedData.shift();
-    }
 
     setDisplay((prevDisplay) => ({
       ...prevDisplay,

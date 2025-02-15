@@ -49,7 +49,7 @@ function WaterfallPlot({
     }
   }, []); // Empty dependency array means this only runs once on mount
 
-  function processWaterfall(
+  function drawWaterfall(
     canvas: HTMLCanvasElement,
     resetScaleCallback: () => void,
   ) {
@@ -139,24 +139,24 @@ function WaterfallPlot({
         // context.translate(labelWidth + margin.left, margin.top + 5);
 
         // console.log('allData before draw:', allData);
-        allData.forEach((row, rowIndex) => {
-          row.forEach((value, colIndex) => {
-            if (colorScale) {
+        if (colorScale) {
+          allData.forEach((row, rowIndex) => {
+            row.forEach((value, colIndex) => {
               // console.log('Drawing allDatacanvas square:', colIndex, value);
               drawCanvasSquare(
                 context,
                 colIndex,
                 value,
                 rowIndex,
-                colorScale,
+                colorScale!,
                 rectWidth,
                 rectHeight,
               );
-            } else {
-              console.error('color scale is undefined');
-            }
+            });
           });
-        });
+        } else {
+          console.error('Color scale is undefined');
+        }
 
         resetScaleCallback();
         redrawLegend = 1;
@@ -225,35 +225,24 @@ function WaterfallPlot({
       }
 
       if (context) {
-        // // Copy existing plot and move it down one row.
-        // //console.log(labelWidth, margin.top, width, height-rectHeight);
-        // const periodogram = context.getImageData(
-        //   labelWidth,
-        //   margin.top,
-        //   width + 5,
-        //   height - rectHeight,
-        // );
-        // context.putImageData(periodogram, labelWidth, rectHeight + margin.top);
-
-        // Draw all data at once instead of moving existing data
-        allData.forEach((row, rowIndex) => {
-          row.forEach((value, colIndex) => {
-            if (colorScale) {
+        if (colorScale) {
+          allData.forEach((row, rowIndex) => {
+            row.forEach((value, colIndex) => {
               // console.log('Drawing dataset canvas square:', colIndex, value);
               drawCanvasSquare(
                 context,
                 colIndex,
                 value,
                 rowIndex,
-                colorScale,
+                colorScale!,
                 rectWidth,
                 rectHeight,
               );
-            } else {
-              console.error('color scale is undefined');
-            }
+            });
           });
-        });
+        } else {
+          console.error('Color scale is undefined');
+        }
       }
     }
   }
@@ -261,7 +250,7 @@ function WaterfallPlot({
   useEffect(() => {
     if (canvasRef.current) {
       console.log('Drawing waterfall');
-      processWaterfall(canvasRef.current, () => setResetScale(false));
+      drawWaterfall(canvasRef.current, () => setResetScale(false));
       console.log('Waterfall drawn');
     }
   }, [scan, display]);
