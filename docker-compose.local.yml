@@ -34,6 +34,8 @@ services:
       - '3000:3000'
     depends_on:
       - django
+    networks:
+      - spectrumx_network
 
   postgres:
     build:
@@ -84,6 +86,33 @@ services:
     ports:
       - '5555:5555'
     command: /start-flower
+    networks:
+      - spectrumx_network
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: ./compose/local/jupyter/Dockerfile
+    volumes:
+      - .:/home/jovyan/work
+    ports:
+      - "8890:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=your_secure_token
+    networks:
+      - spectrumx_network
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./compose/local/nginx/Dockerfile
+    ports:
+      - "8891:80"
+    volumes:
+      - ./compose/local/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - jupyter
     networks:
       - spectrumx_network
 

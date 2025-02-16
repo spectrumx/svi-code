@@ -1,8 +1,9 @@
-import { Routes, Route } from 'react-router';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
+import { useEffect } from 'react';
 
 import './App.css';
 import LandingPage from './pages/LandingPage';
@@ -16,6 +17,14 @@ import SearchPage from './pages/SearchPage';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import { useFetchSessionInfo } from './apiClient';
+
+const JupyterRedirect = () => {
+  useEffect(() => {
+    window.location.replace('http://localhost:8891/notebooks/');
+  }, []);
+
+  return <div>Redirecting to Jupyter Notebook...</div>;
+};
 
 function App() {
   useFetchSessionInfo();
@@ -41,6 +50,7 @@ function App() {
               path="tutorials"
               element={<div className="page-container">Tutorials</div>}
             />
+            <Route path="/notebooks/*" element={<JupyterRedirect />} />
             <Route
               path="visualization/new"
               element={<NewVisualizationPage />}
