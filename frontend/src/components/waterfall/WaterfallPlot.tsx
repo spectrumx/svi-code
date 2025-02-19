@@ -24,7 +24,6 @@ function WaterfallPlot({
 }: WaterfallPlotProps) {
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-  // Store plot dimensions in a ref to access them across renders
   const plotDimensionsRef = useRef<{
     rectWidth: number;
     rectHeight: number;
@@ -34,7 +33,7 @@ function WaterfallPlot({
   const margin = {
     top: 5,
     left: 5,
-    bottom: 3,
+    bottom: 5,
     right: 10,
   };
 
@@ -53,7 +52,7 @@ function WaterfallPlot({
     // Set canvas width to match container width, accounting for device pixel ratio
     const pixelRatio = window.devicePixelRatio || 1;
     const canvasWidth = Math.floor(width * pixelRatio);
-    const canvasHeight = 500 * pixelRatio;
+    const canvasHeight = Math.floor(500 * pixelRatio);
 
     // Set dimensions for both canvases
     [plotCanvas, overlayCanvas].forEach((c) => {
@@ -71,6 +70,8 @@ function WaterfallPlot({
       const context = c.getContext('2d');
       if (context) {
         context.scale(pixelRatio, pixelRatio);
+        // Clear any existing transformations
+        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       }
     });
 
@@ -92,25 +93,29 @@ function WaterfallPlot({
     const context = overlayCanvas.getContext('2d');
     if (!context) return;
 
-    // Clear the overlay canvas
+    const pixelRatio = window.devicePixelRatio || 1;
+
+    // Clear the entire overlay canvas including the transformed area
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    context.restore();
+
+    // Set up the transform for the highlight box
+    context.save();
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.translate(labelWidth + margin.left, margin.top);
 
     // Calculate position for highlight box
-    const boxY = currentIndex * rectHeight;
-    const boxWidth = allData[0].length * rectWidth;
+    const boxY = Math.floor(currentIndex * rectHeight);
+    const boxWidth = Math.ceil(allData[0].length * rectWidth);
 
-    // Draw the highlight box with the same transformations as the main plot
-    context.save();
-
-    // First translation for legend area (matches the main plot's legend translation)
-    context.translate(0, 5);
-
-    // Second translation for main plot area (matches the main plot's data translation)
-    context.translate(labelWidth, margin.top);
-
+    // Draw the highlight box
     context.strokeStyle = '#ff00ff'; // purple
     context.lineWidth = 2;
     context.strokeRect(0, boxY, boxWidth, rectHeight);
+
+    // Restore the original transform
     context.restore();
   }
 
@@ -125,11 +130,19 @@ function WaterfallPlot({
 
     if (allData && allData.length > 0) {
       const context = canvas.getContext('2d');
+      if (!context) return;
 
-      const width = canvas.width - margin.left - margin.right - labelWidth;
-      const height = canvas.height - margin.top - margin.bottom;
-      const rectWidth = width / allData[0].length;
-      const rectHeight = height / Math.min(allData.length, WATERFALL_MAX_ROWS);
+      const pixelRatio = window.devicePixelRatio || 1;
+
+      // Calculate available space for plotting
+      const plotWidth =
+        canvas.width / pixelRatio - labelWidth - margin.left - margin.right;
+      const plotHeight =
+        canvas.height / pixelRatio - margin.top - margin.bottom;
+
+      // Calculate rectangle dimensions to fit exactly
+      const rectWidth = plotWidth / allData[0].length;
+      const rectHeight = plotHeight / WATERFALL_MAX_ROWS;
 
       // Store dimensions for highlight box
       plotDimensionsRef.current = { rectWidth, rectHeight };
@@ -230,16 +243,17 @@ function WaterfallPlot({
 
         // Create white background for legend
         context.fillStyle = 'white';
-        context.fillRect(0, 0, labelWidth, height);
+        context.fillRect(0, 0, labelWidth, plotHeight);
 
         // Iterate through each pixel height of the legend
-        for (let legendPixel = 0; legendPixel < height + 2; legendPixel++) {
+        for (let legendPixel = 0; legendPixel < plotHeight + 2; legendPixel++) {
           // Calculate dB value for this position
           const dbVal =
             scaleMin && scaleMax
               ? scaleMin +
-                ((height - legendPixel) / height) * (scaleMax - scaleMin)
-              : -130 + ((height - legendPixel) / height) * 90;
+                ((plotHeight - legendPixel) / plotHeight) *
+                  (scaleMax - scaleMin)
+              : -130 + ((plotHeight - legendPixel) / plotHeight) * 90;
           const dbValRounded = Math.round(dbVal);
 
           // If the dB value is less than the minimum scale value,
@@ -282,7 +296,14 @@ function WaterfallPlot({
       if (context) {
         console.log('Drawing all data');
         if (colorScale) {
-          // Draw all data points first
+          // Save the current transform
+          context.save();
+
+          // Apply the correct transform for the main plot
+          context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+          context.translate(labelWidth + margin.left, margin.top);
+
+          // Draw all data points
           allData.forEach((row, rowIndex) => {
             row.forEach((value, colIndex) => {
               drawCanvasSquare(
@@ -296,6 +317,9 @@ function WaterfallPlot({
               );
             });
           });
+
+          // Restore the transform
+          context.restore();
         } else {
           console.error('Color scale is undefined');
         }
@@ -350,12 +374,12 @@ function drawCanvasSquare(
   rectWidth: number,
   rectHeight: number,
 ) {
-  const adjustedWidth = Math.max(rectWidth, 1);
-  const adjustedHeight = Math.max(rectHeight, 1);
+  const adjustedWidth = Math.ceil(rectWidth); // Ensure we don't get gaps
+  const adjustedHeight = Math.ceil(rectHeight);
   ctx.fillStyle = colorScale(yValue);
   ctx.fillRect(
-    xValue * rectWidth,
-    yPos * rectHeight,
+    Math.floor(xValue * rectWidth), // Prevent fractional positioning
+    Math.floor(yPos * rectHeight),
     adjustedWidth,
     adjustedHeight,
   );
