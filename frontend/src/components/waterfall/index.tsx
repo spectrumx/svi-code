@@ -571,6 +571,7 @@ const WaterfallVisualization = ({
         setWaterfall={setWaterfall}
         setScaleChanged={setScaleChanged}
         setResetScale={setResetScale}
+        currentCaptureIndex={settings.captureIndex}
       />
     </>
   );

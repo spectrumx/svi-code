@@ -11,6 +11,7 @@ interface WaterfallPlotProps {
   setWaterfall: (waterfall: WaterfallType) => void;
   setScaleChanged: (scaleChanged: boolean) => void;
   setResetScale: (resetScale: boolean) => void;
+  currentCaptureIndex: number;
 }
 
 function WaterfallPlot({
@@ -19,15 +20,31 @@ function WaterfallPlot({
   setWaterfall,
   setScaleChanged,
   setResetScale,
+  currentCaptureIndex,
 }: WaterfallPlotProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const plotCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Store plot dimensions in a ref to access them across renders
+  const plotDimensionsRef = useRef<{
+    rectWidth: number;
+    rectHeight: number;
+  } | null>(null);
 
-  // Update canvas size only once on mount
+  const labelWidth = 60;
+  const margin = {
+    top: 5,
+    left: 5,
+    bottom: 3,
+    right: 10,
+  };
+
+  // Update canvas sizes on mount
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!plotCanvasRef.current || !overlayCanvasRef.current) return;
 
-    const canvas = canvasRef.current;
-    const container = canvas.parentElement;
+    const plotCanvas = plotCanvasRef.current;
+    const overlayCanvas = overlayCanvasRef.current;
+    const container = plotCanvas.parentElement;
     if (!container) return;
 
     // Get the container's width
@@ -35,19 +52,67 @@ function WaterfallPlot({
 
     // Set canvas width to match container width, accounting for device pixel ratio
     const pixelRatio = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(width * pixelRatio);
-    canvas.height = 500 * pixelRatio; // Maintain 500px height, adjusted for pixel ratio
+    const canvasWidth = Math.floor(width * pixelRatio);
+    const canvasHeight = 500 * pixelRatio;
 
-    // Scale the canvas CSS size back down
-    canvas.style.width = `${width}px`;
-    canvas.style.height = '500px';
+    // Set dimensions for both canvases
+    [plotCanvas, overlayCanvas].forEach((c) => {
+      c.width = canvasWidth;
+      c.height = canvasHeight;
+      c.style.width = `${width}px`;
+      c.style.height = '500px';
 
-    // Adjust canvas context for high DPI displays
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.scale(pixelRatio, pixelRatio);
-    }
-  }, []); // Empty dependency array means this only runs once on mount
+      // Position the canvases
+      c.style.position = 'absolute';
+      c.style.left = '0';
+      c.style.top = '0';
+
+      // Adjust canvas context for high DPI displays
+      const context = c.getContext('2d');
+      if (context) {
+        context.scale(pixelRatio, pixelRatio);
+      }
+    });
+
+    // Ensure overlay canvas is on top
+    overlayCanvas.style.zIndex = '1';
+  }, []);
+
+  // Function to draw highlight box on overlay canvas
+  function drawHighlightBox(
+    allData: number[][],
+    currentIndex: number,
+    rectWidth: number,
+    rectHeight: number,
+  ) {
+    console.log('Drawing highlight box');
+    const overlayCanvas = overlayCanvasRef.current;
+    if (!overlayCanvas) return;
+
+    const context = overlayCanvas.getContext('2d');
+    if (!context) return;
+
+    // Clear the overlay canvas
+    context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    // Calculate position for highlight box
+    const boxY = currentIndex * rectHeight;
+    const boxWidth = allData[0].length * rectWidth;
+
+    // Draw the highlight box with the same transformations as the main plot
+    context.save();
+
+    // First translation for legend area (matches the main plot's legend translation)
+    context.translate(0, 5);
+
+    // Second translation for main plot area (matches the main plot's data translation)
+    context.translate(labelWidth, margin.top);
+
+    context.strokeStyle = '#ff00ff'; // purple
+    context.lineWidth = 2;
+    context.strokeRect(0, boxY, boxWidth, rectHeight);
+    context.restore();
+  }
 
   function drawWaterfall(
     canvas: HTMLCanvasElement,
@@ -60,27 +125,17 @@ function WaterfallPlot({
 
     if (allData && allData.length > 0) {
       const context = canvas.getContext('2d');
-      const labelWidth = 60;
-      const margin = {
-        top: 5,
-        left: 5,
-        //left: canvas.width / 20,
-        bottom: 3,
-        right: 10,
-      };
+
       const width = canvas.width - margin.left - margin.right - labelWidth;
       const height = canvas.height - margin.top - margin.bottom;
       const rectWidth = width / allData[0].length;
       const rectHeight = height / Math.min(allData.length, WATERFALL_MAX_ROWS);
 
+      // Store dimensions for highlight box
+      plotDimensionsRef.current = { rectWidth, rectHeight };
+
       let { yMin, yMax } = scanCopy;
       const { scaleMin, scaleMax } = displayCopy;
-
-      // const x = scaleLinear().range([0, width]);
-      // x.domain([0, allData[0].length - 1]);
-
-      // const y = scaleLinear().range([0, height]);
-      // y.domain([0, maxSize]);
 
       let colorScale =
         scaleMin && scaleMax
@@ -225,10 +280,11 @@ function WaterfallPlot({
       }
 
       if (context) {
+        console.log('Drawing all data');
         if (colorScale) {
+          // Draw all data points first
           allData.forEach((row, rowIndex) => {
             row.forEach((value, colIndex) => {
-              // console.log('Drawing dataset canvas square:', colIndex, value);
               drawCanvasSquare(
                 context,
                 colIndex,
@@ -247,17 +303,40 @@ function WaterfallPlot({
     }
   }
 
+  // Effect for drawing the waterfall plot
   useEffect(() => {
-    if (canvasRef.current) {
+    if (plotCanvasRef.current) {
       console.log('Drawing waterfall');
-      drawWaterfall(canvasRef.current, () => setResetScale(false));
+      drawWaterfall(plotCanvasRef.current, () => setResetScale(false));
       console.log('Waterfall drawn');
     }
-  }, [scan, display]);
+  }, [scan, display]); // Remove currentCaptureIndex from dependencies
+
+  // Separate effect for drawing the highlight box
+  useEffect(() => {
+    const dimensions = plotDimensionsRef.current;
+    const allData = scan.allData as number[][];
+
+    if (
+      dimensions &&
+      allData &&
+      allData.length > 0 &&
+      currentCaptureIndex >= 0 &&
+      currentCaptureIndex < allData.length
+    ) {
+      drawHighlightBox(
+        allData,
+        currentCaptureIndex,
+        dimensions.rectWidth,
+        dimensions.rectHeight,
+      );
+    }
+  }, [currentCaptureIndex, scan.allData]); // Only redraw highlight when these change
 
   return (
-    <div style={{ width: '100%', height: '500px' }}>
-      <canvas ref={canvasRef} style={{ display: 'block' }} />
+    <div style={{ width: '100%', height: '500px', position: 'relative' }}>
+      <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
+      <canvas ref={overlayCanvasRef} style={{ display: 'block' }} />
     </div>
   );
 }
