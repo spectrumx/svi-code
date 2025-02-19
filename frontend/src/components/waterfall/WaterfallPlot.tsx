@@ -29,7 +29,7 @@ function WaterfallPlot({
     rectHeight: number;
   } | null>(null);
 
-  const labelWidth = 60;
+  const labelWidth = 75;
   const margin = {
     top: 5,
     left: 5,
@@ -267,11 +267,11 @@ function WaterfallPlot({
             context.fillStyle = 'black';
             context.fillText(
               String(dbValRounded),
-              margin.left + 25,
+              margin.left + 15,
               legendPixel + 3,
             );
             lastDrawnVal = dbValRounded;
-            context.fillText('dBm', margin.left + 25, legendPixel + 12);
+            context.fillText('dBm', margin.left + 15, legendPixel + 12);
           }
 
           // Get color for this dB value using the same color scale as the main plot
@@ -284,7 +284,7 @@ function WaterfallPlot({
             dbVal > Number(displayCopy.scaleMin) &&
             dbVal < Number(displayCopy.scaleMax)
           ) {
-            context.fillRect(2, legendPixel, 20, 1);
+            context.fillRect(2, legendPixel, 15, 1);
           }
         }
 
