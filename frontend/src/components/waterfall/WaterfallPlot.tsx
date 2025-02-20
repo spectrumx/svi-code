@@ -12,6 +12,11 @@ interface WaterfallPlotProps {
   setScaleChanged: (scaleChanged: boolean) => void;
   setResetScale: (resetScale: boolean) => void;
   currentCaptureIndex: number;
+  onCaptureSelect: (index: number) => void;
+  captureRange: {
+    startIndex: number;
+    endIndex: number;
+  };
 }
 
 function WaterfallPlot({
@@ -21,6 +26,8 @@ function WaterfallPlot({
   setScaleChanged,
   setResetScale,
   currentCaptureIndex,
+  onCaptureSelect,
+  captureRange,
 }: WaterfallPlotProps) {
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,7 +41,7 @@ function WaterfallPlot({
     top: 5,
     left: 5,
     bottom: 5,
-    right: 10,
+    right: 75,
   };
 
   // Update canvas sizes on mount
@@ -101,21 +108,76 @@ function WaterfallPlot({
     context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     context.restore();
 
-    // Set up the transform for the highlight box
+    // Calculate the relative position within the current page
+    const relativeIndex = currentIndex - captureRange.startIndex;
+
+    // Only draw if the current index is within the displayed range
+    if (relativeIndex >= 0 && relativeIndex < allData.length) {
+      // Set up the transform for the highlight box
+      context.save();
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      context.translate(labelWidth + margin.left, margin.top);
+
+      // Calculate position for highlight box
+      const boxY = Math.floor(relativeIndex * rectHeight);
+      const boxWidth = Math.ceil(allData[0].length * rectWidth);
+
+      // Draw the highlight box
+      context.strokeStyle = '#ff00ff'; // purple
+      context.lineWidth = 2;
+      context.strokeRect(0, boxY, boxWidth, rectHeight);
+
+      // Restore the original transform
+      context.restore();
+    }
+  }
+
+  // Add new function to draw capture indices
+  function drawCaptureIndices(
+    context: CanvasRenderingContext2D,
+    allData: number[][],
+    rectHeight: number,
+    canvasWidth: number,
+    pixelRatio: number,
+    startIndex: number,
+  ) {
+    // Reset transform for drawing indices
     context.save();
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.translate(labelWidth + margin.left, margin.top);
 
-    // Calculate position for highlight box
-    const boxY = Math.floor(currentIndex * rectHeight);
-    const boxWidth = Math.ceil(allData[0].length * rectWidth);
+    // Create white background for indices
+    context.fillStyle = 'white';
+    context.fillRect(
+      canvasWidth / pixelRatio - margin.right,
+      margin.top,
+      margin.right,
+      allData.length * rectHeight,
+    );
 
-    // Draw the highlight box
-    context.strokeStyle = '#ff00ff'; // purple
-    context.lineWidth = 2;
-    context.strokeRect(0, boxY, boxWidth, rectHeight);
+    context.fillStyle = 'black';
+    context.font = '12px Arial';
+    context.textAlign = 'left';
 
-    // Restore the original transform
+    // Determine index spacing based on total number of captures
+    const totalCaptures = allData.length;
+    let step = 1;
+
+    // If we have many captures, space out the indices
+    if (totalCaptures > 20) {
+      step = Math.ceil(totalCaptures / 20); // Show roughly 20 indices max
+    }
+
+    // Draw indices
+    for (let i = 0; i < totalCaptures; i++) {
+      // Only draw indices at step intervals, plus always draw first and last
+      if (i % step === 0 || i === totalCaptures - 1) {
+        const y = margin.top + i * rectHeight + rectHeight / 2 + 4;
+        const x = canvasWidth / pixelRatio - margin.right + 5;
+        // Use actual capture index by adding startIndex
+        context.fillText(`#${startIndex + i + 1}`, x, y);
+      }
+    }
+
     context.restore();
   }
 
@@ -324,6 +386,16 @@ function WaterfallPlot({
           console.error('Color scale is undefined');
         }
       }
+
+      // Draw capture indices after drawing the waterfall
+      drawCaptureIndices(
+        context,
+        allData,
+        rectHeight,
+        canvas.width,
+        pixelRatio,
+        captureRange.startIndex,
+      );
     }
   }
 
@@ -345,8 +417,8 @@ function WaterfallPlot({
       dimensions &&
       allData &&
       allData.length > 0 &&
-      currentCaptureIndex >= 0 &&
-      currentCaptureIndex < allData.length
+      currentCaptureIndex >= captureRange.startIndex &&
+      currentCaptureIndex < captureRange.endIndex
     ) {
       drawHighlightBox(
         allData,
@@ -355,12 +427,40 @@ function WaterfallPlot({
         dimensions.rectHeight,
       );
     }
-  }, [currentCaptureIndex, scan.allData]); // Only redraw highlight when these change
+  }, [currentCaptureIndex, scan.allData, captureRange]); // Add captureRange to dependencies
+
+  // Update the handleCanvasClick function to ignore clicks in the index area
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = overlayCanvasRef.current;
+    if (!canvas || !plotDimensionsRef.current) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Ignore clicks in the index area
+    if (x > rect.width - margin.right) return;
+
+    // Convert y position to capture index
+    const { rectHeight } = plotDimensionsRef.current;
+    const clickedIndex = Math.floor((y - margin.top) / rectHeight);
+
+    // Validate the index is within bounds
+    const allData = scan.allData as number[][];
+    if (clickedIndex >= 0 && clickedIndex < allData.length) {
+      // Add the startIndex offset to get the actual capture index
+      onCaptureSelect(captureRange.startIndex + clickedIndex);
+    }
+  };
 
   return (
     <div style={{ width: '100%', height: '500px', position: 'relative' }}>
       <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
-      <canvas ref={overlayCanvasRef} style={{ display: 'block' }} />
+      <canvas
+        ref={overlayCanvasRef}
+        style={{ display: 'block', cursor: 'pointer' }}
+        onClick={handleCanvasClick}
+      />
     </div>
   );
 }

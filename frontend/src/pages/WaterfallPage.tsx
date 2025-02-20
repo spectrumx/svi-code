@@ -143,6 +143,7 @@ export const WaterfallPage = () => {
           <WaterfallVisualization
             data={waterfallData.map((data) => data.fileData)}
             settings={settings}
+            setSettings={setSettings}
           />
         </Col>
       </Row>

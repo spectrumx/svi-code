@@ -111,11 +111,13 @@ export const WATERFALL_MAX_ROWS = 80;
 interface WaterfallVisualizationProps {
   data: RadioHoundCapture[];
   settings: WaterfallSettings;
+  setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
 }
 
 const WaterfallVisualization = ({
   data,
   settings,
+  setSettings,
 }: WaterfallVisualizationProps) => {
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as ApplicationType[];
   const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
@@ -535,12 +537,12 @@ const WaterfallVisualization = ({
   }, [data, settings.captureIndex]);
 
   useEffect(() => {
-    // Calculate new waterfall range
-    const startIndex = Math.max(
-      0,
-      settings.captureIndex - WATERFALL_MAX_ROWS + 1,
-    );
-    const endIndex = Math.min(data.length, startIndex + WATERFALL_MAX_ROWS);
+    // Calculate which page of captures we're on and the range for that page
+    const pageSize = WATERFALL_MAX_ROWS;
+    const currentPage = Math.floor(settings.captureIndex / pageSize);
+
+    const startIndex = currentPage * pageSize;
+    const endIndex = Math.min(data.length, startIndex + pageSize);
 
     // Only reprocess waterfall if the range of captures has changed
     if (
@@ -553,12 +555,15 @@ const WaterfallVisualization = ({
       console.log('Waterfall data processed');
       setWaterfallRange({ startIndex, endIndex });
     }
-  }, [
-    data,
-    settings.captureIndex,
-    waterfallRange.startIndex,
-    waterfallRange.endIndex,
-  ]);
+  }, [data, settings.captureIndex]);
+
+  const handleCaptureSelect = (index: number) => {
+    // Update the settings with the new capture index
+    setSettings((prev) => ({
+      ...prev,
+      captureIndex: index,
+    }));
+  };
 
   return (
     <>
@@ -572,6 +577,8 @@ const WaterfallVisualization = ({
         setScaleChanged={setScaleChanged}
         setResetScale={setResetScale}
         currentCaptureIndex={settings.captureIndex}
+        onCaptureSelect={handleCaptureSelect}
+        captureRange={waterfallRange}
       />
     </>
   );
