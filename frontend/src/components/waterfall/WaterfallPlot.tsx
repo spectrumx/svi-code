@@ -413,7 +413,7 @@ function WaterfallPlot({
     }
   }, [currentCaptureIndex, scan.allData, captureRange]); // Add captureRange to dependencies
 
-  // Update the handleCanvasClick function to ignore clicks in the index area
+  // Update the handleCanvasClick function to ignore clicks in the legend area
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = overlayCanvasRef.current;
     if (!canvas || !plotDimensionsRef.current) return;
@@ -422,17 +422,15 @@ function WaterfallPlot({
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    // Ignore clicks in the index area
-    if (x > rect.width - margin.right) return;
+    // Ignore clicks in the legend area (left side)
+    if (x < labelWidth + margin.left) return;
 
-    // Convert y position to capture index
     const { rectHeight } = plotDimensionsRef.current;
     const clickedIndex = Math.floor((y - margin.top) / rectHeight);
 
     // Validate the index is within bounds
     const allData = scan.allData as number[][];
     if (clickedIndex >= 0 && clickedIndex < allData.length) {
-      // Add the startIndex offset to get the actual capture index
       onCaptureSelect(captureRange.startIndex + clickedIndex);
     }
   };
