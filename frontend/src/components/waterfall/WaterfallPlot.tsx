@@ -122,8 +122,8 @@ function WaterfallPlot({
       const boxY = Math.floor(relativeIndex * rectHeight);
       const boxWidth = Math.ceil(allData[0].length * rectWidth);
 
-      // Draw the highlight box
-      context.strokeStyle = '#ff00ff'; // purple
+      // Draw the grey highlight box
+      context.strokeStyle = '#808080';
       context.lineWidth = 2;
       context.strokeRect(0, boxY, boxWidth, rectHeight);
 
@@ -154,27 +154,17 @@ function WaterfallPlot({
       allData.length * rectHeight,
     );
 
-    context.fillStyle = 'black';
-    context.font = '12px Arial';
-    context.textAlign = 'left';
+    // Only draw indices if we have 5 or more captures
+    if (allData.length >= 5) {
+      context.fillStyle = 'black';
+      context.font = '12px Arial';
+      context.textAlign = 'left';
 
-    // Determine index spacing based on total number of captures
-    const totalCaptures = allData.length;
-    let step = 1;
-
-    // If we have many captures, space out the indices
-    if (totalCaptures > 20) {
-      step = Math.ceil(totalCaptures / 20); // Show roughly 20 indices max
-    }
-
-    // Draw indices
-    for (let i = 0; i < totalCaptures; i++) {
-      // Only draw indices at step intervals, plus always draw first and last
-      if (i % step === 0 || i === totalCaptures - 1) {
+      // Show every 5th index starting at 5
+      for (let i = 4; i < allData.length; i += 5) {
         const y = margin.top + i * rectHeight + rectHeight / 2 + 4;
         const x = canvasWidth / pixelRatio - margin.right + 5;
-        // Use actual capture index by adding startIndex
-        context.fillText(`#${startIndex + i + 1}`, x, y);
+        context.fillText(String(startIndex + i + 1), x, y);
       }
     }
 
