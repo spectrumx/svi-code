@@ -35,6 +35,7 @@ function WaterfallPlot({
     rectWidth: number;
     rectHeight: number;
   } | null>(null);
+  const pixelRatioRef = useRef(1);
 
   const labelWidth = 75;
   const margin = {
@@ -58,6 +59,7 @@ function WaterfallPlot({
 
     // Set canvas width to match container width, accounting for device pixel ratio
     const pixelRatio = window.devicePixelRatio || 1;
+    pixelRatioRef.current = pixelRatio;
     const canvasWidth = Math.floor(width * pixelRatio);
     const canvasHeight = Math.floor(500 * pixelRatio);
 
@@ -100,7 +102,7 @@ function WaterfallPlot({
     const context = overlayCanvas.getContext('2d');
     if (!context) return;
 
-    const pixelRatio = window.devicePixelRatio || 1;
+    const pixelRatio = pixelRatioRef.current;
 
     // Clear the entire overlay canvas including the transformed area
     context.save();
@@ -184,7 +186,7 @@ function WaterfallPlot({
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      const pixelRatio = window.devicePixelRatio || 1;
+      const pixelRatio = pixelRatioRef.current;
 
       // Calculate available space for plotting
       const plotWidth =
