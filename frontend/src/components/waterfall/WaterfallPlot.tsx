@@ -13,10 +13,19 @@ interface WaterfallPlotProps {
   setResetScale: (resetScale: boolean) => void;
   currentCaptureIndex: number;
   onCaptureSelect: (index: number) => void;
+  /**
+   * The indices of the captures currently being displayed in the waterfall plot.
+   * Note that the WaterfallPlot component simply displays whatever captures are
+   * in scan.allData; this prop just tells the component the indices of those
+   * captures within the full dataset.
+   */
   captureRange: {
     startIndex: number;
     endIndex: number;
   };
+  /**
+   * The total number of captures in the full dataset.
+   */
   totalCaptures: number;
 }
 
