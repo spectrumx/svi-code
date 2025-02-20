@@ -17,7 +17,33 @@ interface WaterfallPlotProps {
     startIndex: number;
     endIndex: number;
   };
+  totalCaptures: number;
 }
+
+// Add styles for the scroll indicators
+const scrollIndicatorStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  width: 0,
+  height: 0,
+  borderLeft: '20px solid transparent',
+  borderRight: '20px solid transparent',
+  opacity: 0.7,
+  cursor: 'pointer',
+};
+
+const upIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  top: '-25px',
+  borderBottom: '20px solid #808080',
+};
+
+const downIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  bottom: '-25px',
+  borderTop: '20px solid #808080',
+};
 
 function WaterfallPlot({
   scan,
@@ -28,6 +54,7 @@ function WaterfallPlot({
   currentCaptureIndex,
   onCaptureSelect,
   captureRange,
+  totalCaptures,
 }: WaterfallPlotProps) {
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -369,17 +396,17 @@ function WaterfallPlot({
         } else {
           console.error('Color scale is undefined');
         }
-      }
 
-      // Draw capture indices after drawing the waterfall
-      drawCaptureIndices(
-        context,
-        allData,
-        rectHeight,
-        canvas.width,
-        pixelRatio,
-        captureRange.startIndex,
-      );
+        // Draw capture indices after drawing the waterfall
+        drawCaptureIndices(
+          context,
+          allData,
+          rectHeight,
+          canvas.width,
+          pixelRatio,
+          captureRange.startIndex,
+        );
+      }
     }
   }
 
@@ -437,12 +464,38 @@ function WaterfallPlot({
 
   return (
     <div style={{ width: '100%', height: '500px', position: 'relative' }}>
+      {captureRange.startIndex > 0 && (
+        <div
+          style={upIndicatorStyle}
+          title="More captures above"
+          onClick={() => {
+            const newIndex = Math.max(
+              0,
+              captureRange.startIndex - WATERFALL_MAX_ROWS,
+            );
+            onCaptureSelect(newIndex);
+          }}
+        />
+      )}
       <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
       <canvas
         ref={overlayCanvasRef}
         style={{ display: 'block', cursor: 'pointer' }}
         onClick={handleCanvasClick}
       />
+      {captureRange.endIndex < totalCaptures && (
+        <div
+          style={downIndicatorStyle}
+          title="More captures below"
+          onClick={() => {
+            const newIndex = Math.min(
+              totalCaptures - 1,
+              captureRange.startIndex + WATERFALL_MAX_ROWS,
+            );
+            onCaptureSelect(newIndex);
+          }}
+        />
+      )}
     </div>
   );
 }

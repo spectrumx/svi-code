@@ -579,6 +579,7 @@ const WaterfallVisualization = ({
       <h5>Capture {displayedCaptureIndex + 1}</h5>
       <Periodogram chart={chart} />
       <br />
+      <br />
       <WaterfallPlot
         scan={scan}
         display={display}
@@ -588,6 +589,7 @@ const WaterfallVisualization = ({
         currentCaptureIndex={settings.captureIndex}
         onCaptureSelect={handleCaptureSelect}
         captureRange={waterfallRange}
+        totalCaptures={data.length}
       />
     </>
   );
