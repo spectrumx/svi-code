@@ -27,8 +27,13 @@ export const getFileMetadata = async (
   }
 };
 
-export const getFileContent = async (fileId: number): Promise<any> => {
-  const response = await apiClient.get(`/api/files/${fileId}/content/`);
+export const getFileContent = async (
+  fileId: number,
+  signal?: AbortSignal,
+): Promise<any> => {
+  const response = await apiClient.get(`/api/files/${fileId}/content/`, {
+    signal,
+  });
   return response.data;
 };
 

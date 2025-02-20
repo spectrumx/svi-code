@@ -27,6 +27,8 @@ export const WaterfallPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchRadiohoundData = async () => {
       try {
         setIsLoading(true);
@@ -56,7 +58,7 @@ export const WaterfallPage = () => {
           if (!fileId) {
             throw new Error(`No files found for capture ${capture.id}`);
           }
-          const fileData = await getFileContent(fileId);
+          const fileData = await getFileContent(fileId, abortController.signal);
           return {
             capture,
             fileData,
@@ -64,19 +66,46 @@ export const WaterfallPage = () => {
         });
 
         const results = await Promise.all(waterfallPromises);
-        setWaterfallData(results);
+
+        // Sort the results by timestamp before setting state
+        const sortedResults = results.sort((a, b) => {
+          const aTimestamp = a.fileData.timestamp;
+          const bTimestamp = b.fileData.timestamp;
+
+          // Handle cases where timestamp might not exist
+          if (!aTimestamp && !bTimestamp) return 0;
+          if (!aTimestamp) return 1;
+          if (!bTimestamp) return -1;
+
+          // Parse timestamps to ensure consistent comparison
+          const aTime = Date.parse(aTimestamp);
+          const bTime = Date.parse(bTimestamp);
+
+          return aTime - bTime;
+        });
+
+        setWaterfallData(sortedResults);
       } catch (err) {
+        if (abortController.signal.aborted) {
+          return;
+        }
         setError(
           err instanceof Error
             ? err.message
             : 'An error occurred while fetching RadioHound data',
         );
       } finally {
-        setIsLoading(false);
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchRadiohoundData();
+
+    return () => {
+      abortController.abort();
+    };
   }, [searchParams]);
 
   if (isLoading) {
@@ -129,6 +158,7 @@ export const WaterfallPage = () => {
           <WaterfallVisualization
             data={waterfallData.map((data) => data.fileData)}
             settings={settings}
+            setSettings={setSettings}
           />
         </Col>
       </Row>

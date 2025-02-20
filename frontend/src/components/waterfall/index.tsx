@@ -111,11 +111,13 @@ export const WATERFALL_MAX_ROWS = 80;
 interface WaterfallVisualizationProps {
   data: RadioHoundCapture[];
   settings: WaterfallSettings;
+  setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
 }
 
 const WaterfallVisualization = ({
   data,
   settings,
+  setSettings,
 }: WaterfallVisualizationProps) => {
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as ApplicationType[];
   const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
@@ -165,6 +167,9 @@ const WaterfallVisualization = ({
     }
   };
 
+  /**
+   * Processes a single capture for the periodogram display
+   */
   const processPeriodogramData = (input: RadioHoundCapture) => {
     let dataArray: FloatArray | number[] | undefined;
     let arrayLength: number | undefined = Number(input.metadata?.xcount);
@@ -446,10 +451,6 @@ const WaterfallVisualization = ({
       setChart(tmpChart);
       setDisplayedCaptureIndex(settings.captureIndex);
     }
-    // if (process.env.REACT_APP_ENVIRONMENT === "development")
-    // {
-    //   console.log("Finished processing periodogram at:", Date.now());
-    // }
   };
 
   /**
@@ -466,7 +467,6 @@ const WaterfallVisualization = ({
       let dataArray: FloatArray | number[] | undefined;
       // const arrayLength = Number(capture.metadata?.xcount);
 
-      // Process the data array similar to existing logic
       if (typeof capture.data === 'string') {
         if (capture.data.slice(0, 8) === 'AAAAAAAA') {
           console.error('Invalid data, skipping capture');
@@ -512,11 +512,6 @@ const WaterfallVisualization = ({
       processedData.push(Array.from(yValues));
     });
 
-    // Trim to maximum rows if needed
-    while (processedData.length > WATERFALL_MAX_ROWS) {
-      processedData.shift();
-    }
-
     setDisplay((prevDisplay) => ({
       ...prevDisplay,
       scaleMin: globalMinValue,
@@ -543,33 +538,46 @@ const WaterfallVisualization = ({
   }, [data, settings.captureIndex]);
 
   useEffect(() => {
-    // Calculate new waterfall range
-    const startIndex = Math.max(
-      0,
-      settings.captureIndex - WATERFALL_MAX_ROWS + 1,
-    );
-    const endIndex = Math.min(data.length, startIndex + WATERFALL_MAX_ROWS);
+    const pageSize = WATERFALL_MAX_ROWS;
 
-    // Only reprocess waterfall if the range of captures has changed
-    if (
-      startIndex !== waterfallRange.startIndex ||
-      endIndex !== waterfallRange.endIndex
-    ) {
-      const relevantCaptures = data.slice(startIndex, endIndex);
-      processWaterfallData(relevantCaptures);
-      setWaterfallRange({ startIndex, endIndex });
+    // Check if the requested index is outside current window
+    const isOutsideCurrentWindow =
+      settings.captureIndex < waterfallRange.startIndex ||
+      settings.captureIndex >= waterfallRange.endIndex;
+
+    if (isOutsideCurrentWindow) {
+      // Calculate new start index only when moving outside current window
+      const idealStartIndex =
+        Math.floor(settings.captureIndex / pageSize) * pageSize;
+      const lastPossibleStartIndex = Math.max(0, data.length - pageSize);
+      const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
+      const endIndex = Math.min(data.length, startIndex + pageSize);
+
+      // Only reprocess waterfall if the range has changed
+      if (
+        startIndex !== waterfallRange.startIndex ||
+        endIndex !== waterfallRange.endIndex
+      ) {
+        const relevantCaptures = data.slice(startIndex, endIndex);
+        processWaterfallData(relevantCaptures);
+        setWaterfallRange({ startIndex, endIndex });
+      }
     }
-  }, [
-    data,
-    settings.captureIndex,
-    waterfallRange.startIndex,
-    waterfallRange.endIndex,
-  ]);
+  }, [data, settings.captureIndex, waterfallRange]);
+
+  const handleCaptureSelect = (index: number) => {
+    // Update the settings with the new capture index
+    setSettings((prev) => ({
+      ...prev,
+      captureIndex: index,
+    }));
+  };
 
   return (
     <>
       <h5>Capture {displayedCaptureIndex + 1}</h5>
       <Periodogram chart={chart} />
+      <br />
       <br />
       <WaterfallPlot
         scan={scan}
@@ -577,6 +585,10 @@ const WaterfallVisualization = ({
         setWaterfall={setWaterfall}
         setScaleChanged={setScaleChanged}
         setResetScale={setResetScale}
+        currentCaptureIndex={settings.captureIndex}
+        onCaptureSelect={handleCaptureSelect}
+        captureRange={waterfallRange}
+        totalCaptures={data.length}
       />
     </>
   );
