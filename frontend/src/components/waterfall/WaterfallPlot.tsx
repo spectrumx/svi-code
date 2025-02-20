@@ -446,12 +446,7 @@ function WaterfallPlot({
     if (!canvas || !plotDimensionsRef.current) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-
-    // Ignore clicks in the legend area (left side)
-    if (x < labelWidth + margin.left) return;
-
     const { rectHeight } = plotDimensionsRef.current;
     const clickedIndex = Math.floor((y - margin.top) / rectHeight);
 
