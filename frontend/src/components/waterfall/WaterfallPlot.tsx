@@ -20,7 +20,6 @@ interface WaterfallPlotProps {
   totalCaptures: number;
 }
 
-// Add styles for the scroll indicators
 const scrollIndicatorStyle: React.CSSProperties = {
   position: 'absolute',
   left: '50%',
@@ -115,14 +114,12 @@ function WaterfallPlot({
     overlayCanvas.style.zIndex = '1';
   }, []);
 
-  // Function to draw highlight box on overlay canvas
   function drawHighlightBox(
     allData: number[][],
     currentIndex: number,
     rectWidth: number,
     rectHeight: number,
   ) {
-    console.log('Drawing highlight box');
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return;
 
@@ -161,7 +158,6 @@ function WaterfallPlot({
     }
   }
 
-  // Add new function to draw capture indices
   function drawCaptureIndices(
     context: CanvasRenderingContext2D,
     allData: number[][],
@@ -367,7 +363,6 @@ function WaterfallPlot({
       }
 
       if (context) {
-        console.log('Drawing all data');
         if (colorScale) {
           // Save the current transform
           context.save();
@@ -410,14 +405,11 @@ function WaterfallPlot({
     }
   }
 
-  // Effect for drawing the waterfall plot
   useEffect(() => {
     if (plotCanvasRef.current) {
-      console.log('Drawing waterfall');
       drawWaterfall(plotCanvasRef.current, () => setResetScale(false));
-      console.log('Waterfall drawn');
     }
-  }, [scan, display]); // Remove currentCaptureIndex from dependencies
+  }, [scan, display]);
 
   // Separate effect for drawing the highlight box
   useEffect(() => {
@@ -438,9 +430,8 @@ function WaterfallPlot({
         dimensions.rectHeight,
       );
     }
-  }, [currentCaptureIndex, scan.allData, captureRange]); // Add captureRange to dependencies
+  }, [currentCaptureIndex, scan.allData, captureRange]);
 
-  // Update the handleCanvasClick function to ignore clicks in the legend area
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = overlayCanvasRef.current;
     if (!canvas || !plotDimensionsRef.current) return;

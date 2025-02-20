@@ -65,9 +65,7 @@ export const WaterfallPage = () => {
           };
         });
 
-        console.log('Getting waterfall data');
         const results = await Promise.all(waterfallPromises);
-        console.log('Files downloaded');
 
         // Sort the results by timestamp before setting state
         const sortedResults = results.sort((a, b) => {
@@ -89,7 +87,6 @@ export const WaterfallPage = () => {
         setWaterfallData(sortedResults);
       } catch (err) {
         if (abortController.signal.aborted) {
-          console.log('Downloads aborted');
           return;
         }
         setError(

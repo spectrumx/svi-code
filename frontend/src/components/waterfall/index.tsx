@@ -167,6 +167,9 @@ const WaterfallVisualization = ({
     }
   };
 
+  /**
+   * Processes a single capture for the periodogram display
+   */
   const processPeriodogramData = (input: RadioHoundCapture) => {
     let dataArray: FloatArray | number[] | undefined;
     let arrayLength: number | undefined = Number(input.metadata?.xcount);
@@ -531,9 +534,7 @@ const WaterfallVisualization = ({
 
   useEffect(() => {
     // Process single capture for periodogram
-    console.log('Processing periodogram data');
     processPeriodogramData(data[settings.captureIndex]);
-    console.log('Periodogram data processed');
   }, [data, settings.captureIndex]);
 
   useEffect(() => {
@@ -558,9 +559,7 @@ const WaterfallVisualization = ({
         endIndex !== waterfallRange.endIndex
       ) {
         const relevantCaptures = data.slice(startIndex, endIndex);
-        console.log('Processing waterfall data');
         processWaterfallData(relevantCaptures);
-        console.log('Waterfall data processed');
         setWaterfallRange({ startIndex, endIndex });
       }
     }
