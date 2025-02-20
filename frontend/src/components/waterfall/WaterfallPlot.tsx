@@ -188,7 +188,7 @@ function WaterfallPlot({
     const scanCopy = _.cloneDeep(scan);
     const displayCopy = _.cloneDeep(display);
     const allData = scanCopy.allData as number[][];
-    let redrawLegend = 0;
+    let redrawLegend = false;
 
     if (allData && allData.length > 0) {
       const context = canvas.getContext('2d');
@@ -289,7 +289,7 @@ function WaterfallPlot({
         }
 
         resetScaleCallback();
-        redrawLegend = 1;
+        redrawLegend = true;
       }
 
       if (

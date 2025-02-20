@@ -537,25 +537,34 @@ const WaterfallVisualization = ({
   }, [data, settings.captureIndex]);
 
   useEffect(() => {
-    // Calculate which page of captures we're on and the range for that page
     const pageSize = WATERFALL_MAX_ROWS;
-    const currentPage = Math.floor(settings.captureIndex / pageSize);
 
-    const startIndex = currentPage * pageSize;
-    const endIndex = Math.min(data.length, startIndex + pageSize);
+    // Check if the requested index is outside current window
+    const isOutsideCurrentWindow =
+      settings.captureIndex < waterfallRange.startIndex ||
+      settings.captureIndex >= waterfallRange.endIndex;
 
-    // Only reprocess waterfall if the range of captures has changed
-    if (
-      startIndex !== waterfallRange.startIndex ||
-      endIndex !== waterfallRange.endIndex
-    ) {
-      const relevantCaptures = data.slice(startIndex, endIndex);
-      console.log('Processing waterfall data');
-      processWaterfallData(relevantCaptures);
-      console.log('Waterfall data processed');
-      setWaterfallRange({ startIndex, endIndex });
+    if (isOutsideCurrentWindow) {
+      // Calculate new start index only when moving outside current window
+      const idealStartIndex =
+        Math.floor(settings.captureIndex / pageSize) * pageSize;
+      const lastPossibleStartIndex = Math.max(0, data.length - pageSize);
+      const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
+      const endIndex = Math.min(data.length, startIndex + pageSize);
+
+      // Only reprocess waterfall if the range has changed
+      if (
+        startIndex !== waterfallRange.startIndex ||
+        endIndex !== waterfallRange.endIndex
+      ) {
+        const relevantCaptures = data.slice(startIndex, endIndex);
+        console.log('Processing waterfall data');
+        processWaterfallData(relevantCaptures);
+        console.log('Waterfall data processed');
+        setWaterfallRange({ startIndex, endIndex });
+      }
     }
-  }, [data, settings.captureIndex]);
+  }, [data, settings.captureIndex, waterfallRange]);
 
   const handleCaptureSelect = (index: number) => {
     // Update the settings with the new capture index
