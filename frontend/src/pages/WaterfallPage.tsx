@@ -68,7 +68,25 @@ export const WaterfallPage = () => {
         console.log('Getting waterfall data');
         const results = await Promise.all(waterfallPromises);
         console.log('Files downloaded');
-        setWaterfallData(results);
+
+        // Sort the results by timestamp before setting state
+        const sortedResults = results.sort((a, b) => {
+          const aTimestamp = a.fileData.timestamp;
+          const bTimestamp = b.fileData.timestamp;
+
+          // Handle cases where timestamp might not exist
+          if (!aTimestamp && !bTimestamp) return 0;
+          if (!aTimestamp) return 1;
+          if (!bTimestamp) return -1;
+
+          // Parse timestamps to ensure consistent comparison
+          const aTime = Date.parse(aTimestamp);
+          const bTime = Date.parse(bTimestamp);
+
+          return aTime - bTime;
+        });
+
+        setWaterfallData(sortedResults);
       } catch (err) {
         if (abortController.signal.aborted) {
           console.log('Downloads aborted');
