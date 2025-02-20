@@ -289,61 +289,53 @@ function WaterfallPlot({
         context
       ) {
         // Draw the color legend
-        // Reset the canvas transform matrix and move down 5 pixels
-        context.setTransform(1, 0, 0, 1, 0, 0);
-        context.translate(0, 5);
-
-        let lastDrawnVal: number | undefined = undefined;
+        context.save();
+        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
         // Create white background for legend
         context.fillStyle = 'white';
-        context.fillRect(0, 0, labelWidth, plotHeight);
+        context.fillRect(0, margin.top, labelWidth, plotHeight);
 
-        // Iterate through each pixel height of the legend
-        for (let legendPixel = 0; legendPixel < plotHeight + 2; legendPixel++) {
-          // Calculate dB value for this position
-          const dbVal =
-            scaleMin && scaleMax
-              ? scaleMin +
-                ((plotHeight - legendPixel) / plotHeight) *
-                  (scaleMax - scaleMin)
-              : -130 + ((plotHeight - legendPixel) / plotHeight) * 90;
-          const dbValRounded = Math.round(dbVal);
+        const gradientHeight = plotHeight - margin.top - margin.bottom;
+        const barWidth = 15;
+        const barX = 5;
+        const barY = margin.top;
+        const labelX = barX + barWidth + 8;
+        const totalRange =
+          (displayCopy.scaleMax ?? 0) - (displayCopy.scaleMin ?? -130);
 
-          // If the dB value is less than the minimum scale value,
-          // stop drawing labels
-          if (scaleMin && dbVal < scaleMin) {
-            break;
-          }
-
-          // Add text labels at every multiple of 10 dB
-          if (dbValRounded % 10 === 0 && dbValRounded !== lastDrawnVal) {
-            context.fillStyle = 'black';
-            context.fillText(
-              String(dbValRounded),
-              margin.left + 15,
-              legendPixel + 3,
-            );
-            lastDrawnVal = dbValRounded;
-            context.fillText('dBm', margin.left + 15, legendPixel + 12);
-          }
-
-          // Get color for this dB value using the same color scale as the main plot
+        // Draw color gradient bar
+        for (let y = 0; y < gradientHeight; y++) {
+          const fraction = y / gradientHeight;
+          const dbVal = (displayCopy.scaleMax ?? 0) - fraction * totalRange;
           const dbValColor = colorScale?.(dbVal) ?? 'black';
-          context.strokeStyle = dbValColor;
           context.fillStyle = dbValColor;
+          context.fillRect(barX, barY + y, barWidth, 1);
+        }
 
-          // Draw a colored line if the value is within the current scale range
-          if (
-            dbVal > Number(displayCopy.scaleMin) &&
-            dbVal < Number(displayCopy.scaleMax)
-          ) {
-            context.fillRect(2, legendPixel, 15, 1);
+        // Draw labels at 5 dB intervals
+        context.font = '12px Arial';
+        context.textAlign = 'left';
+        context.fillStyle = 'black';
+
+        const dbStep = 5; // Draw label every 5 dB
+        const maxDb = Math.ceil((displayCopy.scaleMax ?? 0) / dbStep) * dbStep;
+        const minDb =
+          Math.floor((displayCopy.scaleMin ?? -130) / dbStep) * dbStep;
+
+        // Draw dB value labels with units
+        for (let dbVal = maxDb; dbVal >= minDb; dbVal -= dbStep) {
+          const fraction = ((displayCopy.scaleMax ?? 0) - dbVal) / totalRange;
+          const y = margin.top + fraction * gradientHeight;
+
+          // Only draw if within the gradient bounds
+          if (y >= margin.top && y <= margin.top + gradientHeight) {
+            context.fillText(`${dbVal} dBm`, labelX, y + 4);
           }
         }
 
-        // Move context back for main plot
-        context.translate(labelWidth + margin.left, margin.top);
+        // Restore the transform
+        context.restore();
         setScaleChanged(false);
       }
 
