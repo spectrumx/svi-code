@@ -153,8 +153,9 @@ function WaterfallPlot({
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       context.translate(labelWidth + margin.left, margin.top);
 
-      // Calculate position for highlight box
-      const boxY = Math.floor(relativeIndex * rectHeight);
+      // Calculate position for highlight box - flip the y position
+      const rowFromBottom = allData.length - 1 - relativeIndex;
+      const boxY = Math.floor(rowFromBottom * rectHeight);
       const boxWidth = Math.ceil(allData[0].length * rectWidth);
 
       // Draw the grey highlight box
@@ -183,9 +184,9 @@ function WaterfallPlot({
     context.fillStyle = 'white';
     context.fillRect(
       canvasWidth / pixelRatio - margin.right,
-      margin.top,
+      0,
       margin.right,
-      allData.length * rectHeight,
+      allData.length * rectHeight + margin.top + margin.bottom,
     );
 
     // Only draw indices if we have 5 or more captures
@@ -194,11 +195,15 @@ function WaterfallPlot({
       context.font = '12px Arial';
       context.textAlign = 'left';
 
-      // Show every 5th index starting at 5
-      for (let i = 4; i < allData.length; i += 5) {
-        const y = margin.top + i * rectHeight + rectHeight / 2 + 4;
-        const x = canvasWidth / pixelRatio - margin.right + 5;
-        context.fillText(String(startIndex + i + 1), x, y);
+      // Show every 5th index
+      for (let i = captureRange.endIndex; i >= captureRange.startIndex; i--) {
+        const displayedIndex = i + 1;
+        if (displayedIndex % 5 === 0) {
+          const row = captureRange.endIndex - i;
+          const y = margin.top + row * rectHeight;
+          const x = canvasWidth / pixelRatio - margin.right + 5;
+          context.fillText(String(displayedIndex), x, y);
+        }
       }
     }
 
@@ -380,14 +385,16 @@ function WaterfallPlot({
           context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
           context.translate(labelWidth + margin.left, margin.top);
 
-          // Draw all data points
+          // Draw all data points in reverse order
           allData.forEach((row, rowIndex) => {
+            // Flip the row index
+            const rowFromBottom = allData.length - 1 - rowIndex;
             row.forEach((value, colIndex) => {
               drawCanvasSquare(
                 context,
                 colIndex,
                 value,
-                rowIndex,
+                rowFromBottom,
                 colorScale!,
                 rectWidth,
                 rectHeight,
@@ -448,10 +455,13 @@ function WaterfallPlot({
     const rect = canvas.getBoundingClientRect();
     const y = event.clientY - rect.top;
     const { rectHeight } = plotDimensionsRef.current;
-    const clickedIndex = Math.floor((y - margin.top) / rectHeight);
+
+    // Calculate clicked row
+    const allData = scan.allData as number[][];
+    const clickedRow = Math.floor((y - margin.top) / rectHeight);
+    const clickedIndex = allData.length - 1 - clickedRow;
 
     // Validate the index is within bounds
-    const allData = scan.allData as number[][];
     if (clickedIndex >= 0 && clickedIndex < allData.length) {
       onCaptureSelect(captureRange.startIndex + clickedIndex);
     }
@@ -459,15 +469,12 @@ function WaterfallPlot({
 
   return (
     <div style={{ width: '100%', height: '500px', position: 'relative' }}>
-      {captureRange.startIndex > 0 && (
+      {captureRange.endIndex < totalCaptures && (
         <div
           style={upIndicatorStyle}
-          title="More captures above"
+          title="More recent captures above"
           onClick={() => {
-            const newIndex = Math.max(
-              0,
-              captureRange.startIndex - WATERFALL_MAX_ROWS,
-            );
+            const newIndex = Math.min(totalCaptures - 1, captureRange.endIndex);
             onCaptureSelect(newIndex);
           }}
         />
@@ -478,15 +485,12 @@ function WaterfallPlot({
         style={{ display: 'block', cursor: 'pointer' }}
         onClick={handleCanvasClick}
       />
-      {captureRange.endIndex < totalCaptures && (
+      {captureRange.startIndex > 0 && (
         <div
           style={downIndicatorStyle}
-          title="More captures below"
+          title="Older captures below"
           onClick={() => {
-            const newIndex = Math.min(
-              totalCaptures - 1,
-              captureRange.startIndex + WATERFALL_MAX_ROWS,
-            );
+            const newIndex = Math.max(0, captureRange.startIndex - 1);
             onCaptureSelect(newIndex);
           }}
         />
