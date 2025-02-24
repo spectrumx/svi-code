@@ -1,14 +1,15 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { Form, InputGroup, Button } from 'react-bootstrap';
+import _ from 'lodash';
 import debounce from 'lodash/debounce';
-import './waterfall.css';
 
 import { WaterfallSettings } from '../../pages/WaterfallPage';
-import _ from 'lodash';
+import PlaybackControls from './PlaybackControls';
+import './waterfall.css';
 
 interface WaterfallControlsProps {
   settings: WaterfallSettings;
-  setSettings: (settings: WaterfallSettings) => void;
+  setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
   numCaptures: number;
 }
 
@@ -93,7 +94,19 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   return (
     <Form>
       <Form.Group>
-        <Form.Label htmlFor="captureIndexSlider">Capture Index</Form.Label>
+        <div className="mt-3">
+          <PlaybackControls
+            isPlaying={settings.isPlaying}
+            onPlayClick={() =>
+              setSettings((prev) => ({ ...prev, isPlaying: !prev.isPlaying }))
+            }
+            playbackSpeed={settings.playbackSpeed}
+            onSpeedChange={(speed) =>
+              setSettings((prev) => ({ ...prev, playbackSpeed: speed }))
+            }
+          />
+        </div>
+        <br />
         <div
           className="d-flex align-items-center gap-2"
           style={{ marginBottom: '5px' }}

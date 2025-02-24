@@ -114,7 +114,7 @@ interface WaterfallVisualizationProps {
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
 }
 
-const WaterfallVisualization = ({
+const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   data,
   settings,
   setSettings,
@@ -564,6 +564,25 @@ const WaterfallVisualization = ({
       }
     }
   }, [data, settings.captureIndex, waterfallRange]);
+
+  // Handle playback
+  useEffect(() => {
+    if (!settings.isPlaying) return;
+
+    const intervalTime = 1000 / settings.playbackSpeed;
+    const playbackInterval = setInterval(() => {
+      setSettings((prev) => {
+        const nextIndex = prev.captureIndex + 1;
+        // Stop playback at the end
+        if (nextIndex >= data.length) {
+          return { ...prev, isPlaying: false };
+        }
+        return { ...prev, captureIndex: nextIndex };
+      });
+    }, intervalTime);
+
+    return () => clearInterval(playbackInterval);
+  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
 
   const handleCaptureSelect = (index: number) => {
     // Update the settings with the new capture index
