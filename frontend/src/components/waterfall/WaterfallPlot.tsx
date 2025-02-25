@@ -158,8 +158,8 @@ function WaterfallPlot({
       const boxY = Math.floor(rowFromBottom * rectHeight);
       const boxWidth = Math.ceil(allData[0].length * rectWidth);
 
-      // Draw the grey highlight box
-      context.strokeStyle = '#808080';
+      // Draw the highlight box
+      context.strokeStyle = 'black';
       context.lineWidth = 2;
       context.strokeRect(0, boxY, boxWidth, rectHeight);
 
