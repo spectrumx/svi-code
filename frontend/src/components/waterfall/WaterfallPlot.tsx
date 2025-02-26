@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import _ from 'lodash';
-import { scaleLinear, interpolateHslLong, rgb, index } from 'd3';
+import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
 import { ScanState, WaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';

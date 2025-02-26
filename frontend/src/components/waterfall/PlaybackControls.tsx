@@ -1,11 +1,12 @@
 import React from 'react';
 import { Button, ButtonGroup, Form } from 'react-bootstrap';
+import _ from 'lodash';
 
 interface PlaybackControlsProps {
   isPlaying: boolean;
   onPlayClick: () => void;
-  playbackSpeed: number;
-  onSpeedChange: (speed: number) => void;
+  playbackSpeed: string;
+  onSpeedChange: (speed: string) => void;
 }
 
 /**
@@ -18,7 +19,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   onSpeedChange,
 }) => {
   // Predefined speed options in captures per second
-  const speedOptions = [0.5, 1, 2, 5];
+  const speedOptions = ['0.5 fps', '1 fps', '2 fps', '5 fps', 'realtime'];
 
   return (
     <div className="d-flex align-items-center gap-2">
@@ -38,13 +39,13 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         <Form.Select
           id="speedSelect"
           value={playbackSpeed}
-          onChange={(e) => onSpeedChange(Number(e.target.value))}
+          onChange={(e) => onSpeedChange(e.target.value)}
           style={{ width: 'auto' }}
           aria-label="Playback speed"
         >
           {speedOptions.map((speed) => (
             <option key={speed} value={speed}>
-              {speed} fps
+              {_.capitalize(speed)}
             </option>
           ))}
         </Form.Select>

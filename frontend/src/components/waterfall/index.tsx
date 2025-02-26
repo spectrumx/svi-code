@@ -569,7 +569,30 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   useEffect(() => {
     if (!settings.isPlaying) return;
 
-    const intervalTime = 1000 / settings.playbackSpeed;
+    let intervalTime = 0;
+
+    if (settings.playbackSpeed === 'realtime') {
+      if (settings.captureIndex < data.length - 1) {
+        // Find the time between the current and next capture
+        const currentCapture = data[settings.captureIndex];
+        const nextCapture = data[settings.captureIndex + 1];
+        const timeBetweenCaptures =
+          nextCapture.timestamp && currentCapture.timestamp
+            ? Date.parse(nextCapture.timestamp) -
+              Date.parse(currentCapture.timestamp)
+            : undefined;
+        if (timeBetweenCaptures && timeBetweenCaptures > 0) {
+          intervalTime = timeBetweenCaptures;
+        }
+      }
+    } else {
+      // Calculate interval time based on playback speed
+      const speed = Number(settings.playbackSpeed.replace(' fps', ''));
+      if (!isNaN(speed) && speed > 0) {
+        intervalTime = 1000 / speed;
+      }
+    }
+
     const playbackInterval = setInterval(() => {
       setSettings((prev) => {
         const nextIndex = prev.captureIndex + 1;
@@ -582,7 +605,13 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }, intervalTime);
 
     return () => clearInterval(playbackInterval);
-  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
+  }, [
+    settings.isPlaying,
+    settings.playbackSpeed,
+    data.length,
+    setSettings,
+    settings.captureIndex,
+  ]);
 
   const handleCaptureSelect = (index: number) => {
     // Update the settings with the new capture index
@@ -594,7 +623,10 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
   return (
     <>
-      <h5>Capture {displayedCaptureIndex + 1}</h5>
+      <h5>
+        Capture {displayedCaptureIndex + 1} (
+        {data[displayedCaptureIndex].timestamp} UTC)
+      </h5>
       <Periodogram chart={chart} />
       <br />
       <br />

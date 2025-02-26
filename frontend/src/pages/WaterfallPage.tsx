@@ -16,7 +16,7 @@ interface WaterfallData {
 export interface WaterfallSettings {
   captureIndex: number;
   isPlaying: boolean;
-  playbackSpeed: number;
+  playbackSpeed: string;
 }
 
 export const WaterfallPage = () => {
@@ -25,7 +25,7 @@ export const WaterfallPage = () => {
   const [settings, setSettings] = useState<WaterfallSettings>({
     captureIndex: 0,
     isPlaying: false,
-    playbackSpeed: 1,
+    playbackSpeed: '1 fps',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
