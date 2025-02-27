@@ -19,13 +19,7 @@ const MyDataPage = () => {
   return (
     <div className="page-container">
       <h5>Captures</h5>
-      {captures.length > 0 ? (
-        <DatasetTable captures={captures} />
-      ) : (
-        <div>
-          <p>No captures found. Upload a capture to get started!</p>
-        </div>
-      )}
+      <br />
       <Button
         variant="primary"
         onClick={() => setShowModal(true)}
@@ -34,6 +28,15 @@ const MyDataPage = () => {
       >
         Upload New Capture
       </Button>
+      <div style={{ marginTop: '20px' }}>
+        {captures.length > 0 ? (
+          <DatasetTable captures={captures} />
+        ) : (
+          <div>
+            <p>No captures found. Upload a capture to get started!</p>
+          </div>
+        )}
+      </div>
       <FileUploadModal
         show={showModal}
         handleClose={() => setShowModal(false)}

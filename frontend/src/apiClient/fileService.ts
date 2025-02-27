@@ -2,17 +2,18 @@ import { useCallback } from 'react';
 
 import apiClient from '.';
 import { useAppContext } from '../utils/AppContext';
-import { z } from 'zod';
+import { z as zod } from 'zod';
 
-const FileMetadataSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  media_type: z.string(),
-  timestamp: z.string(),
-  source: z.string(),
+const FileMetadataSchema = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  content_url: zod.string(),
+  media_type: zod.string(),
+  created_at: zod.string(),
+  updated_at: zod.string(),
 });
 
-export type FileMetadata = z.infer<typeof FileMetadataSchema>;
+export type FileMetadata = zod.infer<typeof FileMetadataSchema>;
 
 export const getFileMetadata = async (
   fileId: string,
@@ -26,8 +27,13 @@ export const getFileMetadata = async (
   }
 };
 
-export const getFileContent = async (fileId: string): Promise<any> => {
-  const response = await apiClient.get(`/api/files/${fileId}/content/`);
+export const getFileContent = async (
+  fileId: number,
+  signal?: AbortSignal,
+): Promise<any> => {
+  const response = await apiClient.get(`/api/files/${fileId}/content/`, {
+    signal,
+  });
   return response.data;
 };
 
@@ -44,29 +50,38 @@ export const useSyncFiles = () => {
   return syncFiles;
 };
 
-const CaptureTypeSchema = z.enum(['drf', 'rh', 'sigmf']);
-export type CaptureType = z.infer<typeof CaptureTypeSchema>;
+export const CAPTURE_TYPES = {
+  rh: { name: 'RadioHound' },
+  drf: { name: 'Digital RF' },
+  sigmf: { name: 'SigMF' },
+} as const;
+const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
+export type CaptureType = keyof typeof CAPTURE_TYPES;
 
-const CaptureSourceSchema = z.enum(['sds', 'svi_public', 'svi_user']);
-export type CaptureSource = z.infer<typeof CaptureSourceSchema>;
+export const CAPTURE_SOURCES = {
+  sds: { name: 'SDS' },
+  svi_public: { name: 'SVI Public' },
+  svi_user: { name: 'SVI User' },
+} as const;
+const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
+export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
-const CaptureSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  owner: z.number(),
-  created_at: z.string(),
-  timestamp: z.string(),
+const CaptureSchema = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  owner: zod.number(),
+  created_at: zod.string(),
+  timestamp: zod.string(),
   type: CaptureTypeSchema,
   source: CaptureSourceSchema,
-  files: z.array(FileMetadataSchema),
+  files: zod.array(FileMetadataSchema),
 });
-
-export type Capture = z.infer<typeof CaptureSchema>;
+export type Capture = zod.infer<typeof CaptureSchema>;
 
 export const getCaptures = async (): Promise<Capture[]> => {
   try {
-    const response = await apiClient.get('/api/captures/list/');
-    return z.array(CaptureSchema).parse(response.data);
+    const response = await apiClient.get('/api/captures/');
+    return zod.array(CaptureSchema).parse(response.data);
   } catch (error) {
     console.error('Error fetching captures:', error);
     throw error;
@@ -81,23 +96,42 @@ export const useSyncCaptures = () => {
   return syncCaptures;
 };
 
-export const postCapture = async (
-  name: string,
+export const postCaptures = async (
   type: CaptureType,
-  files: Blob[],
+  files: File[],
+  name?: string,
 ): Promise<void> => {
   const formData = new FormData();
-  formData.append('name', name);
-  formData.append('type', type);
+  const finalName = name ?? inferCaptureName(files, type);
 
-  // Append each file to the uploaded_files array
+  if (finalName) {
+    formData.append('name', finalName);
+  }
+
   files.forEach((file) => {
     formData.append('uploaded_files', file);
   });
 
-  await apiClient.post('/api/captures/list/', formData, {
+  formData.append('type', type);
+
+  await apiClient.post('/api/captures/', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+};
+
+export const getBaseFilename = (filename: string): string => {
+  // Remove last extension from filename
+  return filename.split('.').slice(0, -1).join('.');
+};
+
+export const inferCaptureName = (
+  files: File[],
+  type: CaptureType,
+): string | undefined => {
+  if (type !== 'rh' || files.length === 1) {
+    return getBaseFilename(files[0].name);
+  }
+  return undefined;
 };
