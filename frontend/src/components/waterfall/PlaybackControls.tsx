@@ -28,6 +28,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           variant={isPlaying ? 'secondary' : 'primary'}
           onClick={onPlayClick}
           aria-label={isPlaying ? 'Pause playback' : 'Start playback'}
+          className={isPlaying ? 'blinking-button' : ''}
         >
           <i className={`bi bi-${isPlaying ? 'pause-fill' : 'play-fill'}`} />
         </Button>

@@ -565,34 +565,60 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
   }, [data, settings.captureIndex, waterfallRange]);
 
-  // Handle playback
+  // Handle realtime playback
   useEffect(() => {
-    if (!settings.isPlaying) return;
+    if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
 
-    let intervalTime = 0;
+    // Store the start time and initial capture index
+    const startTime = Date.now();
+    const startCapture = data[settings.captureIndex];
+    const startTimestamp = startCapture.timestamp
+      ? Date.parse(startCapture.timestamp)
+      : 0;
 
-    if (settings.playbackSpeed === 'realtime') {
-      if (settings.captureIndex < data.length - 1) {
-        // Find the time between the current and next capture
-        const currentCapture = data[settings.captureIndex];
-        const nextCapture = data[settings.captureIndex + 1];
-        const timeBetweenCaptures =
-          nextCapture.timestamp && currentCapture.timestamp
-            ? Date.parse(nextCapture.timestamp) -
-              Date.parse(currentCapture.timestamp)
-            : undefined;
-        if (timeBetweenCaptures && timeBetweenCaptures > 0) {
-          intervalTime = timeBetweenCaptures;
+    const realtimeInterval = setInterval(() => {
+      const currentTime = Date.now();
+      const elapsedRealTime = currentTime - startTime;
+
+      setSettings((prev) => {
+        // Find the appropriate capture index based on elapsed time
+        let targetIndex = prev.captureIndex;
+        while (targetIndex < data.length - 1) {
+          const nextCapture = data[targetIndex + 1];
+          const nextTimestamp = nextCapture.timestamp
+            ? Date.parse(nextCapture.timestamp)
+            : 0;
+
+          if (nextTimestamp - startTimestamp > elapsedRealTime) {
+            break;
+          }
+          targetIndex++;
         }
-      }
-    } else {
-      // Calculate interval time based on playback speed
-      const speed = Number(settings.playbackSpeed.replace(' fps', ''));
-      if (!isNaN(speed) && speed > 0) {
-        intervalTime = 1000 / speed;
-      }
-    }
+        if (targetIndex !== prev.captureIndex) {
+          return {
+            ...prev,
+            captureIndex: targetIndex,
+            // Stop playback at the end
+            isPlaying: targetIndex < data.length - 1,
+          };
+        } else {
+          return prev;
+        }
+      });
+    }, 10); // Check every 10ms for timing accuracy
 
+    return () => clearInterval(realtimeInterval);
+  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
+
+  // Handle constant FPS playback
+  useEffect(() => {
+    if (!settings.isPlaying || settings.playbackSpeed === 'realtime') return;
+
+    // Calculate interval time based on playback speed
+    const speed = Number(settings.playbackSpeed.replace(' fps', ''));
+    if (isNaN(speed) || speed <= 0) return;
+
+    const intervalTime = 1000 / speed;
     const playbackInterval = setInterval(() => {
       setSettings((prev) => {
         const nextIndex = prev.captureIndex + 1;
@@ -605,13 +631,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }, intervalTime);
 
     return () => clearInterval(playbackInterval);
-  }, [
-    settings.isPlaying,
-    settings.playbackSpeed,
-    data.length,
-    setSettings,
-    settings.captureIndex,
-  ]);
+  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
 
   const handleCaptureSelect = (index: number) => {
     // Update the settings with the new capture index
