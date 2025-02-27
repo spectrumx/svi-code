@@ -30,7 +30,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   }, [settings.captureIndex]);
 
   // Debounced function to update parent state
-  const debouncedSetSettings = useCallback(
+  const debouncedSetCaptureIndex = useCallback(
     debounce((newValue: number) => {
       setSettings({
         ...settings,
@@ -44,9 +44,9 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
-      debouncedSetSettings.cancel();
+      debouncedSetCaptureIndex.cancel();
     };
-  }, [debouncedSetSettings]);
+  }, [debouncedSetCaptureIndex]);
 
   const handleCaptureIndexChange = useCallback(
     (newValue: number) => {
@@ -67,9 +67,9 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
       }
 
       // Debounce the update to parent
-      debouncedSetSettings(boundedValue);
+      debouncedSetCaptureIndex(boundedValue);
     },
-    [numCaptures, debouncedSetSettings],
+    [numCaptures, debouncedSetCaptureIndex],
   );
 
   // Handle keyboard arrow keys for any control
