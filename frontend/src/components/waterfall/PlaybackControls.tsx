@@ -18,8 +18,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   playbackSpeed,
   onSpeedChange,
 }) => {
-  // Predefined speed options in captures per second
-  const speedOptions = ['0.5 fps', '1 fps', '2 fps', '5 fps', 'realtime'];
+  const speedOptions = ['1 fps', '2 fps', '5 fps', 'realtime'];
 
   return (
     <div className="d-flex align-items-center gap-2">
