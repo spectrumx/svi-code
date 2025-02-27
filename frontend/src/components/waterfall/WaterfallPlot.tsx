@@ -510,7 +510,7 @@ export function WaterfallPlot({
     setHoveredRow(null);
   };
 
-  // Add effect for hover highlight
+  // Draw highlight boxes and capture indices
   useEffect(() => {
     const dimensions = plotDimensionsRef.current;
     const allData = scan.allData as number[][];
@@ -525,7 +525,6 @@ export function WaterfallPlot({
         hoveredRow,
       );
 
-      // Redraw capture indices with hover highlight
       const canvas = plotCanvasRef.current;
       if (canvas) {
         const context = canvas.getContext('2d');
