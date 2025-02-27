@@ -569,43 +569,38 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
 
-    // Store the start time and initial capture index
+    // Pre-compute timestamps for all captures
+    const timestamps = data.map((capture) =>
+      capture.timestamp ? Date.parse(capture.timestamp) : 0,
+    );
+
+    // Store the start time and reference points
+    const startTimestamp = timestamps[settings.captureIndex];
     const startTime = Date.now();
-    const startCapture = data[settings.captureIndex];
-    const startTimestamp = startCapture.timestamp
-      ? Date.parse(startCapture.timestamp)
-      : 0;
 
     const realtimeInterval = setInterval(() => {
-      const currentTime = Date.now();
-      const elapsedRealTime = currentTime - startTime;
+      const elapsedRealTime = Date.now() - startTime;
 
       setSettings((prev) => {
-        // Find the appropriate capture index based on elapsed time
         let targetIndex = prev.captureIndex;
-        while (targetIndex < data.length - 1) {
-          const nextCapture = data[targetIndex + 1];
-          const nextTimestamp = nextCapture.timestamp
-            ? Date.parse(nextCapture.timestamp)
-            : 0;
-
+        while (targetIndex < timestamps.length - 1) {
+          const nextTimestamp = timestamps[targetIndex + 1];
           if (nextTimestamp - startTimestamp > elapsedRealTime) {
             break;
           }
           targetIndex++;
         }
+
         if (targetIndex !== prev.captureIndex) {
           return {
             ...prev,
             captureIndex: targetIndex,
-            // Stop playback at the end
             isPlaying: targetIndex < data.length - 1,
           };
-        } else {
-          return prev;
         }
+        return prev;
       });
-    }, 10); // Check every 10ms for timing accuracy
+    }, 20);
 
     return () => clearInterval(realtimeInterval);
   }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
