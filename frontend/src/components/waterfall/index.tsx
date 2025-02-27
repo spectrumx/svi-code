@@ -633,6 +633,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     setSettings((prev) => ({
       ...prev,
       captureIndex: index,
+      isPlaying: false,
     }));
   };
 
