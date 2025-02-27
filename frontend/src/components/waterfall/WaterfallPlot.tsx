@@ -71,7 +71,7 @@ export function WaterfallPlot({
     rectHeight: number;
   } | null>(null);
   const pixelRatioRef = useRef(1);
-  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const labelWidth = 75;
   const margin = {
@@ -450,7 +450,7 @@ export function WaterfallPlot({
           rectHeight,
           canvas.width,
           pixelRatio,
-          hoveredRow,
+          hoveredIndex,
         );
       }
     }
@@ -500,14 +500,14 @@ export function WaterfallPlot({
       hoveredIndex >= captureRange.startIndex &&
       hoveredIndex < captureRange.endIndex
     ) {
-      setHoveredRow(hoveredIndex);
+      setHoveredIndex(hoveredIndex);
     } else {
-      setHoveredRow(null);
+      setHoveredIndex(null);
     }
   };
 
   const handleCanvasMouseLeave = () => {
-    setHoveredRow(null);
+    setHoveredIndex(null);
   };
 
   // Draw highlight boxes and capture indices
@@ -522,7 +522,7 @@ export function WaterfallPlot({
         currentCaptureIndex,
         dimensions.rectWidth,
         dimensions.rectHeight,
-        hoveredRow,
+        hoveredIndex,
       );
 
       const canvas = plotCanvasRef.current;
@@ -535,12 +535,12 @@ export function WaterfallPlot({
             dimensions.rectHeight,
             canvas.width,
             pixelRatioRef.current,
-            hoveredRow,
+            hoveredIndex,
           );
         }
       }
     }
-  }, [hoveredRow, currentCaptureIndex, scan.allData, captureRange]);
+  }, [hoveredIndex, currentCaptureIndex, scan.allData, captureRange]);
 
   return (
     <div style={{ width: '100%', height: '500px', position: 'relative' }}>
