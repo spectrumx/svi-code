@@ -17,14 +17,7 @@ import SearchPage from './pages/SearchPage';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import { useFetchSessionInfo } from './apiClient';
-
-const JupyterRedirect = () => {
-  useEffect(() => {
-    window.location.replace('http://localhost:8891/notebooks/');
-  }, []);
-
-  return <div>Redirecting to Jupyter Notebook...</div>;
-};
+import JupyterNotebookPage from './components/JupyterNotebook/JupyterNotebookPage';
 
 function App() {
   useFetchSessionInfo();
@@ -37,7 +30,6 @@ function App() {
       <Row className="flex-grow-1 vw-100">
         <main className="px-0 vw-100">
           <Routes>
-            {/* Div elements are placeholders until pages are implemented */}
             <Route path="/" element={<LandingPage />} />
             <Route
               path="dashboard"
@@ -46,11 +38,13 @@ function App() {
             <Route path="workspace" element={<WorkspacePage />} />
             <Route path="mydata" element={<MyDataPage />} />
             <Route path="search" element={<SearchPage />} />
+            
             <Route
               path="tutorials"
               element={<div className="page-container">Tutorials</div>}
             />
-            <Route path="/notebooks/*" element={<JupyterRedirect />} />
+            <Route path="tutorials/jupyter" element={<JupyterNotebookPage />} />
+            
             <Route
               path="visualization/new"
               element={<NewVisualizationPage />}
@@ -60,7 +54,6 @@ function App() {
               element={<SpectrogramPage />}
             />
             <Route
-              // path="visualization/waterfall/:captureId"
               path="visualization/waterfall"
               element={<WaterfallPage />}
             />
