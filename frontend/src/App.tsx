@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -38,13 +38,13 @@ function App() {
             <Route path="workspace" element={<WorkspacePage />} />
             <Route path="mydata" element={<MyDataPage />} />
             <Route path="search" element={<SearchPage />} />
-            
+
             <Route
               path="tutorials"
               element={<div className="page-container">Tutorials</div>}
             />
             <Route path="tutorials/jupyter" element={<JupyterNotebookPage />} />
-            
+
             <Route
               path="visualization/new"
               element={<NewVisualizationPage />}
@@ -53,10 +53,7 @@ function App() {
               path="visualization/spectrogram/:captureId"
               element={<SpectrogramPage />}
             />
-            <Route
-              path="visualization/waterfall"
-              element={<WaterfallPage />}
-            />
+            <Route path="visualization/waterfall" element={<WaterfallPage />} />
             <Route path="token" element={<TokenPage />} />
             <Route
               path="*"
