@@ -3,8 +3,8 @@ volumes:
   production_postgres_data_backups: {}
   production_traefik: {}
   production_django_media: {}
-
   production_redis_data: {}
+  jupyterhub_data: {}
 
 services:
   django: &django
