@@ -135,7 +135,7 @@ networks:
   spectrumx_network:
     driver: bridge
     name: spectrumx_network
-    external: true
+    external: false
     ipam:
       driver: default
       config:
