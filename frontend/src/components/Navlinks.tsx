@@ -4,7 +4,8 @@ import { NavLink } from 'react-router';
 import Navbar from 'react-bootstrap/esm/Navbar';
 import { useAppContext } from '../utils/AppContext';
 import Dropdown from 'react-bootstrap/Dropdown';
-import { API_HOST } from '../apiClient';
+import NavDropdown from 'react-bootstrap/NavDropdown';
+import { api_host } from '../apiClient';
 
 const Navlinks = () => {
   const { username } = useAppContext();
@@ -20,7 +21,14 @@ const Navlinks = () => {
               <NavLink to="/workspace">Workspace</NavLink>
               <NavLink to="/mydata">My Data</NavLink>
               <NavLink to="/search">Search</NavLink>
-              <NavLink to="/tutorials">Tutorials</NavLink>
+              <NavDropdown title="Tutorials" id="tutorials-dropdown">
+                <NavDropdown.Item as={NavLink} to="tutorials/jupyter">
+                  Jupyter Notebook
+                </NavDropdown.Item>
+                <NavDropdown.Item as={NavLink} to="tutorials">
+                  All Tutorials
+                </NavDropdown.Item>
+              </NavDropdown>
               {username ? (
                 <Dropdown className="nav-item-dropdown">
                   <Dropdown.Toggle id="dropdown-basic" className="nav-link">
