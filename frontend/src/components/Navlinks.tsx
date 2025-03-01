@@ -35,13 +35,13 @@ const Navlinks = () => {
                     {username}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    <Dropdown.Item href={api_host + '/accounts/logout'}>
+                    <Dropdown.Item href={API_HOST + '/accounts/logout'}>
                       Logout
                     </Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                <Nav.Link href={api_host + '/accounts/auth0/login'}>
+                <Nav.Link href={API_HOST + '/accounts/auth0/login'}>
                   Login
                 </Nav.Link>
               )}

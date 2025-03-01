@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAppContext } from '../utils/AppContext';
 import { useEffect, useRef } from 'react';
 
-export const api_host = process.env.REACT_APP_API_HOST;
+export const API_HOST = process.env.REACT_APP_API_HOST;
 
 export const useFetchSessionInfo = async () => {
   const context = useAppContext();
@@ -14,7 +14,7 @@ export const useFetchSessionInfo = async () => {
 
     const fetchSessionInfo = async () => {
       try {
-        const response = await fetch(api_host + '/api/session-info', {
+        const response = await fetch(API_HOST + '/api/session-info', {
           // Important for session-based authentication
           credentials: 'include',
         });
@@ -43,7 +43,7 @@ export const useFetchSessionInfo = async () => {
 };
 
 const apiClient = axios.create({
-  baseURL: api_host,
+  baseURL: API_HOST,
   headers: { 'Content-Type': 'application/json' },
 });
 

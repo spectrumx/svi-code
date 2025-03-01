@@ -69,7 +69,7 @@ class File(models.Model):
     owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
     file = models.FileField()
     created_at = models.DateTimeField(auto_now_add=True)
-    expiration_date = models.DateTimeField(null=True)
+    expiration_date = models.DateTimeField(null=True, blank=True)
     media_type = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     updated_at = models.DateTimeField(auto_now=True)
@@ -79,6 +79,7 @@ class File(models.Model):
         on_delete=models.CASCADE,
         related_name="files",
         null=True,
+        blank=True,
     )
 
     class Meta:
