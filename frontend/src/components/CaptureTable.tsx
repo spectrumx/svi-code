@@ -17,20 +17,12 @@ export interface CaptureTableProps {
   numHiddenCaptures?: number;
 }
 
-// Add a style object for table cells that might contain long text
 const textCellStyle = {
   maxWidth: '200px',
-  wordBreak: 'break-all' as const,
+  wordBreak: 'break-word' as const,
   overflowWrap: 'break-word' as const,
 };
-  selectedId?: string | null;
-  onSelect?: (id: string) => void;
-}
 
-/**
- * Displays a table of captures with optional selection functionality
- * Supports both single and multiple selection modes with "Select all" capability
- */
 const CaptureTable = ({
   captures,
   selectedIds = [],
@@ -39,7 +31,6 @@ const CaptureTable = ({
   totalCaptures,
   numHiddenCaptures: hiddenCaptures,
 }: CaptureTableProps) => {
-  // Helper function to handle selection
   const handleSelect = (id: number) => {
     if (!onSelect) return;
 
@@ -53,7 +44,6 @@ const CaptureTable = ({
     }
   };
 
-  // Helper function to handle "Select All"
   const handleSelectAll = () => {
     if (!onSelect) return;
 
@@ -74,18 +64,20 @@ const CaptureTable = ({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        marginTop: '-8px'
       }}
     >
       <div
         style={{
-          padding: '0.5rem 1rem',
+          // padding: '0.5rem 1rem',
+          padding: '0 1rem',
           fontSize: '0.9rem',
           color: '#6c757d',
         }}
         role="status"
         aria-live="polite"
       >
-        <span>
+        {/* <span>
           {totalCaptures !== undefined ? (
             <>
               Showing {captures.length} of {totalCaptures} captures
@@ -95,16 +87,12 @@ const CaptureTable = ({
             `${captures.length} captures`
           )}
           {selectedIds?.length ? ` • ${selectedIds.length} selected` : ''}
-        </span>
+        </span> */}
       </div>
 
-      <div
-        style={{
-          overflowY: 'auto',
-          flex: 1,
-        }}
-      >
-        <Table striped bordered hover responsive style={{ marginBottom: 0 }}>
+      <div style={{ overflowY: 'auto', flex: 1 }}> 
+   
+        <Table striped bordered hover responsive style={{ marginBottom: 0, marginTop: '2px' }}>
           <thead>
             <tr>
               {onSelect && captures.length > 0 && (
@@ -159,65 +147,62 @@ const CaptureTable = ({
                 const visualizationType = VISUALIZATION_TYPES.find((visType) =>
                   visType.supportedCaptureTypes.includes(capture.type),
                 );
-                const captureIdParam =
-                  visualizationType?.name === 'waterfall'
-                    ? `?captures=${capture.id}`
-                    : visualizationType?.name === 'spectrogram'
-                      ? `/${capture.id}`
-                      : '';
 
                 const isSelected = selectedIds?.includes(capture.id);
 
-          return (
-            <tr
-              key={capture.id}
-              className={selectedId === capture.id ? 'table-primary' : ''}
-              onClick={() => onSelect?.(capture.id)}
-              style={onSelect ? { cursor: 'pointer' } : undefined}
-              role={onSelect ? 'button' : undefined}
-              tabIndex={onSelect ? 0 : undefined}
-              onKeyPress={(e) => {
-                if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
-                  onSelect(capture.id);
-                }
-              }}
-            >
-              {onSelect && (
-                <td className="text-center align-middle">
-                  <input
-                    type="radio"
-                    checked={selectedId === capture.id}
-                    onChange={() => onSelect(capture.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label={`Select capture ${capture.id}`}
-                  />
-                </td>
-              )}
-              <td className="align-middle">{capture.id}</td>
-              <td className="align-middle">{capture.name}</td>
-              <td className="align-middle">
-                {new Date(capture.timestamp).toLocaleDateString()}
-              </td>
-              <td className="align-middle">{capture.type}</td>
-              <td className="align-middle">{capture.files.length}</td>
-              <td className="align-middle">{capture.source}</td>
-              {!onSelect && visualizationType ? (
-                <td className="align-middle text-center">
-                  <Link
-                    to={`/visualization/${visualizationType.name}/${captureId}`}
-                    className="btn btn-primary btn-sm px-4"
+                return (
+                  <tr
+                    key={capture.id}
+                    className={isSelected ? 'table-primary' : ''}
+                    onClick={() => onSelect?.([capture.id])}
+                    style={onSelect ? { cursor: 'pointer' } : undefined}
+                    role={onSelect ? 'button' : undefined}
+                    tabIndex={onSelect ? 0 : undefined}
+                    onKeyPress={(e) => {
+                      if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+                        onSelect([capture.id]);
+                      }
+                    }}
                   >
-                    Visualize
-                  </Link>
-                </td>
-              ) : !onSelect ? (
-                <td></td>
-              ) : null}
-            </tr>
-          );
-        })}
-      </tbody>
-    </Table>
+                    {onSelect && (
+                      <td className="text-center align-middle">
+                        <input
+                          type="radio"
+                          checked={isSelected}
+                          onChange={() => onSelect?.([capture.id])}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select capture ${capture.id}`}
+                        />
+                      </td>
+                    )}
+                    <td className="align-middle">{capture.id}</td>
+                    <td className="align-middle">{capture.name}</td>
+                    <td className="align-middle">
+                      {new Date(capture.timestamp).toLocaleDateString()}
+                    </td>
+                    <td className="align-middle">{capture.type}</td>
+                    <td className="align-middle">{capture.files.length}</td>
+                    <td className="align-middle">{capture.source}</td>
+                    {!onSelect && visualizationType ? (
+                      <td className="align-middle text-center">
+                        <Link
+                          to={`/visualization/${visualizationType?.name}/${capture.id}`}
+                          className="btn btn-primary btn-sm px-4"
+                        >
+                          Visualize
+                        </Link>
+                      </td>
+                    ) : !onSelect ? (
+                      <td></td>
+                    ) : null}
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </Table>
+      </div>
+    </div>
   );
 };
 

@@ -9,6 +9,8 @@ interface AppContextModel {
   setFiles: (value: FileMetadata[]) => void;
   captures: Capture[];
   setCaptures: (value: Capture[]) => void;
+  sdsCount: number;
+  setSdsCount: (value: number) => void;
 }
 
 const AppContext = createContext<AppContextModel | undefined>(undefined);
@@ -17,6 +19,8 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [username, setUsername] = useState<string>();
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [captures, setCaptures] = useState<Capture[]>([]);
+  const [sdsCount, setSdsCount] = useState(0);
+
 
   return (
     <AppContext.Provider
@@ -27,6 +31,8 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
         setFiles,
         captures,
         setCaptures,
+        sdsCount,
+        setSdsCount
       }}
     >
       {children}
