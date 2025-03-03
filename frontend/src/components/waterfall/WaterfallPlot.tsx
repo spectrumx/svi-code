@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
@@ -53,7 +53,7 @@ const downIndicatorStyle: React.CSSProperties = {
   borderTop: '20px solid #808080',
 };
 
-function WaterfallPlot({
+export function WaterfallPlot({
   scan,
   display,
   setWaterfall,
@@ -71,6 +71,7 @@ function WaterfallPlot({
     rectHeight: number;
   } | null>(null);
   const pixelRatioRef = useRef(1);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const labelWidth = 75;
   const margin = {
@@ -124,18 +125,42 @@ function WaterfallPlot({
   }, []);
 
   function drawHighlightBox(
+    context: CanvasRenderingContext2D,
+    allData: number[][],
+    boxIndex: number,
+    rectWidth: number,
+    rectHeight: number,
+    strokeStyle: string,
+  ) {
+    const pixelRatio = pixelRatioRef.current;
+
+    context.save();
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.translate(labelWidth + margin.left, margin.top);
+
+    const rowFromBottom = allData.length - 1 - boxIndex;
+    const boxY = Math.floor(rowFromBottom * rectHeight);
+    const boxWidth = Math.ceil(allData[0].length * rectWidth);
+
+    context.strokeStyle = strokeStyle;
+    context.lineWidth = 2;
+    context.strokeRect(0, boxY, boxWidth, rectHeight);
+
+    context.restore();
+  }
+
+  function drawHighlightBoxes(
     allData: number[][],
     currentIndex: number,
     rectWidth: number,
     rectHeight: number,
+    hoverIndex: number | null = null,
   ) {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return;
 
     const context = overlayCanvas.getContext('2d');
     if (!context) return;
-
-    const pixelRatio = pixelRatioRef.current;
 
     // Clear the entire overlay canvas including the transformed area
     context.save();
@@ -148,22 +173,29 @@ function WaterfallPlot({
 
     // Only draw if the current index is within the displayed range
     if (relativeIndex >= 0 && relativeIndex < allData.length) {
-      // Set up the transform for the highlight box
-      context.save();
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      context.translate(labelWidth + margin.left, margin.top);
+      drawHighlightBox(
+        context,
+        allData,
+        relativeIndex,
+        rectWidth,
+        rectHeight,
+        'black',
+      );
+    }
 
-      // Calculate position for highlight box
-      const boxY = Math.floor(relativeIndex * rectHeight);
-      const boxWidth = Math.ceil(allData[0].length * rectWidth);
+    if (hoverIndex !== null) {
+      const relativeHoverIndex = hoverIndex - captureRange.startIndex;
 
-      // Draw the grey highlight box
-      context.strokeStyle = '#808080';
-      context.lineWidth = 2;
-      context.strokeRect(0, boxY, boxWidth, rectHeight);
-
-      // Restore the original transform
-      context.restore();
+      if (relativeHoverIndex >= 0 && relativeHoverIndex < allData.length) {
+        drawHighlightBox(
+          context,
+          allData,
+          relativeHoverIndex,
+          rectWidth,
+          rectHeight,
+          'grey',
+        );
+      }
     }
   }
 
@@ -173,7 +205,7 @@ function WaterfallPlot({
     rectHeight: number,
     canvasWidth: number,
     pixelRatio: number,
-    startIndex: number,
+    hoveredIndex: number | null = null,
   ) {
     // Reset transform for drawing indices
     context.save();
@@ -183,22 +215,30 @@ function WaterfallPlot({
     context.fillStyle = 'white';
     context.fillRect(
       canvasWidth / pixelRatio - margin.right,
-      margin.top,
+      0,
       margin.right,
-      allData.length * rectHeight,
+      allData.length * rectHeight + margin.top + margin.bottom,
     );
 
     // Only draw indices if we have 5 or more captures
     if (allData.length >= 5) {
-      context.fillStyle = 'black';
       context.font = '12px Arial';
       context.textAlign = 'left';
 
-      // Show every 5th index starting at 5
-      for (let i = 4; i < allData.length; i += 5) {
-        const y = margin.top + i * rectHeight + rectHeight / 2 + 4;
+      // Show every 5th index
+      for (let i = captureRange.endIndex; i >= captureRange.startIndex; i--) {
+        const displayedIndex = i + 1;
+        const row = captureRange.endIndex - i;
+        const y = margin.top + row * rectHeight;
         const x = canvasWidth / pixelRatio - margin.right + 5;
-        context.fillText(String(startIndex + i + 1), x, y);
+
+        // Determine if this index should be highlighted
+        const isHovered = hoveredIndex !== null && i === hoveredIndex;
+
+        if (displayedIndex % 5 === 0 || isHovered) {
+          context.fillStyle = isHovered ? 'grey' : 'black';
+          context.fillText(String(displayedIndex), x, y);
+        }
       }
     }
 
@@ -380,14 +420,16 @@ function WaterfallPlot({
           context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
           context.translate(labelWidth + margin.left, margin.top);
 
-          // Draw all data points
+          // Draw all data points in reverse order
           allData.forEach((row, rowIndex) => {
+            // Flip the row index
+            const rowFromBottom = allData.length - 1 - rowIndex;
             row.forEach((value, colIndex) => {
               drawCanvasSquare(
                 context,
                 colIndex,
                 value,
-                rowIndex,
+                rowFromBottom,
                 colorScale!,
                 rectWidth,
                 rectHeight,
@@ -408,7 +450,7 @@ function WaterfallPlot({
           rectHeight,
           canvas.width,
           pixelRatio,
-          captureRange.startIndex,
+          hoveredIndex,
         );
       }
     }
@@ -420,27 +462,6 @@ function WaterfallPlot({
     }
   }, [scan, display]);
 
-  // Separate effect for drawing the highlight box
-  useEffect(() => {
-    const dimensions = plotDimensionsRef.current;
-    const allData = scan.allData as number[][];
-
-    if (
-      dimensions &&
-      allData &&
-      allData.length > 0 &&
-      currentCaptureIndex >= captureRange.startIndex &&
-      currentCaptureIndex < captureRange.endIndex
-    ) {
-      drawHighlightBox(
-        allData,
-        currentCaptureIndex,
-        dimensions.rectWidth,
-        dimensions.rectHeight,
-      );
-    }
-  }, [currentCaptureIndex, scan.allData, captureRange]);
-
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = overlayCanvasRef.current;
     if (!canvas || !plotDimensionsRef.current) return;
@@ -448,26 +469,87 @@ function WaterfallPlot({
     const rect = canvas.getBoundingClientRect();
     const y = event.clientY - rect.top;
     const { rectHeight } = plotDimensionsRef.current;
-    const clickedIndex = Math.floor((y - margin.top) / rectHeight);
+
+    // Calculate clicked row
+    const allData = scan.allData as number[][];
+    const clickedRow = Math.floor((y - margin.top) / rectHeight);
+    const clickedIndex = allData.length - 1 - clickedRow;
 
     // Validate the index is within bounds
-    const allData = scan.allData as number[][];
     if (clickedIndex >= 0 && clickedIndex < allData.length) {
       onCaptureSelect(captureRange.startIndex + clickedIndex);
     }
   };
 
+  const handleCanvasMouseMove = (
+    event: React.MouseEvent<HTMLCanvasElement>,
+  ) => {
+    const canvas = overlayCanvasRef.current;
+    if (!canvas || !plotDimensionsRef.current) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const y = event.clientY - rect.top;
+    const { rectHeight } = plotDimensionsRef.current;
+
+    // Calculate hovered row
+    const hoveredRow = Math.floor((y - margin.top) / rectHeight);
+    const hoveredIndex = captureRange.endIndex - 1 - hoveredRow;
+
+    // Update hover state if within bounds
+    if (
+      hoveredIndex >= captureRange.startIndex &&
+      hoveredIndex < captureRange.endIndex
+    ) {
+      setHoveredIndex(hoveredIndex);
+    } else {
+      setHoveredIndex(null);
+    }
+  };
+
+  const handleCanvasMouseLeave = () => {
+    setHoveredIndex(null);
+  };
+
+  // Draw highlight boxes and capture indices
+  useEffect(() => {
+    const dimensions = plotDimensionsRef.current;
+    const allData = scan.allData as number[][];
+
+    if (dimensions && allData && allData.length > 0) {
+      // Draw selection highlight
+      drawHighlightBoxes(
+        allData,
+        currentCaptureIndex,
+        dimensions.rectWidth,
+        dimensions.rectHeight,
+        hoveredIndex,
+      );
+
+      const canvas = plotCanvasRef.current;
+      if (canvas) {
+        const context = canvas.getContext('2d');
+        if (context) {
+          drawCaptureIndices(
+            context,
+            allData,
+            dimensions.rectHeight,
+            canvas.width,
+            pixelRatioRef.current,
+            hoveredIndex,
+          );
+        }
+      }
+    }
+  }, [hoveredIndex, currentCaptureIndex, scan.allData, captureRange]);
+
   return (
     <div style={{ width: '100%', height: '500px', position: 'relative' }}>
-      {captureRange.startIndex > 0 && (
+      {captureRange.endIndex < totalCaptures && (
         <div
           style={upIndicatorStyle}
-          title="More captures above"
+          title="More recent captures above"
           onClick={() => {
-            const newIndex = Math.max(
-              0,
-              captureRange.startIndex - WATERFALL_MAX_ROWS,
-            );
+            const newIndex = Math.min(totalCaptures - 1, captureRange.endIndex);
             onCaptureSelect(newIndex);
           }}
         />
@@ -477,16 +559,15 @@ function WaterfallPlot({
         ref={overlayCanvasRef}
         style={{ display: 'block', cursor: 'pointer' }}
         onClick={handleCanvasClick}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={handleCanvasMouseLeave}
       />
-      {captureRange.endIndex < totalCaptures && (
+      {captureRange.startIndex > 0 && (
         <div
           style={downIndicatorStyle}
-          title="More captures below"
+          title="Older captures below"
           onClick={() => {
-            const newIndex = Math.min(
-              totalCaptures - 1,
-              captureRange.startIndex + WATERFALL_MAX_ROWS,
-            );
+            const newIndex = Math.max(0, captureRange.startIndex - 1);
             onCaptureSelect(newIndex);
           }}
         />
@@ -524,5 +605,3 @@ function isCanvasBlank(canvas: HTMLCanvasElement) {
   );
   return !pixelBuffer.some((color) => color !== 0);
 }
-
-export { WaterfallPlot };

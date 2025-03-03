@@ -5,11 +5,27 @@
   appearance: textfield;
   margin: 0;
   text-align: center;
-  max-width: 50px;
+  max-width: 75px;
 }
 
 .capture-index-number-input::-webkit-inner-spin-button,
 .capture-index-number-input::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.blinking-button {
+  animation: blink 2s ease-in-out infinite;
 }
