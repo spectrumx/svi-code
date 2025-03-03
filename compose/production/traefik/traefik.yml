@@ -188,4 +188,4 @@ http:
     jupyterhub:
       loadBalancer:
         servers:
-          - url: http://jupyterhub:8888
+          - url: http://jupyterhub:8000
