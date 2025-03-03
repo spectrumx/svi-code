@@ -129,7 +129,7 @@ services:
     ports:
       - '8888:8000'
     env_file:
-      - ./.envs/.local/.jupyterhub
+      - ./.envs/.production/.jupyterhub
     environment:
       JUPYTERHUB_ADMIN: admin
       DOCKER_NETWORK_NAME: spectrumx_network
