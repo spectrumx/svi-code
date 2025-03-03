@@ -13,6 +13,8 @@ services:
       dockerfile: ./compose/production/django/Dockerfile
 
     image: spectrumx_visualization_platform_production_django
+    networks:
+      - spectrumx_network
     volumes:
       - production_django_media:/app/spectrumx_visualization_platform/media
     depends_on:
@@ -27,6 +29,8 @@ services:
     build:
       context: ./frontend
       dockerfile: ../compose/production/frontend/Dockerfile
+    networks:
+      - spectrumx_network
     volumes:
       - ./frontend:/app
     depends_on:
@@ -37,6 +41,8 @@ services:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
     image: spectrumx_visualization_platform_production_postgres
+    networks:
+      - spectrumx_network
     volumes:
       - production_postgres_data:/var/lib/postgresql/data
       - production_postgres_data_backups:/backups
@@ -48,6 +54,8 @@ services:
       context: .
       dockerfile: ./compose/production/traefik/Dockerfile
     image: spectrumx_visualization_platform_production_traefik
+    networks:
+      - spectrumx_network
     depends_on:
       - django
     volumes:
@@ -72,6 +80,8 @@ services:
   # curl --insecure https://whoami.spectrumx.crc.nd.edu
   whoami:
     image: traefik/whoami
+    networks:
+      - spectrumx_network
     command:
       - --port=2001 # must match port in traefik.yml
       # - --name=sds-01
@@ -80,7 +90,8 @@ services:
 
   redis:
     image: docker.io/redis:6
-
+    networks:
+      - spectrumx_network
     volumes:
       - production_redis_data:/data
 
@@ -104,6 +115,8 @@ services:
       context: .
       dockerfile: ./compose/production/nginx/Dockerfile
     image: spectrumx_visualization_platform_production_nginx
+    networks:
+      - spectrumx_network
     depends_on:
       - django
     volumes:
@@ -119,9 +132,7 @@ services:
     image: jupyterhub
     container_name: jupyterhub
     networks:
-      spectrumx_network:
-        aliases:
-          - jupyterhub
+      - spectrumx_network
     volumes:
       - './compose/production/jupyter/jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro'
       - '/var/run/docker.sock:/var/run/docker.sock:rw'
