@@ -77,7 +77,7 @@ services:
       - '0.0.0.0:5555:5555'
 
   # whoami service to test traefik reachability
-  # curl --insecure https://whoami.spectrumx.crc.nd.edu
+  # curl --insecure https://whoami.spectrumx-qa.crc.nd.edu
   whoami:
     image: traefik/whoami
     networks:
@@ -137,11 +137,10 @@ services:
       - './compose/production/jupyter/jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro'
       - '/var/run/docker.sock:/var/run/docker.sock:rw'
       - 'jupyterhub_data:/data'
-    group_add:
-      - docker
+    user: root # Temporarily run as root to ensure proper permissions
     environment:
       JUPYTERHUB_ADMIN: admin
-      JUPYTERHUB_HOST: spectrumx.crc.nd.edu/notebook
+      JUPYTERHUB_HOST: svi-qa.crc.nd.edu/notebook
       DOCKER_NETWORK_NAME: spectrumx_network
       DOCKER_NOTEBOOK_IMAGE: quay.io/jupyter/base-notebook:latest
       DOCKER_NOTEBOOK_DIR: /home/jovyan/work

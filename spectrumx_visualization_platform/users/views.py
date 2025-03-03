@@ -38,8 +38,8 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
     permanent = False
 
     def get_redirect_url(self):
-        # Hardcoded redirect to local frontend for now
-        return "http://localhost:3000"
+        # Hardcoded redirect for now
+        return "https://spectrumx-qa.crc.nd.edu"
 
 
 user_redirect_view = UserRedirectView.as_view()

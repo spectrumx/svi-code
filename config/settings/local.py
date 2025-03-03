@@ -20,7 +20,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "django",
     "192.168.0.206",
-    "spectrumx.crc.nd.edu",
+    "spectrumx-qa.crc.nd.edu",
 ]
 
 # django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup
