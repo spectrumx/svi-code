@@ -89,12 +89,12 @@ c.Spawner.http_timeout = 60  # Increase from default 30 seconds
 c.Spawner.start_timeout = 60  # Increase startup timeout
 
 # Modify command configuration to ensure proper notebook startup
-c.DockerSpawner.cmd = ["start-notebook.sh"]
-c.DockerSpawner.args = [
-    "--NotebookApp.allow_origin='*'",
-    f"--NotebookApp.base_url=/hub/user/{os.environ.get('JUPYTERHUB_USER', '')}",
-    "--NotebookApp.token=''",  # Disable token authentication since we're using Auth0
-]
+# c.DockerSpawner.cmd = ["start-notebook.sh"]
+# c.DockerSpawner.args = [
+#     "--NotebookApp.allow_origin='*'",
+#     f"--NotebookApp.base_url=/hub/user/{os.environ.get('JUPYTERHUB_USER', '')}",
+#     "--NotebookApp.token=''",  # Disable token authentication since we're using Auth0
+# ]
 
 # Ensure environment variables are passed to the container
 c.DockerSpawner.environment = {
