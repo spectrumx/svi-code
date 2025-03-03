@@ -84,9 +84,32 @@ c.Auth0OAuthenticator.username_key = "email"
 c.JupyterHub.log_level = "DEBUG"
 c.Authenticator.enable_auth_state = True
 
-# Install packages using DockerSpawner's command configuration
-c.DockerSpawner.cmd = ["start-notebook.sh"]
-c.DockerSpawner.args = ["--NotebookApp.allow_origin='*'"]
+# Increase timeout for server startup
+c.Spawner.http_timeout = 60  # Increase from default 30 seconds
+c.Spawner.start_timeout = 60  # Increase startup timeout
 
-# Add pip install command to be run when container starts
-c.DockerSpawner.post_start_cmd = "pip install spectrumx"
+# Modify command configuration to ensure proper notebook startup
+c.DockerSpawner.cmd = ["start-notebook.sh"]
+c.DockerSpawner.args = [
+    "--NotebookApp.allow_origin='*'",
+    f"--NotebookApp.base_url=/hub/user/{os.environ.get('JUPYTERHUB_USER', '')}",
+    "--NotebookApp.token=''",  # Disable token authentication since we're using Auth0
+]
+
+# Ensure environment variables are passed to the container
+c.DockerSpawner.environment = {
+    "JUPYTER_ENABLE_LAB": "yes",
+    "GRANT_SUDO": "yes",
+    "CHOWN_HOME": "yes",
+}
+
+# Add container configuration for better stability
+c.DockerSpawner.extra_host_config = {
+    "restart_policy": {"Name": "unless-stopped"},
+    "mem_limit": "2g",  # Set memory limit
+}
+
+# Modify post-start command to include error handling
+c.DockerSpawner.post_start_cmd = """
+pip install spectrumx || echo "Failed to install spectrumx"
+"""
