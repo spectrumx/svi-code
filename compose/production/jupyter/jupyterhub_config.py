@@ -13,6 +13,9 @@ c = get_config()  # noqa: F821
 # Spawn single-user servers as Docker containers
 c.JupyterHub.spawner_class = "dockerspawner.DockerSpawner"
 
+# JupyterHub is hosted at /hub
+c.JupyterHub.base_url = "/hub"
+
 # Spawn containers from this image
 c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 
