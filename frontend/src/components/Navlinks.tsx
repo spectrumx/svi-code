@@ -5,7 +5,7 @@ import Navbar from 'react-bootstrap/esm/Navbar';
 import { useAppContext } from '../utils/AppContext';
 import Dropdown from 'react-bootstrap/Dropdown';
 // import NavDropdown from 'react-bootstrap/NavDropdown';
-import { api_host } from '../apiClient';
+import { API_HOST } from '../apiClient';
 
 const Navlinks = () => {
   const { username } = useAppContext();
