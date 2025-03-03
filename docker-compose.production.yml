@@ -133,7 +133,6 @@ services:
       DOCKER_NETWORK_NAME: spectrumx_network
       DOCKER_NOTEBOOK_IMAGE: quay.io/jupyter/base-notebook:latest
       DOCKER_NOTEBOOK_DIR: /home/jovyan/work
-      DOCKER_GID: 999 # This should match your host's Docker group ID
     ports:
       - '8888:8000'
     env_file:
