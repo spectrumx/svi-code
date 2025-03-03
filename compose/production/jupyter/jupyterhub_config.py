@@ -109,7 +109,5 @@ c.DockerSpawner.extra_host_config = {
     "mem_limit": "2g",  # Set memory limit
 }
 
-# Modify post-start command to include error handling
-c.DockerSpawner.post_start_cmd = """
-pip install spectrumx || echo "Failed to install spectrumx"
-"""
+# Modify post-start command to use proper shell syntax
+c.DockerSpawner.post_start_cmd = "pip install spectrumx 2>&1 || true"
