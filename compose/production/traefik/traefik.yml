@@ -107,6 +107,17 @@ http:
         # https://doc.traefik.io/traefik/routing/routers/#certresolver
         certResolver: letsencrypt
 
+    jupyterhub-secure-router:
+      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/notebook`) )'
+      entryPoints:
+        - web-secure
+      middlewares:
+        - csrf
+      service: jupyterhub
+      tls:
+        # https://doc.traefik.io/traefik/routing/routers/#certresolver
+        certResolver: letsencrypt
+
     flower-secure-router:
       rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/flower`) )'
       entryPoints:
@@ -173,3 +184,8 @@ http:
       loadBalancer:
         servers:
           - url: http://whoami:2001
+
+    jupyterhub:
+      loadBalancer:
+        servers:
+          - url: http://jupyterhub:8888

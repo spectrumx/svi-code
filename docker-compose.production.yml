@@ -3,8 +3,8 @@ volumes:
   production_postgres_data_backups: {}
   production_traefik: {}
   production_django_media: {}
-
   production_redis_data: {}
+  jupyterhub_data: {}
 
 services:
   django: &django
@@ -108,3 +108,43 @@ services:
       - django
     volumes:
       - production_django_media:/usr/share/nginx/media:ro
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: ./compose/production/jupyter/Dockerfile
+      args:
+        JUPYTERHUB_VERSION: latest
+    restart: always
+    image: jupyterhub
+    container_name: jupyterhub
+    networks:
+      spectrumx_network:
+        aliases:
+          - jupyterhub
+    volumes:
+      - './compose/production/jupyter/jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock:rw'
+      - 'jupyterhub_data:/data'
+    group_add:
+      - docker
+    environment:
+      JUPYTERHUB_ADMIN: admin
+      DOCKER_NETWORK_NAME: spectrumx_network
+      DOCKER_NOTEBOOK_IMAGE: quay.io/jupyter/base-notebook:latest
+      DOCKER_NOTEBOOK_DIR: /home/jovyan/work
+      DOCKER_GID: 999 # This should match your host's Docker group ID
+    ports:
+      - '8888:8000'
+    env_file:
+      - ./.envs/.production/.jupyterhub
+
+networks:
+  spectrumx_network:
+    driver: bridge
+    name: spectrumx_network
+    external: false
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16

@@ -161,6 +161,9 @@ ignore = [
   "TRY003",
   "G201",
   "PTH123",
+  "E501",
+  "S105",
+  "INP001",
   "UP038" # Checks for uses of isinstance/issubclass that take a tuple
           # of types for comparison.
           # Deactivated because it can make the code slow:
