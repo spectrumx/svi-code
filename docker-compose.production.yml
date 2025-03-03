@@ -141,6 +141,7 @@ services:
       - docker
     environment:
       JUPYTERHUB_ADMIN: admin
+      JUPYTERHUB_HOST: spectrumx.crc.nd.edu/notebook
       DOCKER_NETWORK_NAME: spectrumx_network
       DOCKER_NOTEBOOK_IMAGE: quay.io/jupyter/base-notebook:latest
       DOCKER_NOTEBOOK_DIR: /home/jovyan/work
