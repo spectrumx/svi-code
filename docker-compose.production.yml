@@ -126,7 +126,6 @@ services:
       - './compose/production/jupyter/jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro'
       - '/var/run/docker.sock:/var/run/docker.sock:rw'
       - 'jupyterhub_data:/data'
-    user: root # Temporarily run as root to ensure proper permissions
     group_add:
       - docker
     environment:
