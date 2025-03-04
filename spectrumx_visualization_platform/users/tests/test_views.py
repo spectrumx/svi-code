@@ -71,6 +71,17 @@ class TestUserUpdateView:
         assert messages_sent == [_("Information successfully updated")]
 
 
+# class TestUserRedirectView:
+#     def test_get_redirect_url(self, user: User, rf: RequestFactory):
+#         view = UserRedirectView()
+#         request = rf.get("/fake-url")
+#         request.user = user
+
+#         view.request = request
+#         # assert view.get_redirect_url() == f"/users/{user.username}/"
+#         assert view.get_redirect_url() == "https://spectrumx-qa.crc.nd.edu"
+
+
 class TestUserDetailView:
     def test_authenticated(self, user: User, rf: RequestFactory):
         request = rf.get("/fake-url/")
