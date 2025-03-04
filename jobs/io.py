@@ -27,6 +27,8 @@ def update_job_status(job_id: int, status: str, token: str, info=None):
     if info:
         data["info"] = json.dumps(info)
 
+    print(f"API_URL: {settings.API_URL}")
+
     response = requests.post(
         f"{settings.API_URL}/api/jobs/update-job-status/",
         data=data,

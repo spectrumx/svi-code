@@ -59,13 +59,16 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
         This method is called after the user has successfully authenticated.
         """
         redirect_url = self.request.session.get("login_redirect_url")
+
         if redirect_url:
             # Clear the redirect URL from session after using it
             del self.request.session["login_redirect_url"]
             return redirect_url
 
-        # If no redirect URL in session, fall back to frontend URL
-        return getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+        if settings.DEBUG:
+            return "http://localhost:3000"
+
+        return "https://spectrumx-qa.crc.nd.edu"
 
 
 user_redirect_view = UserRedirectView.as_view()
