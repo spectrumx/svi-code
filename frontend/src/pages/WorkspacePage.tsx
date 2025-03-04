@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 
+import { useAppContext } from '../utils/AppContext';
 import Button from '../components/Button';
 
 interface Visualization {
@@ -9,12 +10,17 @@ interface Visualization {
 }
 
 const WorkspacePage = () => {
+  const { username } = useAppContext();
   const [visualizations, _setVisualizations] = useState<Visualization[]>([]);
 
   return (
     <div className="page-container">
       <Link to="/visualization/new">
-        <Button variant="primary">
+        <Button
+          variant="primary"
+          disabled={!username}
+          disabledHelpText="You must be logged in to create a visualization"
+        >
           <i className="bi bi-plus-lg" style={{ marginRight: '5px' }}></i>
           Create Visualization
         </Button>
@@ -26,8 +32,12 @@ const WorkspacePage = () => {
         visualizations.map((visualization) => (
           <Button key={visualization.id}>{visualization.name}</Button>
         ))
-      ) : (
+      ) : username ? (
         <div>No visualizations created. Make one now!</div>
+      ) : (
+        <div>
+          <p>Please log in to create a visualization.</p>
+        </div>
       )}
     </div>
   );

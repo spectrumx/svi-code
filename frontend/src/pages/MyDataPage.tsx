@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import Button from '../components/Button';
 
-import FileUploadModal from '../components/FileUploadModal';
 import { useAppContext } from '../utils/AppContext';
 import { useSyncCaptures } from '../apiClient/fileService';
 import DatasetTable from '../components/CaptureTable';
+import Button from '../components/Button';
+import FileUploadModal from '../components/FileUploadModal';
 
 const MyDataPage = () => {
   const context = useAppContext();
@@ -45,7 +45,7 @@ const MyDataPage = () => {
           </div>
         ) : (
           <div>
-            <p>You must be logged in to view data.</p>
+            <p>Please log in to view your data.</p>
           </div>
         )}
       </div>
