@@ -144,6 +144,11 @@ services:
       DOCKER_NETWORK_NAME: spectrumx_network
       DOCKER_NOTEBOOK_IMAGE: quay.io/jupyter/base-notebook:latest
       DOCKER_NOTEBOOK_DIR: /home/jovyan/work
+      # Add these environment variables for network configuration
+      HUB_IP: jupyter
+      DOCKER_JUPYTER_CONTAINER: jupyter
+      # Ensure the network is created with the full name
+      COMPOSE_PROJECT_NAME: spectrumx_visualization_platform_production
     ports:
       - '8888:8000'
     env_file:
@@ -153,3 +158,6 @@ networks:
   spectrumx_network:
     driver: bridge
     name: spectrumx_network
+    # Add these configurations to ensure the network is properly created
+    external: false
+    attachable: true
