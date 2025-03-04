@@ -5,7 +5,7 @@ import Navbar from 'react-bootstrap/esm/Navbar';
 import Dropdown from 'react-bootstrap/Dropdown';
 
 import { useAppContext } from '../utils/AppContext';
-import { API_HOST, LOGIN_URL } from '../apiClient';
+import { API_HOST, getLoginUrlWithRedirect } from '../apiClient';
 
 const Navlinks = () => {
   const { username } = useAppContext();
@@ -37,7 +37,7 @@ const Navlinks = () => {
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                <Nav.Link href={LOGIN_URL}>Login</Nav.Link>
+                <Nav.Link href={getLoginUrlWithRedirect('/')}>Login</Nav.Link>
               )}
             </ul>
           </Nav>
