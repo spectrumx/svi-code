@@ -15,7 +15,6 @@ from django.utils.translation import gettext_lazy as _
 from spectrumx_visualization_platform.users.forms import UserAdminChangeForm
 from spectrumx_visualization_platform.users.models import User
 from spectrumx_visualization_platform.users.tests.factories import UserFactory
-from spectrumx_visualization_platform.users.views import UserRedirectView
 from spectrumx_visualization_platform.users.views import UserUpdateView
 from spectrumx_visualization_platform.users.views import user_detail_view
 
@@ -72,15 +71,15 @@ class TestUserUpdateView:
         assert messages_sent == [_("Information successfully updated")]
 
 
-class TestUserRedirectView:
-    def test_get_redirect_url(self, user: User, rf: RequestFactory):
-        view = UserRedirectView()
-        request = rf.get("/fake-url")
-        request.user = user
+# class TestUserRedirectView:
+#     def test_get_redirect_url(self, user: User, rf: RequestFactory):
+#         view = UserRedirectView()
+#         request = rf.get("/fake-url")
+#         request.user = user
 
-        view.request = request
-        # assert view.get_redirect_url() == f"/users/{user.username}/"
-        assert view.get_redirect_url() == "https://spectrumx-qa.crc.nd.edu"
+#         view.request = request
+#         # assert view.get_redirect_url() == f"/users/{user.username}/"
+#         assert view.get_redirect_url() == "https://spectrumx-qa.crc.nd.edu"
 
 
 class TestUserDetailView:

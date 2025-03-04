@@ -1,11 +1,11 @@
+import { NavLink } from 'react-router';
 import Nav from 'react-bootstrap/Nav';
 import Container from 'react-bootstrap/Container';
-import { NavLink } from 'react-router';
 import Navbar from 'react-bootstrap/esm/Navbar';
-import { useAppContext } from '../utils/AppContext';
 import Dropdown from 'react-bootstrap/Dropdown';
-// import NavDropdown from 'react-bootstrap/NavDropdown';
-import { API_HOST } from '../apiClient';
+
+import { useAppContext } from '../utils/AppContext';
+import { API_HOST, getLoginUrlWithRedirect } from '../apiClient';
 
 const Navlinks = () => {
   const { username } = useAppContext();
@@ -17,10 +17,14 @@ const Navlinks = () => {
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
             <ul>
-              <NavLink to="/dashboard">Dashboard</NavLink>
-              <NavLink to="/workspace">Workspace</NavLink>
-              <NavLink to="/mydata">My Data</NavLink>
-              <NavLink to="/search">Search</NavLink>
+              {username && (
+                <>
+                  <NavLink to="/dashboard">Dashboard</NavLink>
+                  <NavLink to="/workspace">Workspace</NavLink>
+                  <NavLink to="/mydata">My Data</NavLink>
+                  <NavLink to="/search">Search</NavLink>
+                </>
+              )}
               {username ? (
                 <Dropdown className="nav-item-dropdown">
                   <Dropdown.Toggle id="dropdown-basic" className="nav-link">
@@ -33,9 +37,7 @@ const Navlinks = () => {
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                <Nav.Link href={API_HOST + '/accounts/auth0/login'}>
-                  Login
-                </Nav.Link>
+                <Nav.Link href={getLoginUrlWithRedirect('/')}>Login</Nav.Link>
               )}
             </ul>
           </Nav>

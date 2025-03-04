@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.http import HttpResponseRedirect
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView
 from django.views.generic import RedirectView
@@ -34,12 +36,39 @@ class UserUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 user_update_view = UserUpdateView.as_view()
 
 
+def login_with_redirect(request):
+    """
+    Store the redirect URL in the session and redirect to the login page.
+    """
+    # Get the next parameter from the request
+    next_url = request.GET.get("next")
+    if next_url:
+        # Store the redirect URL in the session
+        request.session["login_redirect_url"] = next_url
+
+    # Redirect to the Auth0 login page
+    return HttpResponseRedirect("/accounts/auth0/login/")
+
+
 class UserRedirectView(LoginRequiredMixin, RedirectView):
     permanent = False
 
     def get_redirect_url(self):
-        # Hardcoded redirect for now
-        return "https://spectrumx-qa.crc.nd.edu"
+        """
+        Returns the URL to redirect to after login.
+        This method is called after the user has successfully authenticated.
+        """
+        redirect_url = self.request.session.get("login_redirect_url")
+
+        if redirect_url:
+            # Clear the redirect URL from session after using it
+            del self.request.session["login_redirect_url"]
+            return redirect_url
+
+        if settings.DEBUG:
+            return "http://localhost:3000"
+
+        return "https://svi-qa.crc.nd.edu"
 
 
 user_redirect_view = UserRedirectView.as_view()

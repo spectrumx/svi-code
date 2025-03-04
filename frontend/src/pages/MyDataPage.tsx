@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react';
-import Button from '../components/Button';
 
-import FileUploadModal from '../components/FileUploadModal';
 import { useAppContext } from '../utils/AppContext';
 import { useSyncCaptures } from '../apiClient/fileService';
 import DatasetTable from '../components/CaptureTable';
+import Button from '../components/Button';
+import FileUploadModal from '../components/FileUploadModal';
 
 const MyDataPage = () => {
   const context = useAppContext();
-  const { captures } = context;
+  const { captures, username } = context;
   const syncCaptures = useSyncCaptures();
   const [showModal, setShowModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    syncCaptures();
-  }, [syncCaptures]);
+    if (username) {
+      setIsLoading(true);
+      syncCaptures().finally(() => setIsLoading(false));
+    }
+  }, [syncCaptures, username]);
 
   return (
     <div className="page-container">
@@ -31,9 +35,17 @@ const MyDataPage = () => {
       <div style={{ marginTop: '20px' }}>
         {captures.length > 0 ? (
           <DatasetTable captures={captures} />
-        ) : (
+        ) : isLoading ? (
+          <div>
+            <p>Loading...</p>
+          </div>
+        ) : username ? (
           <div>
             <p>No captures found. Upload a capture to get started!</p>
+          </div>
+        ) : (
+          <div>
+            <p>Please log in to view your data.</p>
           </div>
         )}
       </div>
