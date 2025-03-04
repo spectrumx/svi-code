@@ -68,7 +68,7 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
         if settings.DEBUG:
             return "http://localhost:3000"
 
-        return "https://spectrumx-qa.crc.nd.edu"
+        return "https://svi-qa.crc.nd.edu"
 
 
 user_redirect_view = UserRedirectView.as_view()
