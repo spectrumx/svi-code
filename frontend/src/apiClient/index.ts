@@ -3,7 +3,7 @@ import { useAppContext } from '../utils/AppContext';
 import { useEffect, useRef } from 'react';
 
 export const API_HOST = process.env.REACT_APP_API_HOST;
-export const LOGIN_URL = API_HOST + '/users/store-login-redirect';
+export const LOGIN_URL = API_HOST + '/users/login-with-redirect/';
 
 export const getLoginUrlWithRedirect = (redirectPath: string): string => {
   const redirectUrl = `${window.location.origin}${redirectPath}`;

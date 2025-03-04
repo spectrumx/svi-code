@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.http import HttpResponseRedirect
@@ -35,7 +36,7 @@ class UserUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 user_update_view = UserUpdateView.as_view()
 
 
-def store_login_redirect(request):
+def login_with_redirect(request):
     """
     Store the redirect URL in the session and redirect to the login page.
     """
@@ -57,12 +58,14 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
         Returns the URL to redirect to after login.
         This method is called after the user has successfully authenticated.
         """
-        print("UserRedirectView get_redirect_url")
-        # Use the account adapter to handle the redirect
-        from allauth.account.adapter import get_adapter
+        redirect_url = self.request.session.get("login_redirect_url")
+        if redirect_url:
+            # Clear the redirect URL from session after using it
+            del self.request.session["login_redirect_url"]
+            return redirect_url
 
-        adapter = get_adapter(self.request)
-        return adapter.get_login_redirect_url(self.request)
+        # If no redirect URL in session, fall back to frontend URL
+        return getattr(settings, "FRONTEND_URL", "http://localhost:3000")
 
 
 user_redirect_view = UserRedirectView.as_view()
