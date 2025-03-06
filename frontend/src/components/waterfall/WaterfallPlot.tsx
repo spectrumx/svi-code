@@ -5,6 +5,37 @@ import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 import { ScanState, WaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
+const SCROLL_INDICATOR_SIZE = 20;
+const WATERFALL_HEIGHT = 500;
+
+const scrollIndicatorStyle: React.CSSProperties = {
+  width: 0,
+  height: 0,
+  borderLeft: `${SCROLL_INDICATOR_SIZE}px solid transparent`,
+  borderRight: `${SCROLL_INDICATOR_SIZE}px solid transparent`,
+  cursor: 'pointer',
+  margin: '0 auto',
+  display: 'block',
+};
+
+const upIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  borderBottom: `${SCROLL_INDICATOR_SIZE}px solid #808080`,
+};
+
+const downIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  borderTop: `${SCROLL_INDICATOR_SIZE}px solid #808080`,
+};
+
+const indicatorContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: `${SCROLL_INDICATOR_SIZE + 5}px`,
+};
+
 interface WaterfallPlotProps {
   scan: ScanState;
   display: Display;
@@ -28,30 +59,6 @@ interface WaterfallPlotProps {
    */
   totalCaptures: number;
 }
-
-const scrollIndicatorStyle: React.CSSProperties = {
-  position: 'absolute',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  width: 0,
-  height: 0,
-  borderLeft: '20px solid transparent',
-  borderRight: '20px solid transparent',
-  opacity: 0.7,
-  cursor: 'pointer',
-};
-
-const upIndicatorStyle: React.CSSProperties = {
-  ...scrollIndicatorStyle,
-  top: '-25px',
-  borderBottom: '20px solid #808080',
-};
-
-const downIndicatorStyle: React.CSSProperties = {
-  ...scrollIndicatorStyle,
-  bottom: '-25px',
-  borderTop: '20px solid #808080',
-};
 
 export function WaterfallPlot({
   scan,
@@ -97,14 +104,14 @@ export function WaterfallPlot({
     const pixelRatio = window.devicePixelRatio || 1;
     pixelRatioRef.current = pixelRatio;
     const canvasWidth = Math.floor(width * pixelRatio);
-    const canvasHeight = Math.floor(500 * pixelRatio);
+    const canvasHeight = Math.floor(WATERFALL_HEIGHT * pixelRatio);
 
     // Set dimensions for both canvases
     [plotCanvas, overlayCanvas].forEach((c) => {
       c.width = canvasWidth;
       c.height = canvasHeight;
       c.style.width = `${width}px`;
-      c.style.height = '500px';
+      c.style.height = `${WATERFALL_HEIGHT}px`;
 
       // Position the canvases
       c.style.position = 'absolute';
@@ -543,35 +550,49 @@ export function WaterfallPlot({
   }, [hoveredIndex, currentCaptureIndex, scan.allData, captureRange]);
 
   return (
-    <div style={{ width: '100%', height: '500px', position: 'relative' }}>
-      {captureRange.endIndex < totalCaptures && (
-        <div
-          style={upIndicatorStyle}
-          title="More recent captures above"
-          onClick={() => {
-            const newIndex = Math.min(totalCaptures - 1, captureRange.endIndex);
-            onCaptureSelect(newIndex);
-          }}
+    <div
+      style={{
+        width: '100%',
+        margin: '10px 0',
+      }}
+    >
+      <div style={indicatorContainerStyle}>
+        {captureRange.endIndex < totalCaptures && (
+          <div
+            style={upIndicatorStyle}
+            title="More recent captures above"
+            onClick={() => {
+              const newIndex = Math.min(
+                totalCaptures - 1,
+                captureRange.endIndex,
+              );
+              onCaptureSelect(newIndex);
+            }}
+          />
+        )}
+      </div>
+      <div style={{ position: 'relative', height: `${WATERFALL_HEIGHT}px` }}>
+        <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
+        <canvas
+          ref={overlayCanvasRef}
+          style={{ display: 'block', cursor: 'pointer' }}
+          onClick={handleCanvasClick}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseLeave={handleCanvasMouseLeave}
         />
-      )}
-      <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
-      <canvas
-        ref={overlayCanvasRef}
-        style={{ display: 'block', cursor: 'pointer' }}
-        onClick={handleCanvasClick}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseLeave={handleCanvasMouseLeave}
-      />
-      {captureRange.startIndex > 0 && (
-        <div
-          style={downIndicatorStyle}
-          title="Older captures below"
-          onClick={() => {
-            const newIndex = Math.max(0, captureRange.startIndex - 1);
-            onCaptureSelect(newIndex);
-          }}
-        />
-      )}
+      </div>
+      <div style={indicatorContainerStyle}>
+        {captureRange.startIndex > 0 && (
+          <div
+            style={downIndicatorStyle}
+            title="Older captures below"
+            onClick={() => {
+              const newIndex = Math.max(0, captureRange.startIndex - 1);
+              onCaptureSelect(newIndex);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
