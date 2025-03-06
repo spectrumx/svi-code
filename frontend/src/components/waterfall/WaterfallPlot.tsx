@@ -28,14 +28,6 @@ const downIndicatorStyle: React.CSSProperties = {
   borderTop: `${SCROLL_INDICATOR_SIZE}px solid #808080`,
 };
 
-const indicatorContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: `${SCROLL_INDICATOR_SIZE + 5}px`,
-};
-
 interface WaterfallPlotProps {
   scan: ScanState;
   display: Display;
@@ -58,6 +50,11 @@ interface WaterfallPlotProps {
    * The total number of captures in the full dataset.
    */
   totalCaptures: number;
+  /**
+   * The width of the legend in pixels, including labels.
+   */
+  colorLegendWidth: number;
+  indexLegendWidth: number;
 }
 
 export function WaterfallPlot({
@@ -70,6 +67,8 @@ export function WaterfallPlot({
   onCaptureSelect,
   captureRange,
   totalCaptures,
+  colorLegendWidth,
+  indexLegendWidth,
 }: WaterfallPlotProps) {
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -80,13 +79,10 @@ export function WaterfallPlot({
   const pixelRatioRef = useRef(1);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const labelWidth = 75;
-  const margin = {
-    top: 5,
-    left: 5,
-    bottom: 5,
-    right: 75,
-  };
+  // Proportion of legend width that is used for the label vs the gradient bar
+  const colorbarProportion = 0.2;
+  const labelWidth = colorLegendWidth * (1 - colorbarProportion);
+  const margin = { top: 5, bottom: 5 };
 
   // Update canvas sizes on mount
   useEffect(() => {
@@ -143,7 +139,7 @@ export function WaterfallPlot({
 
     context.save();
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.translate(labelWidth + margin.left, margin.top);
+    context.translate(colorLegendWidth, margin.top);
 
     const rowFromBottom = allData.length - 1 - boxIndex;
     const boxY = Math.floor(rowFromBottom * rectHeight);
@@ -221,9 +217,9 @@ export function WaterfallPlot({
     // Create white background for indices
     context.fillStyle = 'white';
     context.fillRect(
-      canvasWidth / pixelRatio - margin.right,
+      canvasWidth / pixelRatio - indexLegendWidth,
       0,
-      margin.right,
+      indexLegendWidth,
       allData.length * rectHeight + margin.top + margin.bottom,
     );
 
@@ -237,7 +233,7 @@ export function WaterfallPlot({
         const displayedIndex = i + 1;
         const row = captureRange.endIndex - i;
         const y = margin.top + row * rectHeight;
-        const x = canvasWidth / pixelRatio - margin.right + 5;
+        const x = canvasWidth / pixelRatio - indexLegendWidth + 5;
 
         // Determine if this index should be highlighted
         const isHovered = hoveredIndex !== null && i === hoveredIndex;
@@ -269,7 +265,7 @@ export function WaterfallPlot({
 
       // Calculate available space for plotting
       const plotWidth =
-        canvas.width / pixelRatio - labelWidth - margin.left - margin.right;
+        canvas.width / pixelRatio - colorLegendWidth - indexLegendWidth;
       const plotHeight =
         canvas.height / pixelRatio - margin.top - margin.bottom;
 
@@ -376,8 +372,8 @@ export function WaterfallPlot({
         context.fillRect(0, margin.top, labelWidth, plotHeight);
 
         const gradientHeight = plotHeight - margin.top - margin.bottom;
-        const barWidth = 15;
-        const barX = 5;
+        const barWidth = colorLegendWidth * colorbarProportion;
+        const barX = 0;
         const barY = margin.top;
         const labelX = barX + barWidth + 8;
         const totalRange =
@@ -425,7 +421,7 @@ export function WaterfallPlot({
 
           // Apply the correct transform for the main plot
           context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-          context.translate(labelWidth + margin.left, margin.top);
+          context.translate(colorLegendWidth, margin.top);
 
           // Draw all data points in reverse order
           allData.forEach((row, rowIndex) => {
@@ -548,6 +544,16 @@ export function WaterfallPlot({
       }
     }
   }, [hoveredIndex, currentCaptureIndex, scan.allData, captureRange]);
+
+  const indicatorContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: `${SCROLL_INDICATOR_SIZE + 5}px`,
+    marginLeft: colorLegendWidth,
+    marginRight: indexLegendWidth,
+  };
 
   return (
     <div

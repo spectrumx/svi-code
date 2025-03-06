@@ -2,14 +2,39 @@
  * Types for waterfall data and visualization.
  */
 
-import { ChartDataSeriesOptions, ChartOptions } from 'canvasjs';
+import {
+  ChartDataSeriesOptions,
+  ChartOptions,
+  ChartAxisXOptions,
+  ChartAxisYOptions,
+} from 'canvasjs';
 
 export interface Data extends ChartDataSeriesOptions {
+  // Custom prop
   _id?: string;
 }
 
-export interface Chart extends Omit<ChartOptions, 'data'> {
+interface AxisXOptions extends ChartAxisXOptions {
+  // Props in CanvasJS that are missing in the
+  // DefinitelyTyped type definition
+  titlePadding?: number;
+}
+
+// Omit title prop because title messes up the plot left alignment
+interface AxisYOptions extends Omit<ChartAxisYOptions, 'title'> {
+  // Props in CanvasJS that are missing in the
+  // DefinitelyTyped type definition
+  labelPlacement?: 'inside' | 'outside';
+  labelPadding?: number;
+  // Custom props
+  absoluteMaximum?: number;
+  absoluteMinimum?: number;
+}
+
+export interface Chart extends Omit<ChartOptions, 'data' | 'axisY' | 'axisX'> {
   data: Data[];
+  axisY: AxisYOptions;
+  axisX: AxisXOptions;
   key: number;
 }
 

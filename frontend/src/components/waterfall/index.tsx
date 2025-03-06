@@ -57,14 +57,19 @@ const initialDisplay: Display = {
   maxHoldValues: {},
 };
 
+// Desired margins for both periodogram and waterfall plots
+const PLOTS_LEFT_MARGIN = 85;
+const PLOTS_RIGHT_MARGIN = 30;
+// Approximate CanvasJS built-in margins we need to adjust for
+const CANVASJS_LEFT_MARGIN = 5;
+const CANVASJS_RIGHT_MARGIN = 18;
+
 const initialChart: Chart = {
   theme: 'light2',
   animationEnabled: false,
   zoomEnabled: true,
   zoomType: 'xy',
-  title: {
-    text: '',
-  },
+  title: {},
   exportEnabled: true,
   data: [
     {
@@ -77,15 +82,26 @@ const initialChart: Chart = {
   ],
   axisX: {
     title: '-',
+    titlePadding: 15,
+    labelFontWeight: 'bold',
+    labelAngle: 90,
   },
   axisY: {
     interval: 10,
     includeZero: false,
     viewportMinimum: -100,
     viewportMaximum: -40,
-    title: 'dBm per bin',
-    // absoluteMinimum: undefined as number | undefined,
-    // absoluteMaximum: undefined as number | undefined,
+    tickLength: 0,
+    labelPlacement: 'inside',
+    labelBackgroundColor: 'white',
+    labelFormatter: (e) => {
+      // Replace minus sign with longer dash symbol for better readability
+      return e.value.toString().replace('-', '\u{2012}');
+    },
+    labelFontWeight: 'bold',
+    labelPadding: 0,
+    gridColor: '#EEEEEE',
+    margin: PLOTS_LEFT_MARGIN - CANVASJS_LEFT_MARGIN,
   },
   key: 0,
 };
@@ -107,7 +123,6 @@ const initialScan: ScanState = {
 };
 
 export const WATERFALL_MAX_ROWS = 80;
-const LEFT_PLOT_MARGIN = 20;
 
 interface WaterfallVisualizationProps {
   data: RadioHoundCapture[];
@@ -411,6 +426,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpChart.data[nextIndex].toolTipContent = 'Median : {x}, {y}';
     }
 
+    // Hide legend if there is only one data series
+    if (tmpChart.data.length === 1) {
+      tmpChart.data[0].showInLegend = false;
+    }
+
     // Ensure axisY exists and isn't an array.
     // IMPORTANT: This is what allows us to assert that axisY exists in the
     // following code with the ! operator.
@@ -458,7 +478,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     if (!_.isEqual(chart, tmpChart)) {
       tmpChart.key = Math.random();
-      console.log('tmpChart', tmpChart);
       setChart(tmpChart);
       setDisplayedCaptureIndex(settings.captureIndex);
     }
@@ -654,7 +673,14 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         Capture {displayedCaptureIndex + 1} (
         {data[displayedCaptureIndex].timestamp} UTC)
       </h5>
-      <Periodogram chart={chart} />
+      <Periodogram
+        chartOptions={chart}
+        chartContainerStyle={{
+          paddingTop: 10,
+          paddingRight: PLOTS_RIGHT_MARGIN - CANVASJS_RIGHT_MARGIN,
+        }}
+        yAxisTitle="dBm per bin"
+      />
       <WaterfallPlot
         scan={scan}
         display={display}
@@ -665,6 +691,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         onCaptureSelect={handleCaptureSelect}
         captureRange={waterfallRange}
         totalCaptures={data.length}
+        colorLegendWidth={PLOTS_LEFT_MARGIN}
+        indexLegendWidth={PLOTS_RIGHT_MARGIN}
       />
     </div>
   );
