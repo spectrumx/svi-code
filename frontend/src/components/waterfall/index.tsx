@@ -74,7 +74,7 @@ const initialChart: Chart = {
       name: 'template',
       showInLegend: false,
     },
-  ] as Data[],
+  ],
   axisX: {
     title: '-',
   },
@@ -84,8 +84,8 @@ const initialChart: Chart = {
     viewportMinimum: -100,
     viewportMaximum: -40,
     title: 'dBm per bin',
-    absoluteMinimum: undefined as number | undefined,
-    absoluteMaximum: undefined as number | undefined,
+    // absoluteMinimum: undefined as number | undefined,
+    // absoluteMaximum: undefined as number | undefined,
   },
   key: 0,
 };
@@ -107,6 +107,7 @@ const initialScan: ScanState = {
 };
 
 export const WATERFALL_MAX_ROWS = 80;
+const LEFT_PLOT_MARGIN = 20;
 
 interface WaterfallVisualizationProps {
   data: RadioHoundCapture[];
@@ -203,11 +204,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         console.error('Invalid data, not processing', input['data']);
         return;
       }
-      // console.log("data before decoding: ", input['data']);
-      // console.log("bytestring", String.fromCharCode.apply(input['data']))
       dataArray = binaryStringToFloatArray(input['data'], input['type']);
       arrayLength = dataArray?.length;
-      // console.log("Decoding B64 data to:",dataArray);
     } else {
       dataArray = input.data;
     }
@@ -249,7 +247,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       (display.maxHoldValues[input.mac_address] === undefined ||
         dataArray?.length !== display.maxHoldValues[input.mac_address].length)
     ) {
-      // console.log('resetting', dataArray.length, scan_display.maxHoldValues[input.mac_address].length)
       tmpDisplay.maxHoldValues[input.mac_address] = [];
     }
 
@@ -264,13 +261,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
         if (yValue) {
           xValue = (fMin + i * freqStep) / 1000000;
-          //console.log("xvalue:",xValue,"yValue:",yValue);
           pointArr.push({ x: xValue, y: yValue });
           // if (yValue < minValue) { minValue = yValue; }
           // if (yValue > maxValue) { maxValue = yValue; }
 
           if (display.max_hold) {
-            // console.log("comparing", yValue,tmp_display.maxHoldValues[input.mac_address][i], tmp_display.maxHoldValues[input.mac_address].length)
             if (tmpDisplay.maxHoldValues[input.mac_address].length <= i) {
               tmpDisplay.maxHoldValues[input.mac_address].push({
                 x: xValue,
@@ -328,13 +323,21 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       toolTipContent: input.short_name + ': {x}, {y}',
       _id: input.mac_address,
     };
-    tmpChart.axisX.title =
+
+    // Ensure axisX exists and isn't an array.
+    // IMPORTANT: This is what allows us to assert that axisX exists in the
+    // following code with the ! operator.
+    if (!('axisX' in tmpChart) || Array.isArray(tmpChart.axisX)) {
+      tmpChart.axisX = {};
+    }
+
+    tmpChart.axisX!.title =
       'Frequency ' + (centerFreq ? formatHertz(centerFreq) : '');
     if (input.requested) {
-      tmpChart.axisX.title += input.requested.rbw
+      tmpChart.axisX!.title += input.requested.rbw
         ? ', RBW ' + formatHertz(input.requested.rbw)
         : '';
-      tmpChart.axisX.title += input.requested.span
+      tmpChart.axisX!.title += input.requested.span
         ? ', Span ' + formatHertz(input.requested.span)
         : '';
     }
@@ -350,7 +353,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     // }
 
     if (_.isEqual(currentApplication, ['WATERFALL'])) {
-      tmpChart.axisX.title = '';
+      tmpChart.axisX!.title = '';
       tmpChart.data[nextIndex].showInLegend = false;
       tmpChart.data[nextIndex].name = input.short_name;
     }
@@ -408,46 +411,54 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpChart.data[nextIndex].toolTipContent = 'Median : {x}, {y}';
     }
 
+    // Ensure axisY exists and isn't an array.
+    // IMPORTANT: This is what allows us to assert that axisY exists in the
+    // following code with the ! operator.
+    if (!('axisY' in tmpChart) || Array.isArray(tmpChart.axisY)) {
+      tmpChart.axisY = {};
+    }
+
     // Determine viewing area based off min/max
     if (
       maxValue &&
-      (tmpChart.axisY.viewportMaximum === undefined ||
-        maxValue > tmpChart.axisY.viewportMaximum)
+      (tmpChart.axisY!.viewportMaximum === undefined ||
+        maxValue > tmpChart.axisY!.viewportMaximum)
     ) {
-      tmpChart.axisY.viewportMaximum = Number(maxValue) + 10;
+      tmpChart.axisY!.viewportMaximum = Number(maxValue) + 10;
       //console.log("resetting maxValue", maxValue);
     }
     if (
       minValue &&
-      (tmpChart.axisY.viewportMinimum === undefined ||
-        minValue < tmpChart.axisY.viewportMinimum)
+      (tmpChart.axisY!.viewportMinimum === undefined ||
+        minValue < tmpChart.axisY!.viewportMinimum)
       // || minValue * 1.1 < tmpChart.axisY.viewportMinimum
     ) {
-      tmpChart.axisY.viewportMinimum = Number(minValue) - 10;
+      tmpChart.axisY!.viewportMinimum = Number(minValue) - 10;
       //console.log("resetting minValue", minValue);
     }
 
     if (display.ref_level !== undefined) {
-      tmpChart.axisY.viewportMaximum = display.ref_level;
+      tmpChart.axisY!.viewportMaximum = display.ref_level;
     }
     if (display.ref_range !== undefined) {
-      tmpChart.axisY.viewportMinimum =
+      tmpChart.axisY!.viewportMinimum =
         Number(display.ref_level) - display.ref_range;
     }
     if (display.ref_interval !== undefined) {
-      tmpChart.axisY.interval = display.ref_interval;
+      tmpChart.axisY!.interval = display.ref_interval;
     }
 
     if (currentApplication.includes('PERIODOGRAM')) {
-      tmpChart.axisX.minimum = fMin / 1e6;
-      tmpChart.axisX.maximum = fMax / 1e6;
+      tmpChart.axisX!.minimum = fMin / 1e6;
+      tmpChart.axisX!.maximum = fMax / 1e6;
     } else {
-      delete tmpChart.axisX.minimum;
-      delete tmpChart.axisX.maximum;
+      delete tmpChart.axisX!.minimum;
+      delete tmpChart.axisX!.maximum;
     }
 
     if (!_.isEqual(chart, tmpChart)) {
       tmpChart.key = Math.random();
+      console.log('tmpChart', tmpChart);
       setChart(tmpChart);
       setDisplayedCaptureIndex(settings.captureIndex);
     }
@@ -638,14 +649,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   };
 
   return (
-    <>
+    <div>
       <h5>
         Capture {displayedCaptureIndex + 1} (
         {data[displayedCaptureIndex].timestamp} UTC)
       </h5>
       <Periodogram chart={chart} />
-      <br />
-      <br />
       <WaterfallPlot
         scan={scan}
         display={display}
@@ -657,7 +666,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         captureRange={waterfallRange}
         totalCaptures={data.length}
       />
-    </>
+    </div>
   );
 };
 

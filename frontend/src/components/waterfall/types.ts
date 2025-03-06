@@ -2,60 +2,14 @@
  * Types for waterfall data and visualization.
  */
 
-export type DataPoint = {
-  x: number;
-  y?: number;
-  label?: string;
-};
+import { ChartDataSeriesOptions, ChartOptions } from 'canvasjs';
 
-export type Data = {
+export interface Data extends ChartDataSeriesOptions {
   _id?: string;
-  type?: string;
-  dataPoints?: DataPoint[];
-  name?: string;
-  showInLegend?: boolean;
-  visible?: boolean;
-  toolTipContent?: string;
-  raw?: number;
-  // location?: google.maps.LatLng;
-  location?: {
-    lat: number;
-    lng: number;
-  };
-  weight?: number;
-};
+}
 
-export interface Chart {
-  theme: string;
-  animationEnabled: boolean;
-  zoomEnabled: boolean;
-  zoomType: string;
-  title: {
-    text: string;
-  };
-  exportEnabled: boolean;
+export interface Chart extends Omit<ChartOptions, 'data'> {
   data: Data[];
-  axisX: {
-    title: string;
-    minimum?: number;
-    maximum?: number;
-    suffix?: string;
-    crosshair?: {
-      enabled: boolean;
-    };
-    interval?: number;
-  };
-  axisY: {
-    interval: number;
-    includeZero: boolean;
-    viewportMinimum?: number;
-    viewportMaximum?: number;
-    title: string;
-    absoluteMinimum: number | undefined;
-    absoluteMaximum: number | undefined;
-    minimum?: number;
-    maximum?: number;
-  };
   key: number;
 }
 
@@ -102,6 +56,12 @@ export interface ScanOptionsType extends ScanOptionsCore {
     [K in keyof ScanOptionsCore]?: unknown;
   };
 }
+
+export type DataPoint = {
+  x: number;
+  y?: number;
+  label?: string;
+};
 
 export interface Display {
   resetScale: boolean;

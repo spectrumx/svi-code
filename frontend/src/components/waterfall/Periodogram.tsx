@@ -1,12 +1,11 @@
 // @ts-ignore
 import CanvasJSReact from '@canvasjs/react-charts';
-
-import { Chart } from './types';
+import { ChartOptions } from 'canvasjs';
 
 const { CanvasJSChart } = CanvasJSReact;
 
 interface PeriodogramProps {
-  chart: Chart;
+  chart: ChartOptions;
 }
 
 function Periodogram({ chart }: PeriodogramProps) {
