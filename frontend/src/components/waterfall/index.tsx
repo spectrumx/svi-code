@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
@@ -78,6 +78,7 @@ const initialChart: Chart = {
     },
   ],
   axisX2: {
+    interval: 2,
     title: '-',
     titlePadding: 15,
     titleFontSize: 16,
@@ -143,6 +144,52 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     endIndex: 0,
   });
 
+  // Process all captures once and store the results
+  const processedData = useMemo(() => {
+    return data.map((capture) => {
+      let floatArray: FloatArray | number[] | undefined;
+
+      if (typeof capture.data === 'string') {
+        if (capture.data.slice(0, 8) === 'AAAAAAAA') {
+          return { floatArray: undefined, dbValues: undefined };
+        }
+        floatArray = binaryStringToFloatArray(capture.data, capture.type);
+      } else {
+        floatArray = capture.data;
+      }
+
+      if (!floatArray) {
+        return { floatArray: undefined, dbValues: undefined };
+      }
+
+      const dbValues = floatArray.map((i) =>
+        Math.round(10 * Math.log10(i * 1000)),
+      ) as FloatArray | number[];
+
+      return { floatArray, dbValues };
+    });
+  }, [data]);
+
+  const globalYAxisRange = useMemo(() => {
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+
+    processedData.forEach(({ dbValues }) => {
+      if (!dbValues) return;
+
+      const minValue = _.min(dbValues);
+      const maxValue = _.max(dbValues);
+
+      if (minValue !== undefined) globalMin = Math.min(globalMin, minValue);
+      if (maxValue !== undefined) globalMax = Math.max(globalMax, maxValue);
+    });
+
+    return {
+      min: globalMin !== Infinity ? globalMin : undefined,
+      max: globalMax !== -Infinity ? globalMax : undefined,
+    };
+  }, [processedData]);
+
   const [scan, setScan] = useState<ScanState>(initialScan);
   const [display, setDisplay] = useState<Display>(initialDisplay);
   const [chart, setChart] = useState<Chart>(initialChart);
@@ -185,7 +232,10 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   /**
    * Processes a single capture for the periodogram display
    */
-  const processPeriodogramData = (input: RadioHoundCapture) => {
+  const processPeriodogramData = (
+    input: RadioHoundCapture,
+    processedValues: (typeof processedData)[number],
+  ) => {
     let dataArray: FloatArray | number[] | undefined;
     let arrayLength: number | undefined = Number(input.metadata?.xcount);
     const pointArr: DataPoint[] = [];
@@ -195,8 +245,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       fMax: number,
       freqStep: number,
       centerFreq: number | undefined;
-    let minValue: number | undefined = 1000000;
-    let maxValue: number | undefined = -1000000;
     let nextIndex: number;
     const minArray: DataPoint[] = [];
     let m4sMin: FloatArray | undefined;
@@ -207,22 +255,10 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const medianArray: DataPoint[] = [];
     let m4sMedian: FloatArray | undefined;
 
-    // Check for Base64 encoding and decode it
-    if (
-      typeof input.data === 'string'
-      // && input.metadata?.data_type === 'periodogram'
-    ) {
-      // Null data can get base64 encoded and sent along which appears as all A's
-      // Check start of string for A's and skip processing.
-      if (input.data.slice(0, 8) === 'AAAAAAAA') {
-        console.error('Invalid data, not processing', input['data']);
-        return;
-      }
-      dataArray = binaryStringToFloatArray(input['data'], input['type']);
-      arrayLength = dataArray?.length;
-    } else {
-      dataArray = input.data;
-    }
+    // Use pre-processed data
+    dataArray = processedValues.floatArray;
+    const yValues = processedValues.dbValues;
+    arrayLength = dataArray?.length;
 
     if (input.metadata?.xstart == null) {
       // OLD
@@ -250,12 +286,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     const tmpDisplay = _.cloneDeep(display);
 
-    const yValues = dataArray?.map((i) =>
-      Math.round(10 * Math.log10(i * 1000)),
-    );
-    minValue = yValues ? _.min(yValues) : undefined;
-    maxValue = yValues ? _.max(yValues) : undefined;
-
     if (
       input.mac_address &&
       (display.maxHoldValues[input.mac_address] === undefined ||
@@ -264,20 +294,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpDisplay.maxHoldValues[input.mac_address] = [];
     }
 
-    if (dataArray && arrayLength) {
+    if (dataArray && arrayLength && yValues) {
       for (let i = 0; i < arrayLength; i++) {
-        if (dataArray[i] > 0) {
-          // yValue = Math.round(10 * ((Math.log(dataArray[i] * 1000)) / Math.log(10)));
-          yValue = yValues?.[i];
-        } else {
-          yValue = dataArray[i];
-        }
-
-        if (yValue) {
+        yValue = yValues[i];
+        if (yValue !== undefined) {
           xValue = (fMin + i * freqStep) / 1000000;
           pointArr.push({ x: xValue, y: yValue });
-          // if (yValue < minValue) { minValue = yValue; }
-          // if (yValue > maxValue) { maxValue = yValue; }
 
           if (display.max_hold) {
             if (tmpDisplay.maxHoldValues[input.mac_address].length <= i) {
@@ -290,7 +312,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
                 tmpDisplay.maxHoldValues[input.mac_address][i].y;
 
               if (maxHoldValuesY && yValue > maxHoldValuesY) {
-                //compare y value
                 tmpDisplay.maxHoldValues[input.mac_address][i] = {
                   x: xValue,
                   y: yValue,
@@ -439,12 +460,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpChart.axisY = {};
     }
 
-    // Determine viewing area based off min/max
-    if (maxValue) {
-      tmpChart.axisY!.viewportMaximum = maxValue + 10;
+    // Determine viewing area based off global min/max
+    if (globalYAxisRange.max !== undefined) {
+      tmpChart.axisY!.viewportMaximum = globalYAxisRange.max + 10;
     }
-    if (minValue) {
-      tmpChart.axisY!.viewportMinimum = minValue - 10;
+    if (globalYAxisRange.min !== undefined) {
+      tmpChart.axisY!.viewportMinimum = globalYAxisRange.min - 10;
     }
 
     if (display.ref_level !== undefined) {
@@ -476,44 +497,33 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   /**
    * Processes multiple captures for the waterfall display
    */
-  const processWaterfallData = (captures: RadioHoundCapture[]) => {
-    const processedData: number[][] = [];
+  const processWaterfallData = (
+    captures: RadioHoundCapture[],
+    processedValues: typeof processedData,
+  ) => {
+    const processedWaterfallData: number[][] = [];
     let globalMinValue = 100000;
     let globalMaxValue = -100000;
     let xMin = Infinity;
     let xMax = -Infinity;
 
-    captures.forEach((capture) => {
-      let dataArray: FloatArray | number[] | undefined;
-      // const arrayLength = Number(capture.metadata?.xcount);
+    captures.forEach((capture, index) => {
+      const processedCapture = processedValues[index];
+      const yValues = processedCapture.dbValues;
 
-      if (typeof capture.data === 'string') {
-        if (capture.data.slice(0, 8) === 'AAAAAAAA') {
-          console.error('Invalid data, skipping capture');
-          return;
-        }
-        dataArray = binaryStringToFloatArray(capture.data, capture.type);
-      } else {
-        dataArray = capture.data;
-      }
-
-      if (!dataArray) return;
-
-      // Convert to dB values
-      // const intArray: number[] = [];
-      const yValues = dataArray.map((i) =>
-        Math.round(10 * Math.log10(i * 1000)),
-      );
+      if (!yValues) return;
 
       // Update global min/max
       const minValue = _.min(yValues);
       const maxValue = _.max(yValues);
-      globalMinValue = minValue
-        ? Math.min(globalMinValue, minValue)
-        : globalMinValue;
-      globalMaxValue = maxValue
-        ? Math.max(globalMaxValue, maxValue)
-        : globalMaxValue;
+      globalMinValue =
+        minValue !== undefined
+          ? Math.min(globalMinValue, minValue)
+          : globalMinValue;
+      globalMaxValue =
+        maxValue !== undefined
+          ? Math.max(globalMaxValue, maxValue)
+          : globalMaxValue;
 
       // Update x range
       let currentXMin = Infinity;
@@ -529,7 +539,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       xMax = Math.max(xMax, currentXMax);
 
       // Store processed values
-      processedData.push(Array.from(yValues));
+      processedWaterfallData.push(Array.from(yValues));
     });
 
     setDisplay((prevDisplay) => ({
@@ -540,7 +550,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     // Update waterfall state
     const newWaterfall: WaterfallType = {
-      allData: processedData,
+      allData: processedWaterfallData,
       xMin: xMin / 1e6,
       xMax: xMax / 1e6,
       yMin: globalMinValue,
@@ -554,8 +564,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
   useEffect(() => {
     // Process single capture for periodogram
-    processPeriodogramData(data[settings.captureIndex]);
-  }, [data, settings.captureIndex]);
+    processPeriodogramData(
+      data[settings.captureIndex],
+      processedData[settings.captureIndex],
+    );
+  }, [data, processedData, settings.captureIndex]);
 
   useEffect(() => {
     const pageSize = WATERFALL_MAX_ROWS;
@@ -579,11 +592,15 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         endIndex !== waterfallRange.endIndex
       ) {
         const relevantCaptures = data.slice(startIndex, endIndex);
-        processWaterfallData(relevantCaptures);
+        const relevantProcessedValues = processedData.slice(
+          startIndex,
+          endIndex,
+        );
+        processWaterfallData(relevantCaptures, relevantProcessedValues);
         setWaterfallRange({ startIndex, endIndex });
       }
     }
-  }, [data, settings.captureIndex, waterfallRange]);
+  }, [data, processedData, settings.captureIndex, waterfallRange]);
 
   // Handle realtime playback
   useEffect(() => {
