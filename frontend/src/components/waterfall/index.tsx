@@ -62,15 +62,12 @@ const PLOTS_LEFT_MARGIN = 85;
 const PLOTS_RIGHT_MARGIN = 30;
 // Approximate CanvasJS built-in margins we need to adjust for
 const CANVASJS_LEFT_MARGIN = 5;
-const CANVASJS_RIGHT_MARGIN = 18;
+const CANVASJS_RIGHT_MARGIN = 10;
 
 const initialChart: Chart = {
   theme: 'light2',
   animationEnabled: false,
-  zoomEnabled: true,
-  zoomType: 'xy',
   title: {},
-  exportEnabled: true,
   data: [
     {
       _id: undefined as string | undefined,
@@ -80,14 +77,16 @@ const initialChart: Chart = {
       showInLegend: false,
     },
   ],
-  axisX: {
+  axisX2: {
     title: '-',
     titlePadding: 15,
+    titleFontSize: 16,
+    titleFontWeight: 'bold',
     labelFontWeight: 'bold',
     labelAngle: 90,
   },
   axisY: {
-    interval: 10,
+    interval: 20,
     includeZero: false,
     viewportMinimum: -100,
     viewportMaximum: -40,
@@ -329,6 +328,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     tmpChart.data[nextIndex] = {
       dataPoints: pointArr,
       type: 'line',
+      axisXType: 'secondary',
       showInLegend: true,
       name:
         input.short_name +
@@ -342,20 +342,21 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     // Ensure axisX exists and isn't an array.
     // IMPORTANT: This is what allows us to assert that axisX exists in the
     // following code with the ! operator.
-    if (!('axisX' in tmpChart) || Array.isArray(tmpChart.axisX)) {
-      tmpChart.axisX = {};
+    if (!('axisX2' in tmpChart) || Array.isArray(tmpChart.axisX2)) {
+      tmpChart.axisX2 = {};
     }
 
-    tmpChart.axisX!.title =
+    tmpChart.axisX2!.title =
       'Frequency ' + (centerFreq ? formatHertz(centerFreq) : '');
     if (input.requested) {
-      tmpChart.axisX!.title += input.requested.rbw
+      tmpChart.axisX2!.title += input.requested.rbw
         ? ', RBW ' + formatHertz(input.requested.rbw)
         : '';
-      tmpChart.axisX!.title += input.requested.span
+      tmpChart.axisX2!.title += input.requested.span
         ? ', Span ' + formatHertz(input.requested.span)
         : '';
     }
+
     // if (CurrentApplication === DEFS.APPLICATION_PERIODOGRAM_MULTI)
     // {
     // }
@@ -368,7 +369,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     // }
 
     if (_.isEqual(currentApplication, ['WATERFALL'])) {
-      tmpChart.axisX!.title = '';
+      tmpChart.axisX2!.title = '';
       tmpChart.data[nextIndex].showInLegend = false;
       tmpChart.data[nextIndex].name = input.short_name;
     }
@@ -439,22 +440,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
 
     // Determine viewing area based off min/max
-    if (
-      maxValue &&
-      (tmpChart.axisY!.viewportMaximum === undefined ||
-        maxValue > tmpChart.axisY!.viewportMaximum)
-    ) {
-      tmpChart.axisY!.viewportMaximum = Number(maxValue) + 10;
-      //console.log("resetting maxValue", maxValue);
+    if (maxValue) {
+      tmpChart.axisY!.viewportMaximum = maxValue + 10;
     }
-    if (
-      minValue &&
-      (tmpChart.axisY!.viewportMinimum === undefined ||
-        minValue < tmpChart.axisY!.viewportMinimum)
-      // || minValue * 1.1 < tmpChart.axisY.viewportMinimum
-    ) {
-      tmpChart.axisY!.viewportMinimum = Number(minValue) - 10;
-      //console.log("resetting minValue", minValue);
+    if (minValue) {
+      tmpChart.axisY!.viewportMinimum = minValue - 10;
     }
 
     if (display.ref_level !== undefined) {
@@ -469,11 +459,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
 
     if (currentApplication.includes('PERIODOGRAM')) {
-      tmpChart.axisX!.minimum = fMin / 1e6;
-      tmpChart.axisX!.maximum = fMax / 1e6;
+      tmpChart.axisX2!.minimum = fMin / 1e6;
+      tmpChart.axisX2!.maximum = fMax / 1e6;
     } else {
-      delete tmpChart.axisX!.minimum;
-      delete tmpChart.axisX!.maximum;
+      delete tmpChart.axisX2!.minimum;
+      delete tmpChart.axisX2!.maximum;
     }
 
     if (!_.isEqual(chart, tmpChart)) {
@@ -676,11 +666,26 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       <Periodogram
         chartOptions={chart}
         chartContainerStyle={{
-          paddingTop: 10,
+          height: 200,
           paddingRight: PLOTS_RIGHT_MARGIN - CANVASJS_RIGHT_MARGIN,
+          paddingTop: 0,
+          paddingBottom: 0,
         }}
         yAxisTitle="dBm per bin"
       />
+      {/* Div to test left plot margins */}
+      {/* <div
+        style={{ width: PLOTS_LEFT_MARGIN, height: 30, backgroundColor: 'red' }}
+      /> */}
+      {/* Div to test right plot margins */}
+      {/* <div
+        style={{
+          width: PLOTS_RIGHT_MARGIN,
+          height: 30,
+          backgroundColor: 'blue',
+          float: 'right',
+        }}
+      /> */}
       <WaterfallPlot
         scan={scan}
         display={display}

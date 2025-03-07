@@ -31,10 +31,12 @@ interface AxisYOptions extends Omit<ChartAxisYOptions, 'title'> {
   absoluteMinimum?: number;
 }
 
-export interface Chart extends Omit<ChartOptions, 'data' | 'axisY' | 'axisX'> {
+export interface Chart
+  extends Omit<ChartOptions, 'data' | 'axisX' | 'axisX2' | 'axisY'> {
   data: Data[];
-  axisY: AxisYOptions;
-  axisX: AxisXOptions;
+  axisX?: AxisXOptions;
+  axisX2?: AxisXOptions;
+  axisY?: AxisYOptions;
   key: number;
 }
 
