@@ -1,5 +1,4 @@
-import { useMemo, useEffect } from 'react';
-import { Button, Table } from 'react-bootstrap';
+import { Table } from 'react-bootstrap';
 import _ from 'lodash';
 
 import { formatHertz } from './index';
@@ -24,26 +23,27 @@ interface ScanDetailsProps {
 }
 
 export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
-  const downloadUrl = useMemo(() => {
-    const blob = new Blob([JSON.stringify(capture, null, 4)], {
-      type: 'application/json',
-    });
-    return URL.createObjectURL(blob);
-  }, [capture]);
-  const fileName = useMemo(() => {
-    return `${capture.short_name} ${formatHertz(
-      capture.metadata?.fmin ?? 0,
-    )}-${formatHertz(capture.metadata?.fmax ?? 0)}.json`;
-  }, [capture]);
+  // const downloadUrl = useMemo(() => {
+  //   const blob = new Blob([JSON.stringify(capture, null, 4)], {
+  //     type: 'application/json',
+  //   });
+  //   return URL.createObjectURL(blob);
+  // }, [capture]);
+
+  // const fileName = useMemo(() => {
+  //   return `${capture.short_name} ${formatHertz(
+  //     capture.metadata?.fmin ?? 0,
+  //   )}-${formatHertz(capture.metadata?.fmax ?? 0)}.json`;
+  // }, [capture]);
 
   // Clean up the URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (downloadUrl) {
-        URL.revokeObjectURL(downloadUrl);
-      }
-    };
-  }, [downloadUrl]);
+  // useEffect(() => {
+  //   return () => {
+  //     if (downloadUrl) {
+  //       URL.revokeObjectURL(downloadUrl);
+  //     }
+  //   };
+  // }, [downloadUrl]);
 
   // Helper function to safely get nested values
   const getCaptureValue = <T,>(
@@ -54,7 +54,7 @@ export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
   };
 
   return (
-    <div className="px-5">
+    <div>
       <h5>Details</h5>
       <Table striped bordered size="sm">
         <tbody>
@@ -136,9 +136,9 @@ export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
           />
         </tbody>
       </Table>
-      <Button as="a" href={downloadUrl} download={fileName}>
+      {/* <Button as="a" href={downloadUrl} download={fileName}>
         Download Data
-      </Button>
+      </Button> */}
     </div>
   );
 }

@@ -159,18 +159,19 @@ export const WaterfallPage = () => {
           </div>
         </Col>
         <Col>
-          <WaterfallVisualization
-            data={waterfallData.map((data) => data.fileData)}
-            settings={settings}
-            setSettings={setSettings}
-          />
+          <Row>
+            <WaterfallVisualization
+              data={waterfallData.map((data) => data.fileData)}
+              settings={settings}
+              setSettings={setSettings}
+            />
+          </Row>
+          <Row>
+            <ScanDetailsTable
+              capture={waterfallData[settings.captureIndex].fileData}
+            />
+          </Row>
         </Col>
-      </Row>
-      <br />
-      <Row>
-        <ScanDetailsTable
-          capture={waterfallData[settings.captureIndex].fileData}
-        />
       </Row>
     </div>
   );

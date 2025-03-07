@@ -1,9 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { Routes, Route } from 'react-router';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
-import { useEffect } from 'react';
 
 import './App.css';
 import LandingPage from './pages/LandingPage';
@@ -24,11 +23,11 @@ function App() {
 
   return (
     <Container fluid className="min-vh-100 d-flex flex-column">
-      <Row className="px-0 vw-100">
+      <Row className="px-0">
         <Header />
       </Row>
-      <Row className="flex-grow-1 vw-100">
-        <main className="px-0 vw-100">
+      <Row className="flex-grow-1">
+        <main className="px-0">
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route
@@ -64,7 +63,7 @@ function App() {
           </Routes>
         </main>
       </Row>
-      <Row className="vw-100">
+      <Row>
         <Footer />
       </Row>
     </Container>
