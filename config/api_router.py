@@ -11,6 +11,5 @@ router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register("users", UserViewSet)
 router.register("files", FileViewSet)
 router.register("captures", CaptureViewSet)
-
 app_name = "api"
 urlpatterns = router.urls
