@@ -114,7 +114,7 @@ interface WaterfallVisualizationProps {
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
 }
 
-const WaterfallVisualization = ({
+const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   data,
   settings,
   setSettings,
@@ -565,17 +565,84 @@ const WaterfallVisualization = ({
     }
   }, [data, settings.captureIndex, waterfallRange]);
 
+  // Handle realtime playback
+  useEffect(() => {
+    if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
+
+    // Pre-compute timestamps for all captures
+    const timestamps = data.map((capture) =>
+      capture.timestamp ? Date.parse(capture.timestamp) : 0,
+    );
+
+    // Store the start time and reference points
+    const startTimestamp = timestamps[settings.captureIndex];
+    const startTime = Date.now();
+
+    const realtimeInterval = setInterval(() => {
+      const elapsedRealTime = Date.now() - startTime;
+
+      setSettings((prev) => {
+        let targetIndex = prev.captureIndex;
+        while (targetIndex < timestamps.length - 1) {
+          const nextTimestamp = timestamps[targetIndex + 1];
+          if (nextTimestamp - startTimestamp > elapsedRealTime) {
+            break;
+          }
+          targetIndex++;
+        }
+
+        if (targetIndex !== prev.captureIndex) {
+          return {
+            ...prev,
+            captureIndex: targetIndex,
+            isPlaying: targetIndex < data.length - 1,
+          };
+        }
+        return prev;
+      });
+    }, 20);
+
+    return () => clearInterval(realtimeInterval);
+  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
+
+  // Handle constant FPS playback
+  useEffect(() => {
+    if (!settings.isPlaying || settings.playbackSpeed === 'realtime') return;
+
+    // Calculate interval time based on playback speed
+    const speed = Number(settings.playbackSpeed.replace(' fps', ''));
+    if (isNaN(speed) || speed <= 0) return;
+
+    const intervalTime = 1000 / speed;
+    const playbackInterval = setInterval(() => {
+      setSettings((prev) => {
+        const nextIndex = prev.captureIndex + 1;
+        // Stop playback at the end
+        if (nextIndex >= data.length) {
+          return { ...prev, isPlaying: false };
+        }
+        return { ...prev, captureIndex: nextIndex };
+      });
+    }, intervalTime);
+
+    return () => clearInterval(playbackInterval);
+  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
+
   const handleCaptureSelect = (index: number) => {
     // Update the settings with the new capture index
     setSettings((prev) => ({
       ...prev,
       captureIndex: index,
+      isPlaying: false,
     }));
   };
 
   return (
     <>
-      <h5>Capture {displayedCaptureIndex + 1}</h5>
+      <h5>
+        Capture {displayedCaptureIndex + 1} (
+        {data[displayedCaptureIndex].timestamp} UTC)
+      </h5>
       <Periodogram chart={chart} />
       <br />
       <br />

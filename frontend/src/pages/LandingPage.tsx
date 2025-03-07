@@ -1,7 +1,12 @@
 import Card from 'react-bootstrap/Card';
 import { Link } from 'react-router';
 
+import { getLoginUrlWithRedirect } from '../apiClient';
+import { useAppContext } from '../utils/AppContext';
+
 const LandingPage = () => {
+  const { username } = useAppContext();
+
   return (
     <section className="hero">
       <div className="container">
@@ -23,7 +28,11 @@ const LandingPage = () => {
                 <Card.Text>Upload your own spectrum data to the SVI</Card.Text>
               </Card.Body>
               <Card.Footer>
-                <Link to={'mydata'} className="btn btn-primary px-4">
+                <Link
+                  to={username ? 'mydata' : getLoginUrlWithRedirect('/mydata')}
+                  reloadDocument={!username}
+                  className="btn btn-primary px-4"
+                >
                   Go to My Data
                 </Link>
               </Card.Footer>
@@ -34,7 +43,15 @@ const LandingPage = () => {
                 <Card.Text>Visualize recordings that you've uploaded</Card.Text>
               </Card.Body>
               <Card.Footer>
-                <Link to={'workspace'} className="btn btn-primary px-4">
+                <Link
+                  to={
+                    username
+                      ? 'workspace'
+                      : getLoginUrlWithRedirect('/workspace')
+                  }
+                  reloadDocument={!username}
+                  className="btn btn-primary px-4"
+                >
                   Go to Workspace
                 </Link>
               </Card.Footer>

@@ -27,8 +27,8 @@ log:
 
 tls:
   certificates:
-    - certFile: /etc/traefik/certs/public_key.crt
-      keyFile: /etc/traefik/certs/private_key.pem
+    - certFile: /etc/traefik/certs/server.crt
+      keyFile: /etc/traefik/certs/server.key
       stores:
         - default
   options:
@@ -41,8 +41,8 @@ tls:
     #   the browser's security warning if this is the case.
     default:
       defaultCertificate:
-        certFile: /etc/traefik/certs/public_key.crt
-        keyFile: /etc/traefik/certs/private_key.pem
+        certFile: /etc/traefik/certs/server.crt
+        keyFile: /etc/traefik/certs/server.key
 
 entryPoints:
   web:
@@ -64,67 +64,57 @@ entryPoints:
   flower:
     address: ':5555'
 
-certificatesResolvers:
-  letsencrypt:
-    # https://doc.traefik.io/traefik/https/acme/#lets-encrypt
-    acme:
-      email: 'dpettifo@nd.edu'
-      storage: /etc/traefik/acme/acme.json
-      # https://doc.traefik.io/traefik/https/acme/#httpchallenge
-      httpChallenge:
-        entryPoint: web
-
 http:
   routers:
     traefik-api:
       middlewares:
         - auth
-      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/dashboard`) )'
+      rule: 'Host(`svi-qa.crc.nd.edu`) && ( PathPrefix(`/dashboard`) )'
       service: api@internal
-      tls:
-        certResolver: letsencrypt
+      tls: {}
 
     web-secure-router:
-      rule: 'Host(`spectrumx.crc.nd.edu`)'
+      rule: 'Host(`svi-qa.crc.nd.edu`)'
       entryPoints:
         - web-secure
       service: frontend
       middlewares:
         - csrf
-      tls:
-        # https://doc.traefik.io/traefik/routing/routers/#certresolver
-        certResolver: letsencrypt
+      tls: {}
 
     api-secure-router:
-      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/service`) )'
+      rule: 'Host(`svi-qa.crc.nd.edu`) && ( PathPrefix(`/service`) )'
       entryPoints:
         - web-secure
       middlewares:
         - csrf
         - strip-prefix-service
       service: django
-      tls:
-        # https://doc.traefik.io/traefik/routing/routers/#certresolver
-        certResolver: letsencrypt
+      tls: {}
+
+    jupyter-secure-router:
+      rule: 'Host(`svi-qa.crc.nd.edu`) && ( PathPrefix(`/notebook`) )'
+      entryPoints:
+        - web-secure
+      middlewares:
+        - csrf
+      service: jupyter
+      tls: {}
 
     flower-secure-router:
-      rule: 'Host(`spectrumx.crc.nd.edu`) && ( PathPrefix(`/flower`) )'
+      rule: 'Host(`svi-qa.crc.nd.edu`) && ( PathPrefix(`/flower`) )'
       entryPoints:
         - flower
       service: flower
-      tls:
-        # https://doc.traefik.io/traefik/master/routing/routers/#certresolver
-        certResolver: letsencrypt
+      tls: {}
 
     web-media-router:
-      rule: 'Host(`spectrumx.crc.nd.edu`) && PathPrefix(`/media/`)'
+      rule: 'Host(`svi-qa.crc.nd.edu`) && PathPrefix(`/media/`)'
       entryPoints:
         - web-secure
       middlewares:
         - csrf
       service: django-media
-      tls:
-        certResolver: letsencrypt
 
   middlewares:
     csrf:
@@ -173,3 +163,8 @@ http:
       loadBalancer:
         servers:
           - url: http://whoami:2001
+
+    jupyter:
+      loadBalancer:
+        servers:
+          - url: http://jupyterhub:8000

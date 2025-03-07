@@ -15,6 +15,8 @@ interface WaterfallData {
 
 export interface WaterfallSettings {
   captureIndex: number;
+  isPlaying: boolean;
+  playbackSpeed: string;
 }
 
 export const WaterfallPage = () => {
@@ -22,6 +24,8 @@ export const WaterfallPage = () => {
   const [waterfallData, setWaterfallData] = useState<WaterfallData[]>([]);
   const [settings, setSettings] = useState<WaterfallSettings>({
     captureIndex: 0,
+    isPlaying: false,
+    playbackSpeed: '1 fps',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,11 +145,11 @@ export const WaterfallPage = () => {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container-wide">
       <h5>Waterfall</h5>
       <br />
       <Row>
-        <Col xs={3} style={{ maxWidth: 200 }}>
+        <Col xs={3} style={{ maxWidth: 250 }}>
           <div className="d-flex flex-column gap-3">
             <WaterfallControls
               settings={settings}

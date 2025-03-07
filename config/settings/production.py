@@ -11,7 +11,7 @@ from .base import env
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["spectrumx.crc.nd.edu"])
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["svi-qa.crc.nd.edu"])
 
 # DATABASES
 # ------------------------------------------------------------------------------
@@ -79,7 +79,7 @@ STORAGES = {
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
 DEFAULT_FROM_EMAIL = env(
     "DJANGO_DEFAULT_FROM_EMAIL",
-    default="SpectrumX Visualization Platform <noreply@spectrumx.crc.nd.edu>",
+    default="SpectrumX Visualization Platform <noreply@svi-qa.crc.nd.edu>",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
 SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
@@ -157,11 +157,12 @@ LOGGING = {
 # -------------------------------------------------------------------------------
 # Tools that generate code samples can use SERVERS to point to the correct domain
 SPECTACULAR_SETTINGS["SERVERS"] = [
-    {"url": "https://spectrumx.crc.nd.edu", "description": "Production server"},
+    {"url": "https://svi-qa.crc.nd.edu", "description": "Production server"},
 ]
 # Your stuff...
 # ------------------------------------------------------------------------------
 FORCE_SCRIPT_NAME = "/service"
+API_URL = "http://django:5000"
 
 WHITENOISE_STATIC_PREFIX = STATIC_URL
-STATIC_URL = "/service" + STATIC_URL
+STATIC_URL = FORCE_SCRIPT_NAME + STATIC_URL
