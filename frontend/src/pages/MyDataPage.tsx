@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Row, Col, Form } from 'react-bootstrap';
 
-
 import { useAppContext } from '../utils/AppContext';
 import { useSyncCaptures } from '../apiClient/fileService';
 import DatasetTable from '../components/CaptureTable';
@@ -35,17 +34,17 @@ const MyDataPage = () => {
       max_frequency: maxFrequency,
       start_time: startTime,
       end_time: endTime,
-      source: selectedSources.length > 0 ? selectedSources : undefined
-
+      source: selectedSources.length > 0 ? selectedSources : undefined,
     });
   };
 
   const handleSourceChange = (source: string) => {
     const typedSource = source as CaptureSource; // Cast to CaptureSource type
-    setSelectedSources((prevSources) =>
-      prevSources.includes(typedSource)
-        ? prevSources.filter((s) => s !== typedSource) // Remove if already selected
-        : [...prevSources, typedSource] // Add if not selected
+    setSelectedSources(
+      (prevSources) =>
+        prevSources.includes(typedSource)
+          ? prevSources.filter((s) => s !== typedSource) // Remove if already selected
+          : [...prevSources, typedSource], // Add if not selected
     );
   };
 
@@ -68,9 +67,9 @@ const MyDataPage = () => {
         </div>
       )}
 
-<Row className="mt-3 align-items-start">
+      <Row className="mt-3 align-items-start">
         {/* Left Side: Filters */}
-        <Col xs={3} style={{ minWidth: '250px'}}>
+        <Col xs={3} style={{ minWidth: '250px' }}>
           <div className="filter-box p-3 border rounded bg-white h-100">
             <h6>Filter by Frequency</h6>
             <Form.Group controlId="minFrequency">
@@ -136,22 +135,22 @@ const MyDataPage = () => {
 
         {/* Right Side: Captures Table */}
         <Col md={8}>
-        <div className="capture-table-container bg-white h-100">
-          {captures.length > 0 ? (
-            <DatasetTable captures={captures} />
-          ) : isLoading ? (
-          <div>
-            <p>Loading...</p>
-          </div>
-        ) : username ? (
-            <div>
-              <p>No captures found. Upload a capture to get started!</p>
-            </div>
-        ) : (
-          <div>
-            <p>Please log in to view your data.</p>
-          </div>
-          )}
+          <div className="capture-table-container bg-white h-100">
+            {captures.length > 0 ? (
+              <DatasetTable captures={captures} />
+            ) : isLoading ? (
+              <div>
+                <p>Loading...</p>
+              </div>
+            ) : username ? (
+              <div>
+                <p>No captures found. Upload a capture to get started!</p>
+              </div>
+            ) : (
+              <div>
+                <p>Please log in to view your data.</p>
+              </div>
+            )}
           </div>
         </Col>
       </Row>

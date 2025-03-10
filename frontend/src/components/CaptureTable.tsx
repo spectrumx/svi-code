@@ -64,7 +64,7 @@ const CaptureTable = ({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        marginTop: '-8px'
+        marginTop: '-8px',
       }}
     >
       <div
@@ -90,9 +90,14 @@ const CaptureTable = ({
         </span> */}
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1 }}> 
-   
-        <Table striped bordered hover responsive style={{ marginBottom: 0, marginTop: '2px' }}>
+      <div style={{ overflowY: 'auto', flex: 1 }}>
+        <Table
+          striped
+          bordered
+          hover
+          responsive
+          style={{ marginBottom: 0, marginTop: '2px' }}
+        >
           <thead>
             <tr>
               {onSelect && captures.length > 0 && (

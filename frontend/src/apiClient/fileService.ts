@@ -78,27 +78,34 @@ const CaptureSchema = zod.object({
 });
 export type Capture = zod.infer<typeof CaptureSchema>;
 
-export const getCaptures = async (
-  filters?: { min_frequency?: string; max_frequency?: string; start_time?: string; end_time?: string; source?: CaptureSource[] }
-): Promise<{ captures: Capture[]; sdsCount: number }> => {
+export const getCaptures = async (filters?: {
+  min_frequency?: string;
+  max_frequency?: string;
+  start_time?: string;
+  end_time?: string;
+  source?: CaptureSource[];
+}): Promise<{ captures: Capture[]; sdsCount: number }> => {
   try {
     const params = new URLSearchParams();
 
-    if (filters?.min_frequency) params.append('min_frequency', filters.min_frequency);
-    if (filters?.max_frequency) params.append('max_frequency', filters.max_frequency);
+    if (filters?.min_frequency)
+      params.append('min_frequency', filters.min_frequency);
+    if (filters?.max_frequency)
+      params.append('max_frequency', filters.max_frequency);
     if (filters?.start_time) params.append('start_time', filters.start_time);
     if (filters?.end_time) params.append('end_time', filters.end_time);
     if (filters?.source && filters.source.length > 0) {
       params.append('source', filters.source.join(','));
     }
 
+    console.log(filters?.start_time);
+    console.log(filters?.end_time);
+    console.log(filters?.source);
 
-    console.log(filters?.start_time)
-    console.log(filters?.end_time)
-    console.log(filters?.source)
-
-    const response = await apiClient.get(`/api/captures/list/?${params.toString()}`);
-    console.log(params.toString())
+    const response = await apiClient.get(
+      `/api/captures/list/?${params.toString()}`,
+    );
+    console.log(params.toString());
 
     return {
       captures: zod.array(CaptureSchema).parse(response.data.captures),
@@ -114,12 +121,18 @@ export const useSyncCaptures = () => {
   const { setCaptures, setSdsCount } = useAppContext();
 
   const syncCaptures = useCallback(
-    async (filters?: { min_frequency?: string; max_frequency?: string; start_time?: string; end_time?: string; source?: CaptureSource[] }) => {
+    async (filters?: {
+      min_frequency?: string;
+      max_frequency?: string;
+      start_time?: string;
+      end_time?: string;
+      source?: CaptureSource[];
+    }) => {
       const { captures, sdsCount } = await getCaptures(filters);
       setCaptures(captures);
       setSdsCount(sdsCount);
     },
-    [setCaptures, setSdsCount]
+    [setCaptures, setSdsCount],
   );
 
   return syncCaptures;
