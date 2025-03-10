@@ -70,13 +70,22 @@ const initialChart: Chart = {
   title: {},
   data: [
     {
+      // Dummy data series so we can manipulate axisX
       _id: undefined as string | undefined,
       type: 'line',
-      dataPoints: [{ x: 1, y: 0 }],
+      dataPoints: [{ x: undefined, y: undefined }],
       name: 'template',
       showInLegend: false,
     },
   ],
+  // Hide axisX and remove margin
+  axisX: {
+    tickLength: 0,
+    labelFontSize: 0,
+    labelPlacement: 'inside',
+    lineThickness: 0,
+    margin: 0,
+  },
   axisX2: {
     interval: 2,
     title: '-',
@@ -245,7 +254,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       fMax: number,
       freqStep: number,
       centerFreq: number | undefined;
-    let nextIndex: number;
     const minArray: DataPoint[] = [];
     let m4sMin: FloatArray | undefined;
     const maxArray: DataPoint[] = [];
@@ -331,10 +339,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
 
     const tmpChart = _.cloneDeep(chart);
+    let nextIndex = 0;
 
-    if (tmpChart.data === undefined || tmpChart.data[0].name === 'template') {
+    if (tmpChart.data === undefined) {
       tmpChart.data = [];
-      nextIndex = 0;
+    } else if (tmpChart.data[0].name === 'template') {
+      nextIndex = 1;
     } else {
       //Find index for this node
       nextIndex = tmpChart.data.findIndex(
@@ -448,9 +458,23 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpChart.data[nextIndex].toolTipContent = 'Median : {x}, {y}';
     }
 
-    // Hide legend if there is only one data series
-    if (tmpChart.data.length === 1) {
-      tmpChart.data[0].showInLegend = false;
+    // Hide legend if there is only one data series to show in the legend
+    let seriesWithLegendIndex = -1;
+    let showLegend = false;
+    for (let i = 0; i < tmpChart.data.length; i++) {
+      if (tmpChart.data[i].showInLegend) {
+        if (seriesWithLegendIndex === -1) {
+          // We've found the first series to show in the legend
+          seriesWithLegendIndex = i;
+        } else {
+          // We've found a second series to show in the legend
+          showLegend = true;
+          break;
+        }
+      }
+    }
+    if (seriesWithLegendIndex !== -1 && !showLegend) {
+      tmpChart.data[seriesWithLegendIndex].showInLegend = false;
     }
 
     // Ensure axisY exists and isn't an array.
@@ -485,6 +509,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     } else {
       delete tmpChart.axisX2!.minimum;
       delete tmpChart.axisX2!.maximum;
+    }
+
+    // Move dummy series to the end of the data array to maintain correct data
+    // series colors
+    if (tmpChart.data[0].name === 'template') {
+      tmpChart.data.push(tmpChart.data.shift()!);
     }
 
     if (!_.isEqual(chart, tmpChart)) {

@@ -18,6 +18,8 @@ interface AxisXOptions extends ChartAxisXOptions {
   // Props in CanvasJS that are missing in the
   // DefinitelyTyped type definition
   titlePadding?: number;
+  labelPlacement?: 'inside' | 'outside';
+  labelPadding?: number;
 }
 
 // Omit title prop because title messes up the plot left alignment
@@ -32,11 +34,12 @@ interface AxisYOptions extends Omit<ChartAxisYOptions, 'title'> {
 }
 
 export interface Chart
-  extends Omit<ChartOptions, 'data' | 'axisX' | 'axisX2' | 'axisY'> {
+  extends Omit<ChartOptions, 'data' | 'axisX' | 'axisX2' | 'axisY' | 'axisY2'> {
   data: Data[];
   axisX?: AxisXOptions;
   axisX2?: AxisXOptions;
   axisY?: AxisYOptions;
+  axisY2?: AxisYOptions;
   key: number;
 }
 

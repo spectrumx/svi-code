@@ -5,7 +5,7 @@ import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 import { ScanState, WaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
-const SCROLL_INDICATOR_SIZE = 20;
+const SCROLL_INDICATOR_SIZE = 15;
 const WATERFALL_HEIGHT = 500;
 
 const scrollIndicatorStyle: React.CSSProperties = {
@@ -556,12 +556,7 @@ export function WaterfallPlot({
   };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        margin: '10px 0',
-      }}
-    >
+    <div style={{ width: '100%' }}>
       <div style={indicatorContainerStyle}>
         {captureRange.endIndex < totalCaptures && (
           <div
