@@ -21,7 +21,6 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [sdsCount, setSdsCount] = useState(0);
 
-
   return (
     <AppContext.Provider
       value={{
@@ -32,7 +31,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
         captures,
         setCaptures,
         sdsCount,
-        setSdsCount
+        setSdsCount,
       }}
     >
       {children}

@@ -17,11 +17,17 @@ export interface CaptureTableProps {
   numHiddenCaptures?: number;
 }
 
+// Add a style object for table cells that might contain long text
 const textCellStyle = {
   maxWidth: '200px',
   wordBreak: 'break-word' as const,
   overflowWrap: 'break-word' as const,
 };
+
+/**
+ * Displays a table of captures with optional selection functionality
+ * Supports both single and multiple selection modes with "Select all" capability
+ */
 
 const CaptureTable = ({
   captures,
@@ -44,6 +50,7 @@ const CaptureTable = ({
     }
   };
 
+  // Helper function to handle "Select All"
   const handleSelectAll = () => {
     if (!onSelect) return;
 
@@ -64,7 +71,7 @@ const CaptureTable = ({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        marginTop: '-8px'
+        marginTop: '-8px',
       }}
     >
       <div
@@ -77,7 +84,7 @@ const CaptureTable = ({
         role="status"
         aria-live="polite"
       >
-        {/* <span>
+        <span>
           {totalCaptures !== undefined ? (
             <>
               Showing {captures.length} of {totalCaptures} captures
@@ -87,12 +94,17 @@ const CaptureTable = ({
             `${captures.length} captures`
           )}
           {selectedIds?.length ? ` • ${selectedIds.length} selected` : ''}
-        </span> */}
+        </span>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1 }}> 
-   
-        <Table striped bordered hover responsive style={{ marginBottom: 0, marginTop: '2px' }}>
+      <div style={{ overflowY: 'auto', flex: 1 }}>
+        <Table
+          striped
+          bordered
+          hover
+          responsive
+          style={{ marginBottom: 0, marginTop: '2px' }}
+        >
           <thead>
             <tr>
               {onSelect && captures.length > 0 && (
@@ -165,28 +177,43 @@ const CaptureTable = ({
                     }}
                   >
                     {onSelect && (
-                      <td className="text-center align-middle">
+                      <td
+                        className="text-center align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
-                          type="radio"
+                          type={
+                            selectionMode === 'multiple' ? 'checkbox' : 'radio'
+                          }
                           checked={isSelected}
-                          onChange={() => onSelect?.([capture.id])}
-                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => handleSelect(capture.id)}
                           aria-label={`Select capture ${capture.id}`}
                         />
                       </td>
                     )}
                     <td className="align-middle">{capture.id}</td>
-                    <td className="align-middle">{capture.name}</td>
-                    <td className="align-middle">
-                      {new Date(capture.timestamp).toLocaleDateString()}
+                    <td className="align-middle" style={textCellStyle}>
+                      {capture.name}
                     </td>
-                    <td className="align-middle">{capture.type}</td>
+                    <td className="align-middle">
+                      {capture.timestamp
+                        ? new Date(capture.timestamp)
+                            .toISOString()
+                            .replace('Z', ' UTC')
+                            .replace('T', ' ')
+                        : 'None'}
+                    </td>
+                    <td className="align-middle">
+                      {CAPTURE_TYPES[capture.type].name}
+                    </td>
                     <td className="align-middle">{capture.files.length}</td>
-                    <td className="align-middle">{capture.source}</td>
+                    <td className="align-middle">
+                      {CAPTURE_SOURCES[capture.source].name}
+                    </td>
                     {!onSelect && visualizationType ? (
                       <td className="align-middle text-center">
                         <Link
-                          to={`/visualization/${visualizationType?.name}/${capture.id}`}
+                          to={`/visualization/${visualizationType.name}?captures=${capture.id}`}
                           className="btn btn-primary btn-sm px-4"
                         >
                           Visualize
