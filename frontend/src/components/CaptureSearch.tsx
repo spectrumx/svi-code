@@ -268,8 +268,10 @@ export const CaptureSearch = ({
         >
           <CaptureTable
             captures={filteredCaptures}
-            selectedIds={selectedCaptureIds}
-            onSelect={setSelectedCaptureIds}
+            selectedId={selectedCaptureIds?.[0]}
+            onSelect={
+              setSelectedCaptureIds && ((id) => setSelectedCaptureIds([id]))
+            }
             totalCaptures={captures.length}
             numHiddenCaptures={numHiddenCaptures}
             {...tableProps}
