@@ -18,4 +18,4 @@ app_name = "api"
 urlpatterns = [
     *router.urls,
     path("captures/list/", capture_list, name="capture-list"),
-]
+]  # changed according to pre-commit recommendation

@@ -287,7 +287,7 @@ def get_local_captures(request) -> list:
 
 
 def format_local_capture(capture: dict) -> dict:
-    """Format a single local capture.
+    """Format a single local capture and return as dict.
 
     Args:
         capture: Raw capture data
@@ -316,6 +316,7 @@ def format_local_capture(capture: dict) -> dict:
 
 def filter_capture(capture: dict, filters: dict) -> bool:
     """Filter a single capture based on given criteria.
+
 
     Args:
         capture: The capture to check

@@ -19,7 +19,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [username, setUsername] = useState<string>();
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [captures, setCaptures] = useState<Capture[]>([]);
-  const [sdsCount, setSdsCount] = useState(0);
+  const [sdsCount, setSdsCount] = useState(0); //sdscount is not longer passed from backend
 
   return (
     <AppContext.Provider

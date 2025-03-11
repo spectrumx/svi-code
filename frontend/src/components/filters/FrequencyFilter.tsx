@@ -1,6 +1,8 @@
 import React from 'react';
 import { Form } from 'react-bootstrap';
 
+// currently used in myDataPage
+
 interface FrequencyFilterProps {
   minFrequency: string;
   maxFrequency: string;

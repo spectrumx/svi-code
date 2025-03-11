@@ -40,6 +40,7 @@ const MyDataPage = () => {
     );
   };
 
+  // filters- to select captures based on filters
   const applyFilters = () => {
     syncCaptures({
       min_frequency: minFrequency,

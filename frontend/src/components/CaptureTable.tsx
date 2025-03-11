@@ -213,7 +213,7 @@ const CaptureTable = ({
                     {!onSelect && visualizationType ? (
                       <td className="align-middle text-center">
                         <Link
-                          to={`/visualization/${visualizationType.name}?captures=${capture.id}`}
+                          to={`/visualization/${visualizationType.name}?captures=${capture.id}`} // corrected path to pass parameters correctly
                           className="btn btn-primary btn-sm px-4"
                         >
                           Visualize

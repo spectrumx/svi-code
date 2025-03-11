@@ -2,6 +2,8 @@ import React from 'react';
 import { Form } from 'react-bootstrap';
 import { CaptureSource, CAPTURE_SOURCES } from '../../apiClient/fileService';
 
+// currently used in myDataPage
+
 interface SourceFilterProps {
   selectedSources: CaptureSource[];
   onSourceChange: (source: CaptureSource) => void;
