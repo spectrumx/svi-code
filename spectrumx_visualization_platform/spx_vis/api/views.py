@@ -47,7 +47,14 @@ def capture_list(request: Request) -> Response:
         combined_capture_list = list(
             filter(
                 lambda capture: filter_capture(
-                    capture, min_freq, max_freq, start_time, end_time, source_filter
+                    capture,
+                    {
+                        "min_freq": min_freq,
+                        "max_freq": max_freq,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "source_filter": source_filter,
+                    },
                 ),
                 combined_capture_list,
             )
