@@ -117,8 +117,14 @@ class CaptureViewSet(viewsets.ModelViewSet):
             return Response(
                 serializer.data, status=status.HTTP_201_CREATED, headers=headers
             )
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
 
         headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
@@ -148,11 +154,25 @@ class CaptureViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Spectrogram generation is only supported for SigMF captures",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         width = request.data.get("width", 10)
         height = request.data.get("height", 10)
 
         try:
+            job = SigMFUtility.submit_spectrogram_job(
+                request.user, capture.files, width, height
+            )
+            return Response(
+                {"job_id": job.id, "status": "submitted"},
+                status=status.HTTP_201_CREATED,
+            )
             job = SigMFUtility.submit_spectrogram_job(
                 request.user, capture.files, width, height
             )
