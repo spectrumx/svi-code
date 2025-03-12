@@ -86,7 +86,7 @@ export const getCaptures = async (filters?: {
   start_time?: string;
   end_time?: string;
   source?: CaptureSource[];
-}): Promise<{ captures: Capture[]; sdsCount: number }> => {
+}): Promise<Capture[]> => {
   // sdscount not being used
   try {
     const params = new URLSearchParams();
@@ -105,10 +105,7 @@ export const getCaptures = async (filters?: {
       `/api/captures/list/?${params.toString()}`,
     );
     const captures = CapturesResponseSchema.parse(response.data);
-    return {
-      captures,
-      sdsCount: 0,
-    };
+    return captures;
   } catch (error) {
     console.error('Error fetching captures:', error);
     throw error;
@@ -116,7 +113,7 @@ export const getCaptures = async (filters?: {
 };
 
 export const useSyncCaptures = () => {
-  const { setCaptures, setSdsCount } = useAppContext();
+  const { setCaptures } = useAppContext();
 
   const syncCaptures = useCallback(
     async (filters?: {
@@ -126,11 +123,10 @@ export const useSyncCaptures = () => {
       end_time?: string;
       source?: CaptureSource[];
     }) => {
-      const { captures, sdsCount } = await getCaptures(filters);
+      const captures = await getCaptures(filters);
       setCaptures(captures);
-      setSdsCount(sdsCount);
     },
-    [setCaptures, setSdsCount],
+    [setCaptures],
   );
 
   return syncCaptures;

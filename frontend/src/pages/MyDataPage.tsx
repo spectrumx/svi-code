@@ -13,7 +13,7 @@ import FileUploadModal from '../components/FileUploadModal';
 
 const MyDataPage = () => {
   const context = useAppContext();
-  const { captures, username, sdsCount } = context;
+  const { captures, username } = context;
   const syncCaptures = useSyncCaptures();
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,8 +102,8 @@ const MyDataPage = () => {
             {captures.length > 0 ? (
               <DatasetTable
                 captures={captures}
-                totalCaptures={sdsCount + captures.length}
-                numHiddenCaptures={sdsCount + captures.length - captures.length}
+                totalCaptures={captures.length}
+                numHiddenCaptures={0}
               />
             ) : isLoading ? (
               <div className="p-3">

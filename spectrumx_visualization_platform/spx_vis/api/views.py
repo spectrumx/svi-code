@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from django.http import FileResponse
 from django.utils import timezone
@@ -14,6 +15,7 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from spectrumx.errors import FileError
+from spectrumx.models.captures import Capture as SDSCapture
 from spectrumx.models.captures import CaptureType
 
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
@@ -21,6 +23,9 @@ from spectrumx_visualization_platform.spx_vis.api.serializers import FileSeriali
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import File
+
+if TYPE_CHECKING:
+    from spectrumx_visualization_platform.users.models import User
 
 
 @api_view(["GET"])
@@ -226,9 +231,10 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
 
-def get_sds_captures(request) -> list:
+def get_sds_captures(request: Request):
     """Get SDS captures for the current user."""
-    sds_client = request.user.sds_client()
+    user: User = request.user
+    sds_client = user.sds_client()
     if sds_client:
         print("Successfully connected to SDS client")
     else:
@@ -243,7 +249,7 @@ def get_sds_captures(request) -> list:
     return [format_sds_capture(capture, request.user.id) for capture in sds_captures]
 
 
-def format_sds_capture(sds_capture: dict, user_id: int) -> dict:
+def format_sds_capture(sds_capture: SDSCapture, user_id: int):
     """Format a single SDS capture.
 
     Args:
@@ -253,20 +259,22 @@ def format_sds_capture(sds_capture: dict, user_id: int) -> dict:
     Returns:
         dict: Formatted capture data
     """
-    timestamp = sds_capture.get("timestamp", "")
-    scan_time = sds_capture.get("metadata", {}).get("scan_time")
+    capture_props = sds_capture.capture_props
+
+    timestamp = capture_props.get("timestamp", "")
+    scan_time = capture_props.get("scan_time")
+
     return {
-        "id": sds_capture.get("_id", sds_capture.get("id", "unknown")),
-        "name": sds_capture["name"],
-        "media_type": sds_capture.get("metadata", {}).get("data_type", "unknown"),
+        "id": sds_capture.uuid,
+        "name": sds_capture.index_name,
         "timestamp": timestamp,
         "created_at": timestamp,
-        "source": "SDS",
-        "files": sds_capture["files"],
+        "source": "sds",
+        "files": sds_capture.files,
         "owner": user_id,
-        "type": sds_capture.get("metadata", {}).get("data_type", "rh"),
-        "min_freq": sds_capture.get("metadata", {}).get("fmin", ""),
-        "max_freq": sds_capture.get("metadata", {}).get("fmax", ""),
+        "type": sds_capture.capture_type,
+        "min_freq": capture_props.get("fmin", ""),
+        "max_freq": capture_props.get("fmax", ""),
         "scan_time": scan_time,
         "end_time": calculate_end_time(timestamp, scan_time),
     }

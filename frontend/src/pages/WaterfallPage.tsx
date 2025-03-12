@@ -48,7 +48,7 @@ export const WaterfallPage = () => {
 
         // Fetch all specified captures
         const captures = await getCaptures();
-        const selectedCaptures = captures.captures.filter(
+        const selectedCaptures = captures.filter(
           (capture) => captureIds.includes(capture.id) && capture.type === 'rh',
         );
 
