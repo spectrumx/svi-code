@@ -13,8 +13,8 @@ import {
 
 interface CaptureSearchProps {
   captures: Capture[];
-  selectedCaptureIds?: number[];
-  setSelectedCaptureIds?: (ids: number[]) => void;
+  selectedCaptureIds?: string[];
+  setSelectedCaptureIds?: (ids: string[]) => void;
   tableProps?: Omit<CaptureTableProps, 'captures' | 'selectedIds' | 'onSelect'>;
   hideCaptureTypeFilter?: boolean;
 }

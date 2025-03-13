@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -19,17 +19,15 @@ import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
 
 export interface CaptureTableProps {
   captures: Capture[];
-  selectedId?: number | null;
-  onSelect?: (id: number) => void;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
   totalCaptures?: number;
   numHiddenCaptures?: number;
 }
 
-// Add a style object for table cells that might contain long text
+// Style object for table cells that might contain long text
 const textCellStyle = {
   maxWidth: '200px',
-  wordBreak: 'break-all' as const,
-  overflowWrap: 'break-word' as const,
 };
 
 /**
@@ -170,9 +168,10 @@ export const CaptureTable = ({
     >
       <div
         style={{
-          padding: '0.5rem 1rem',
+          padding: '0 1rem',
           fontSize: '0.9rem',
           color: '#6c757d',
+          height: '25px',
         }}
         role="status"
         aria-live="polite"

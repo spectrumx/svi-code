@@ -52,7 +52,7 @@ const NewVisualizationPage = () => {
   const [selectedVizType, setSelectedVizType] = useState<
     VisualizationType['name'] | null
   >(null);
-  const [selectedCaptureIds, setSelectedCaptureIds] = useState<number[]>([]);
+  const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
@@ -92,7 +92,7 @@ const NewVisualizationPage = () => {
     return vizType?.multipleSelection ? 'multiple' : 'single';
   }, [selectedVizType]);
 
-  const handleCaptureSelect = useCallback((ids: number[]) => {
+  const handleCaptureSelect = useCallback((ids: string[]) => {
     setSelectedCaptureIds(ids);
     if (ids.length > 0) {
       setCurrentStep(4);
