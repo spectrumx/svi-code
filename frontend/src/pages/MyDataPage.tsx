@@ -7,7 +7,7 @@ import {
 } from '../components/filters';
 import { useAppContext } from '../utils/AppContext';
 import { useSyncCaptures, CaptureSource } from '../apiClient/fileService';
-import DatasetTable from '../components/CaptureTable';
+import CaptureTable from '../components/CaptureTable';
 import Button from '../components/Button';
 import FileUploadModal from '../components/FileUploadModal';
 
@@ -66,8 +66,8 @@ const MyDataPage = () => {
 
       <Row className="mt-3 align-items-start">
         {/* Filter Column */}
-        <Col xs={3} style={{ minWidth: '250px' }}>
-          <div className="filter-box p-3 border rounded bg-white">
+        <Col xs={3} style={{ minWidth: '250px', marginTop: '25px' }}>
+          <div className="filter-box p-3 border bg-white">
             <FrequencyFilter
               minFrequency={minFrequency}
               maxFrequency={maxFrequency}
@@ -96,15 +96,11 @@ const MyDataPage = () => {
           </div>
         </Col>
 
-        {/* Table Column - Remove border from container */}
+        {/* Table Column */}
         <Col xs={9}>
           <div className="capture-table-container">
             {captures.length > 0 ? (
-              <DatasetTable
-                captures={captures}
-                totalCaptures={captures.length}
-                numHiddenCaptures={0}
-              />
+              <CaptureTable captures={captures} />
             ) : isLoading ? (
               <div className="p-3">
                 <p>Loading...</p>

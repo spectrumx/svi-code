@@ -17,11 +17,9 @@ export interface CaptureTableProps {
   numHiddenCaptures?: number;
 }
 
-// Add a style object for table cells that might contain long text
+// Style object for table cells that might contain long text
 const textCellStyle = {
   maxWidth: '200px',
-  wordBreak: 'break-word' as const,
-  overflowWrap: 'break-word' as const,
 };
 
 /**
@@ -35,7 +33,7 @@ const CaptureTable = ({
   onSelect,
   selectionMode = 'single',
   totalCaptures,
-  numHiddenCaptures: hiddenCaptures,
+  numHiddenCaptures,
 }: CaptureTableProps) => {
   const handleSelect = (id: string) => {
     if (!onSelect) return;
@@ -71,15 +69,14 @@ const CaptureTable = ({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        marginTop: '-8px',
       }}
     >
       <div
         style={{
-          // padding: '0.5rem 1rem',
           padding: '0 1rem',
           fontSize: '0.9rem',
           color: '#6c757d',
+          height: '25px',
         }}
         role="status"
         aria-live="polite"
@@ -88,7 +85,9 @@ const CaptureTable = ({
           {totalCaptures !== undefined ? (
             <>
               Showing {captures.length} of {totalCaptures} captures
-              {hiddenCaptures ? ` (${hiddenCaptures} hidden by filters)` : ''}
+              {numHiddenCaptures
+                ? ` (${numHiddenCaptures} hidden by filters)`
+                : ''}
             </>
           ) : (
             `${captures.length} captures`
@@ -98,13 +97,7 @@ const CaptureTable = ({
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>
-        <Table
-          striped
-          bordered
-          hover
-          responsive
-          style={{ marginBottom: 0, marginTop: '2px' }}
-        >
+        <Table striped bordered hover responsive style={{ marginBottom: 0 }}>
           <thead>
             <tr>
               {onSelect && captures.length > 0 && (
@@ -129,7 +122,7 @@ const CaptureTable = ({
                   )}
                 </th>
               )}
-              <th style={{ maxWidth: '80px' }}>ID</th>
+              <th style={textCellStyle}>ID</th>
               <th style={textCellStyle}>Name</th>
               <th style={{ maxWidth: '200px' }}>Timestamp</th>
               <th style={{ maxWidth: '120px' }}>Type</th>
@@ -159,6 +152,12 @@ const CaptureTable = ({
                 const visualizationType = VISUALIZATION_TYPES.find((visType) =>
                   visType.supportedCaptureTypes.includes(capture.type),
                 );
+                const captureIdParam =
+                  visualizationType?.name === 'waterfall'
+                    ? `?captures=${capture.id}`
+                    : visualizationType?.name === 'spectrogram'
+                      ? `/${capture.id}`
+                      : '';
 
                 const isSelected = selectedIds?.includes(capture.id);
 
@@ -166,17 +165,17 @@ const CaptureTable = ({
                   <tr
                     key={capture.id}
                     className={isSelected ? 'table-primary' : ''}
-                    onClick={() => onSelect?.([capture.id])}
+                    onClick={() => onSelect && handleSelect(capture.id)}
                     style={onSelect ? { cursor: 'pointer' } : undefined}
                     role={onSelect ? 'button' : undefined}
                     tabIndex={onSelect ? 0 : undefined}
                     onKeyPress={(e) => {
                       if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
-                        onSelect([capture.id]);
+                        handleSelect(capture.id);
                       }
                     }}
                   >
-                    {onSelect && (
+                    {onSelect && captures.length > 0 && (
                       <td
                         className="text-center align-middle"
                         onClick={(e) => e.stopPropagation()}
@@ -191,7 +190,9 @@ const CaptureTable = ({
                         />
                       </td>
                     )}
-                    <td className="align-middle">{capture.id}</td>
+                    <td className="align-middle" style={textCellStyle}>
+                      {capture.id}
+                    </td>
                     <td className="align-middle" style={textCellStyle}>
                       {capture.name}
                     </td>
@@ -210,10 +211,10 @@ const CaptureTable = ({
                     <td className="align-middle">
                       {CAPTURE_SOURCES[capture.source].name}
                     </td>
-                    {!onSelect && visualizationType ? (
+                    {!onSelect && captures.length > 0 && visualizationType ? (
                       <td className="align-middle text-center">
                         <Link
-                          to={`/visualization/${visualizationType.name}?captures=${capture.id}`} // corrected path to pass parameters correctly
+                          to={`/visualization/${visualizationType.name}${captureIdParam}`}
                           className="btn btn-primary btn-sm px-4"
                         >
                           Visualize
