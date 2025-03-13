@@ -87,7 +87,6 @@ export const getCaptures = async (filters?: {
   end_time?: string;
   source?: CaptureSource[];
 }): Promise<Capture[]> => {
-  // sdscount not being used
   try {
     const params = new URLSearchParams();
 

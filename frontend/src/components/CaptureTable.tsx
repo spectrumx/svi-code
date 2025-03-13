@@ -26,7 +26,6 @@ const textCellStyle = {
  * Displays a table of captures with optional selection functionality
  * Supports both single and multiple selection modes with "Select all" capability
  */
-
 const CaptureTable = ({
   captures,
   selectedIds = [],
