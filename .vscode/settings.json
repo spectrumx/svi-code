@@ -2,5 +2,14 @@
   "editor.formatOnSave": true,
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "files.associations": {
+    "*.rh": "json"
+  },
+  "json.schemas": [
+    {
+      "fileMatch": ["*.rh", "*.rh.json"],
+      "url": "https://json.schemastore.org/radiohound-v0.json"
+    }
+  ]
 }
