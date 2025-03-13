@@ -112,8 +112,10 @@ class CaptureViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create a new capture or captures.
+
         For RadioHound captures, creates multiple captures (one per file).
         For other types, creates a single capture with multiple files.
+
         Returns:
             Response: Created capture(s) data with appropriate status code
         """
@@ -197,6 +199,7 @@ class FileViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Get the queryset of files for the current user.
+
         Returns:
             QuerySet: Filtered queryset containing only the user's files.
         """
