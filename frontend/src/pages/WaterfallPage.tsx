@@ -44,7 +44,7 @@ export const WaterfallPage = () => {
           throw new Error('No captures specified');
         }
 
-        const captureIds = captureParam.split(',').map(Number);
+        const captureIds = captureParam.split(',');
 
         // Fetch all specified captures
         const captures = await getCaptures();

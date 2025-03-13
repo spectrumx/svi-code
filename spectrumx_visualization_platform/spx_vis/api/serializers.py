@@ -17,6 +17,7 @@ class FileSerializer(serializers.ModelSerializer[File]):
     Provides serialization of File objects with owner information and file handling.
     """
 
+    id = serializers.CharField(read_only=True)
     owner = serializers.ReadOnlyField(source="owner.username")
     file = serializers.FileField(write_only=True)
     content_url = serializers.SerializerMethodField()
@@ -76,6 +77,8 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     For RadioHound captures, each uploaded file creates a separate capture.
     """
 
+    id = serializers.CharField(read_only=True)
+    name = serializers.CharField(required=False, allow_null=True)
     files = FileSerializer(many=True, read_only=True)
     # Separate field for files to be uploaded on Capture creation
     uploaded_files = serializers.ListField(
@@ -83,7 +86,6 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         write_only=True,
         required=True,
     )
-    name = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
         model = Capture

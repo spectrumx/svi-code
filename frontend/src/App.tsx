@@ -13,10 +13,10 @@ import TokenPage from './pages/TokenPage';
 import NewVisualizationPage from './pages/NewVisualizationPage';
 import WaterfallPage from './pages/WaterfallPage';
 import SearchPage from './pages/SearchPage';
+import JupyterNotebookPage from './pages/JupyterNotebookPage';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import { useFetchSessionInfo } from './apiClient';
-import JupyterNotebookPage from './components/JupyterNotebook/JupyterNotebookPage';
 
 function App() {
   useFetchSessionInfo();
