@@ -1,9 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { Routes, Route } from 'react-router';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.min.css';
-import { useEffect } from 'react';
 
 import './App.css';
 import LandingPage from './pages/LandingPage';
@@ -14,10 +13,10 @@ import TokenPage from './pages/TokenPage';
 import NewVisualizationPage from './pages/NewVisualizationPage';
 import WaterfallPage from './pages/WaterfallPage';
 import SearchPage from './pages/SearchPage';
+import JupyterNotebookPage from './pages/JupyterNotebookPage';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import { useFetchSessionInfo } from './apiClient';
-import JupyterNotebookPage from './components/JupyterNotebook/JupyterNotebookPage';
 
 function App() {
   useFetchSessionInfo();
