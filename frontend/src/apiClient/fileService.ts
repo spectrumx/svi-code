@@ -5,12 +5,12 @@ import { useAppContext } from '../utils/AppContext';
 import { z as zod } from 'zod';
 
 const FileMetadataSchema = zod.object({
-  id: zod.number(),
+  id: zod.string(),
   name: zod.string(),
-  content_url: zod.string(),
-  media_type: zod.string(),
-  created_at: zod.string(),
-  updated_at: zod.string(),
+  content_url: zod.string().optional(),
+  media_type: zod.string().optional(),
+  created_at: zod.string().optional(),
+  updated_at: zod.string().optional(),
 });
 
 export type FileMetadata = zod.infer<typeof FileMetadataSchema>;
@@ -28,7 +28,7 @@ export const getFileMetadata = async (
 };
 
 export const getFileContent = async (
-  fileId: number,
+  fileId: string,
   signal?: AbortSignal,
 ): Promise<any> => {
   const response = await apiClient.get(`/api/files/${fileId}/content/`, {
@@ -67,7 +67,7 @@ const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
 export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
 const CaptureSchema = zod.object({
-  id: zod.number(),
+  id: zod.string(),
   name: zod.string(),
   owner: zod.number(),
   created_at: zod.string(),

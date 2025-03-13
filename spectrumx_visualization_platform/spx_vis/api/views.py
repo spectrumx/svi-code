@@ -2,6 +2,8 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+import requests
+from django.conf import settings
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import filters
@@ -14,9 +16,6 @@ from rest_framework.parsers import FormParser
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
-from spectrumx.errors import FileError
-from spectrumx.models.captures import Capture as SDSCapture
-from spectrumx.models.captures import CaptureType
 
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
@@ -122,14 +121,8 @@ class CaptureViewSet(viewsets.ModelViewSet):
             return Response(
                 serializer.data, status=status.HTTP_201_CREATED, headers=headers
             )
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
 
         headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
@@ -159,25 +152,11 @@ class CaptureViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-            return Response(
-                {
-                    "status": "error",
-                    "message": "Spectrogram generation is only supported for SigMF captures",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         width = request.data.get("width", 10)
         height = request.data.get("height", 10)
 
         try:
-            job = SigMFUtility.submit_spectrogram_job(
-                request.user, capture.files, width, height
-            )
-            return Response(
-                {"job_id": job.id, "status": "submitted"},
-                status=status.HTTP_201_CREATED,
-            )
             job = SigMFUtility.submit_spectrogram_job(
                 request.user, capture.files, width, height
             )
@@ -234,22 +213,30 @@ class FileViewSet(viewsets.ModelViewSet):
 def get_sds_captures(request: Request):
     """Get SDS captures for the current user."""
     user: User = request.user
-    sds_client = user.sds_client()
-    if sds_client:
-        print("Successfully connected to SDS client")
-    else:
-        print("Failed to connect to SDS client")
-        return []
 
     try:
-        sds_captures = sds_client.captures.listing(capture_type=CaptureType.RadioHound)
-    except FileError:
+        token = user.fetch_sds_token()
+        captures_response = requests.get(
+            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/",
+            headers={"Authorization": f"Api-Key: {token}"},
+            timeout=10,
+        )
+        captures = captures_response.json()
+        formatted_captures = []
+
+        for capture in captures:
+            if capture["files"]:
+                formatted_capture = format_sds_capture(capture, request.user.id)
+                formatted_captures.append(formatted_capture)
+
+    except Exception as e:
+        print(f"Error fetching SDS captures: {e}")
         return []
 
-    return [format_sds_capture(capture, request.user.id) for capture in sds_captures]
+    return formatted_captures
 
 
-def format_sds_capture(sds_capture: SDSCapture, user_id: int):
+def format_sds_capture(sds_capture: dict, user_id: int):
     """Format a single SDS capture.
 
     Args:
@@ -259,22 +246,32 @@ def format_sds_capture(sds_capture: SDSCapture, user_id: int):
     Returns:
         dict: Formatted capture data
     """
-    capture_props = sds_capture.capture_props
+    capture_props = sds_capture["capture_props"]
+    metadata = capture_props["metadata"]
+    custom_fields = capture_props["custom_fields"]
 
-    timestamp = capture_props.get("timestamp", "")
-    scan_time = capture_props.get("scan_time")
+    timestamp = capture_props["timestamp"]
+    scan_time = metadata["scan_time"]
+
+    files = [
+        {
+            "id": file["uuid"],
+            "name": file["name"],
+        }
+        for file in sds_capture["files"]
+    ]
 
     return {
-        "id": sds_capture.uuid,
-        "name": sds_capture.index_name,
-        "timestamp": timestamp,
-        "created_at": timestamp,
-        "source": "sds",
-        "files": sds_capture.files,
+        "id": sds_capture["uuid"],
         "owner": user_id,
-        "type": sds_capture.capture_type,
-        "min_freq": capture_props.get("fmin", ""),
-        "max_freq": capture_props.get("fmax", ""),
+        "name": sds_capture["scan_group"],
+        "files": files,
+        "created_at": sds_capture["created_at"],
+        "timestamp": timestamp,
+        "type": sds_capture["capture_type"],
+        "source": "sds",
+        "min_freq": custom_fields["requested"]["fmin"],
+        "max_freq": custom_fields["requested"]["fmax"],
         "scan_time": scan_time,
         "end_time": calculate_end_time(timestamp, scan_time),
     }
@@ -305,8 +302,9 @@ def format_local_capture(capture: dict) -> dict:
     """
     timestamp = capture.get("timestamp", "")
     scan_time = capture.get("scan_time")
+
     return {
-        "id": capture.get("_id", capture.get("id", "unknown")),
+        "id": capture["id"],
         "name": capture["name"],
         "media_type": capture.get("metadata", {}).get("data_type", "unknown"),
         "timestamp": timestamp,

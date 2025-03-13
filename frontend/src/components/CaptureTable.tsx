@@ -10,8 +10,8 @@ import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
 
 export interface CaptureTableProps {
   captures: Capture[];
-  selectedIds?: number[] | null;
-  onSelect?: (ids: number[]) => void;
+  selectedIds?: string[] | null;
+  onSelect?: (ids: string[]) => void;
   selectionMode?: 'single' | 'multiple';
   totalCaptures?: number;
   numHiddenCaptures?: number;
@@ -37,7 +37,7 @@ const CaptureTable = ({
   totalCaptures,
   numHiddenCaptures: hiddenCaptures,
 }: CaptureTableProps) => {
-  const handleSelect = (id: number) => {
+  const handleSelect = (id: string) => {
     if (!onSelect) return;
 
     if (selectionMode === 'single') {
