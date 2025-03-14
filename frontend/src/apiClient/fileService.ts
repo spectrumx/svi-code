@@ -55,7 +55,7 @@ export const CAPTURE_TYPES = {
   drf: { name: 'Digital RF' },
   sigmf: { name: 'SigMF' },
 } as const;
-const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
+export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
 export type CaptureType = keyof typeof CAPTURE_TYPES;
 
 export const CAPTURE_SOURCES = {
@@ -63,7 +63,7 @@ export const CAPTURE_SOURCES = {
   svi_public: { name: 'SVI Public' },
   svi_user: { name: 'SVI User' },
 } as const;
-const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
+export const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
 export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
 const CaptureSchema = zod.object({

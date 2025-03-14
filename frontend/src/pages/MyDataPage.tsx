@@ -98,20 +98,18 @@ const MyDataPage = () => {
 
         {/* Table Column */}
         <Col xs={9}>
-          <div className="capture-table-container">
+          <div>
             {captures.length > 0 ? (
               <CaptureTable captures={captures} />
-            ) : isLoading ? (
-              <div className="p-3">
-                <p>Loading...</p>
-              </div>
-            ) : username ? (
-              <div className="p-3">
-                <p>No captures found. Upload a capture to get started!</p>
-              </div>
             ) : (
-              <div className="p-3">
-                <p>Please log in to view your data.</p>
+              <div className="p-3" style={{ marginTop: '25px' }}>
+                <p>
+                  {isLoading
+                    ? 'Loading...'
+                    : username
+                      ? 'No captures found. Upload a capture to get started!'
+                      : 'Please log in to view your data.'}
+                </p>
               </div>
             )}
           </div>
