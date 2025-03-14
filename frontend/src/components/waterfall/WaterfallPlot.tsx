@@ -5,6 +5,29 @@ import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 import { ScanState, WaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
+const SCROLL_INDICATOR_SIZE = 15;
+const WATERFALL_HEIGHT = 500;
+
+const scrollIndicatorStyle: React.CSSProperties = {
+  width: 0,
+  height: 0,
+  borderLeft: `${SCROLL_INDICATOR_SIZE}px solid transparent`,
+  borderRight: `${SCROLL_INDICATOR_SIZE}px solid transparent`,
+  cursor: 'pointer',
+  margin: '0 auto',
+  display: 'block',
+};
+
+const upIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  borderBottom: `${SCROLL_INDICATOR_SIZE}px solid #808080`,
+};
+
+const downIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  borderTop: `${SCROLL_INDICATOR_SIZE}px solid #808080`,
+};
+
 interface WaterfallPlotProps {
   scan: ScanState;
   display: Display;
@@ -27,31 +50,12 @@ interface WaterfallPlotProps {
    * The total number of captures in the full dataset.
    */
   totalCaptures: number;
+  /**
+   * The width of the legend in pixels, including labels.
+   */
+  colorLegendWidth: number;
+  indexLegendWidth: number;
 }
-
-const scrollIndicatorStyle: React.CSSProperties = {
-  position: 'absolute',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  width: 0,
-  height: 0,
-  borderLeft: '20px solid transparent',
-  borderRight: '20px solid transparent',
-  opacity: 0.7,
-  cursor: 'pointer',
-};
-
-const upIndicatorStyle: React.CSSProperties = {
-  ...scrollIndicatorStyle,
-  top: '-25px',
-  borderBottom: '20px solid #808080',
-};
-
-const downIndicatorStyle: React.CSSProperties = {
-  ...scrollIndicatorStyle,
-  bottom: '-25px',
-  borderTop: '20px solid #808080',
-};
 
 export function WaterfallPlot({
   scan,
@@ -63,6 +67,8 @@ export function WaterfallPlot({
   onCaptureSelect,
   captureRange,
   totalCaptures,
+  colorLegendWidth,
+  indexLegendWidth,
 }: WaterfallPlotProps) {
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,13 +79,10 @@ export function WaterfallPlot({
   const pixelRatioRef = useRef(1);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const labelWidth = 75;
-  const margin = {
-    top: 5,
-    left: 5,
-    bottom: 5,
-    right: 75,
-  };
+  // Proportion of legend width that is used for the label vs the gradient bar
+  const colorbarProportion = 0.2;
+  const labelWidth = colorLegendWidth * (1 - colorbarProportion);
+  const margin = { top: 5, bottom: 5 };
 
   // Update canvas sizes on mount
   useEffect(() => {
@@ -97,14 +100,14 @@ export function WaterfallPlot({
     const pixelRatio = window.devicePixelRatio || 1;
     pixelRatioRef.current = pixelRatio;
     const canvasWidth = Math.floor(width * pixelRatio);
-    const canvasHeight = Math.floor(500 * pixelRatio);
+    const canvasHeight = Math.floor(WATERFALL_HEIGHT * pixelRatio);
 
     // Set dimensions for both canvases
     [plotCanvas, overlayCanvas].forEach((c) => {
       c.width = canvasWidth;
       c.height = canvasHeight;
       c.style.width = `${width}px`;
-      c.style.height = '500px';
+      c.style.height = `${WATERFALL_HEIGHT}px`;
 
       // Position the canvases
       c.style.position = 'absolute';
@@ -136,7 +139,7 @@ export function WaterfallPlot({
 
     context.save();
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.translate(labelWidth + margin.left, margin.top);
+    context.translate(colorLegendWidth, margin.top);
 
     const rowFromBottom = allData.length - 1 - boxIndex;
     const boxY = Math.floor(rowFromBottom * rectHeight);
@@ -214,9 +217,9 @@ export function WaterfallPlot({
     // Create white background for indices
     context.fillStyle = 'white';
     context.fillRect(
-      canvasWidth / pixelRatio - margin.right,
+      canvasWidth / pixelRatio - indexLegendWidth,
       0,
-      margin.right,
+      indexLegendWidth,
       allData.length * rectHeight + margin.top + margin.bottom,
     );
 
@@ -230,7 +233,7 @@ export function WaterfallPlot({
         const displayedIndex = i + 1;
         const row = captureRange.endIndex - i;
         const y = margin.top + row * rectHeight;
-        const x = canvasWidth / pixelRatio - margin.right + 5;
+        const x = canvasWidth / pixelRatio - indexLegendWidth + 5;
 
         // Determine if this index should be highlighted
         const isHovered = hoveredIndex !== null && i === hoveredIndex;
@@ -262,7 +265,7 @@ export function WaterfallPlot({
 
       // Calculate available space for plotting
       const plotWidth =
-        canvas.width / pixelRatio - labelWidth - margin.left - margin.right;
+        canvas.width / pixelRatio - colorLegendWidth - indexLegendWidth;
       const plotHeight =
         canvas.height / pixelRatio - margin.top - margin.bottom;
 
@@ -369,8 +372,8 @@ export function WaterfallPlot({
         context.fillRect(0, margin.top, labelWidth, plotHeight);
 
         const gradientHeight = plotHeight - margin.top - margin.bottom;
-        const barWidth = 15;
-        const barX = 5;
+        const barWidth = colorLegendWidth * colorbarProportion;
+        const barX = 0;
         const barY = margin.top;
         const labelX = barX + barWidth + 8;
         const totalRange =
@@ -418,7 +421,7 @@ export function WaterfallPlot({
 
           // Apply the correct transform for the main plot
           context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-          context.translate(labelWidth + margin.left, margin.top);
+          context.translate(colorLegendWidth, margin.top);
 
           // Draw all data points in reverse order
           allData.forEach((row, rowIndex) => {
@@ -542,36 +545,55 @@ export function WaterfallPlot({
     }
   }, [hoveredIndex, currentCaptureIndex, scan.allData, captureRange]);
 
+  const indicatorContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: `${SCROLL_INDICATOR_SIZE + 5}px`,
+    marginLeft: colorLegendWidth,
+    marginRight: indexLegendWidth,
+  };
+
   return (
-    <div style={{ width: '100%', height: '500px', position: 'relative' }}>
-      {captureRange.endIndex < totalCaptures && (
-        <div
-          style={upIndicatorStyle}
-          title="More recent captures above"
-          onClick={() => {
-            const newIndex = Math.min(totalCaptures - 1, captureRange.endIndex);
-            onCaptureSelect(newIndex);
-          }}
+    <div style={{ width: '100%' }}>
+      <div style={indicatorContainerStyle}>
+        {captureRange.endIndex < totalCaptures && (
+          <div
+            style={upIndicatorStyle}
+            title="More recent captures above"
+            onClick={() => {
+              const newIndex = Math.min(
+                totalCaptures - 1,
+                captureRange.endIndex,
+              );
+              onCaptureSelect(newIndex);
+            }}
+          />
+        )}
+      </div>
+      <div style={{ position: 'relative', height: `${WATERFALL_HEIGHT}px` }}>
+        <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
+        <canvas
+          ref={overlayCanvasRef}
+          style={{ display: 'block', cursor: 'pointer' }}
+          onClick={handleCanvasClick}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseLeave={handleCanvasMouseLeave}
         />
-      )}
-      <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
-      <canvas
-        ref={overlayCanvasRef}
-        style={{ display: 'block', cursor: 'pointer' }}
-        onClick={handleCanvasClick}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseLeave={handleCanvasMouseLeave}
-      />
-      {captureRange.startIndex > 0 && (
-        <div
-          style={downIndicatorStyle}
-          title="Older captures below"
-          onClick={() => {
-            const newIndex = Math.max(0, captureRange.startIndex - 1);
-            onCaptureSelect(newIndex);
-          }}
-        />
-      )}
+      </div>
+      <div style={indicatorContainerStyle}>
+        {captureRange.startIndex > 0 && (
+          <div
+            style={downIndicatorStyle}
+            title="Older captures below"
+            onClick={() => {
+              const newIndex = Math.max(0, captureRange.startIndex - 1);
+              onCaptureSelect(newIndex);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
