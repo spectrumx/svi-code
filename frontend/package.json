@@ -29,6 +29,7 @@
     "eject": "react-scripts eject"
   },
   "devDependencies": {
+    "@types/canvasjs": "^1.9.11",
     "@types/d3": "^7.4.3",
     "@types/jest": "^27.5.2",
     "@types/lodash": "^4.17.13",
