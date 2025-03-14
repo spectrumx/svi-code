@@ -19,9 +19,13 @@ from rest_framework.response import Response
 
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
+from spectrumx_visualization_platform.spx_vis.api.serializers import (
+    VisualizationSerializer,
+)
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import File
+from spectrumx_visualization_platform.spx_vis.models import Visualization
 
 if TYPE_CHECKING:
     from spectrumx_visualization_platform.users.models import User
@@ -380,3 +384,34 @@ def filter_capture(capture: dict, filters: dict) -> bool:
         return capture.get("source") in sources
 
     return True
+
+
+class VisualizationViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing Visualization objects.
+
+    Provides CRUD operations for Visualization objects with filtering and search capabilities.
+    Users can only access their own visualizations.
+    """
+
+    serializer_class = VisualizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["type", "capture_type", "capture_source"]
+    ordering_fields = ["created_at", "updated_at", "type"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        """Get the queryset of visualizations for the current user.
+
+        Returns:
+            QuerySet: Filtered queryset containing only the user's visualizations.
+        """
+        return Visualization.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer: VisualizationSerializer) -> None:
+        """Create a new visualization object.
+
+        Args:
+            serializer: The VisualizationSerializer instance with validated data.
+        """
+        serializer.save(owner=self.request.user)
