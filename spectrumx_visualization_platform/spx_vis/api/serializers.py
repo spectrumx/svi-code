@@ -239,7 +239,7 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
         ]
         read_only_fields = ["created_at", "updated_at"]
 
-    def validate_capture_ids(self, value):
+    def validate_capture_ids(self, value) -> list[str]:
         """Validate that capture_ids is a non-empty list of strings.
 
         Args:
@@ -291,7 +291,7 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
 
             # Get SDS captures
             sds_captures = sds_client.captures.listing(capture_type=capture_type)
-            sds_capture_ids = [str(capture["uuid"]) for capture in sds_captures]
+            sds_capture_ids = [str(capture.uuid) for capture in sds_captures]
 
             # Verify all requested captures were found
             missing_ids = set(capture_ids) - set(sds_capture_ids)
@@ -382,20 +382,23 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
         validated_data["owner"] = user
 
         # Sort the input capture_ids
-        capture_ids = sorted(validated_data["capture_ids"])
-        validated_data["capture_ids"] = capture_ids
+        sorted_capture_ids = sorted(validated_data["capture_ids"])
+        validated_data["capture_ids"] = sorted_capture_ids
 
         # Check for existing visualization with same configuration
         existing_visualization = Visualization.objects.filter(
             owner=user,
             type=validated_data["type"],
-            capture_ids=capture_ids,
+            capture_ids=sorted_capture_ids,
             capture_type=validated_data["capture_type"],
             capture_source=validated_data["capture_source"],
             settings=validated_data.get("settings", {}),
         ).first()
 
         if existing_visualization:
+            print(
+                f"Returning existing visualization with same config: {existing_visualization.id}"
+            )
             return existing_visualization
 
         return super().create(validated_data)

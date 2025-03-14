@@ -393,6 +393,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
     Users can only access their own visualizations.
     """
 
+    queryset = Visualization.objects.all()
     serializer_class = VisualizationSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
