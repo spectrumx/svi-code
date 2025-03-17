@@ -63,10 +63,32 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 0;
+  gap: 2rem;
+}
+
+/* logo container to take more space */
+.header-content > div:first-child {
+  flex: 0 0 auto;
+  min-width: 200px;
+  padding-left: 0.5rem;
+  flex-grow: 1;
+}
+
+/* Navigation container */
+.header-content > div:last-child {
+  min-width: 200px;
+  padding-right: 1rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  /* a gap between the logo image and the site name */
 }
 
 .logo img {
-  height: 40px;
+  height: 30px;
 }
 
 .main-nav {
@@ -235,6 +257,17 @@ body {
   .main-nav {
     display: none;
   }
+
+  .navbar-brand span {
+    font-size: 1rem;
+    margin-left: 2rem;
+  }
+
+  .header-content > div:first-child,
+  .header-content > div:last-child {
+    min-width: 150px;
+    /* Smaller minimum width on mobile */
+  }
 }
 
 /* White bar section */
@@ -242,4 +275,52 @@ body {
   background: var(--white);
   padding: 2rem 0;
   border-bottom: 1px solid #eee;
+}
+
+/* Added to remove underline/hyperlink from website name*/
+.no-underline {
+  text-decoration: none;
+}
+
+.no-underline:hover,
+.no-underline:focus,
+.no-underline:active {
+  text-decoration: none;
+}
+
+/* Center the brand section */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  min-width: 600px;
+  padding-left: 40px;
+}
+
+/* Style the logo text */
+.navbar-brand span {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  margin-left: 40px;
+}
+
+@media (max-width: 768px) {
+  .navbar-brand {
+    min-width: unset;
+    padding-left: 0;
+    /* Reset padding on mobile */
+  }
+
+  .navbar-brand span {
+    font-size: 1rem;
+    position: static;
+    margin-left: 2rem;
+    transform: none;
+  }
 }

@@ -10,12 +10,13 @@ const Header = () => {
     <>
       <div className="rainbow-bar"></div>
       <Navbar expand="lg" className="site-header">
-        <Container>
+        <Container fluid className="px-3">
           <div className="header-content">
             <div>
-              <NavLink to="/">
+              <NavLink to="/" className="no-underline">
                 <Navbar.Brand className="logo">
                   <Image src={logo} alt="SpectrumX Logo" />
+                  <span>Spectrum Visualization Interface</span>
                 </Navbar.Brand>
               </NavLink>
             </div>
