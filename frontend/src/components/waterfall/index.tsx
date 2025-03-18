@@ -3,7 +3,7 @@ import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
 import { WaterfallPlot } from './WaterfallPlot';
-import { WaterfallSettings } from '../../pages/WaterfallPage';
+import { WaterfallSettings } from './WaterfallVizContainer';
 import {
   Chart,
   Data,

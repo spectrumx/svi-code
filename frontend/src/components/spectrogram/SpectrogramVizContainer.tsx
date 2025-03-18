@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router';
-import { Row, Col, Button } from 'react-bootstrap';
+import { Row, Col, Button, Alert } from 'react-bootstrap';
 
-import { SpectrogramVisualization } from '../components/spectrogram';
-import SpectrogramControls from '../components/spectrogram/SpectrogramControls';
-import { JobStatusDisplay } from '../components/JobStatusDisplay';
+import { SpectrogramVisualization } from '.';
+import SpectrogramControls from './SpectrogramControls';
+import { JobStatusDisplay } from '../JobStatusDisplay';
 import {
   postSpectrogramJob,
   getJobMetadata,
   getJobResults,
-} from '../apiClient/jobService';
+} from '../../apiClient/jobService';
+import { VizContainerProps } from '../types';
 
 export interface SpectrogramSettings {
   fftSize: number;
@@ -22,34 +22,32 @@ export interface JobInfo {
   results_id?: string;
 }
 
-const SpectrogramPage = () => {
-  const { captureId: captureIdString } = useParams();
-  const captureId = Number(captureIdString);
-
+const SpectrogramVizContainer = ({ visualizationState }: VizContainerProps) => {
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
     });
   const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
-
   const [jobInfo, setJobInfo] = useState<JobInfo>({
     job_id: null,
     status: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const captureId =
+    visualizationState.captures.length > 0
+      ? Number(visualizationState.captures[0].id)
+      : null;
+
   const createSpectrogramJob = async () => {
+    if (!captureId) return;
+
     setIsSubmitting(true);
-    const width = window.innerWidth / 100; // added to increase/decrease size of spectrogram image
-    const height = window.innerHeight / 100; // added to increase/decrease size of spectrogram image
+    const width = window.innerWidth / 100;
+    const height = window.innerHeight / 100;
 
     try {
-      const response = await postSpectrogramJob(
-        captureId,
-        // spectrogramSettings.fftSize,
-        width,
-        height,
-      );
+      const response = await postSpectrogramJob(captureId, width, height);
       setJobInfo({
         job_id: response.job_id ?? null,
         status: response.status ?? null,
@@ -143,6 +141,15 @@ const SpectrogramPage = () => {
     };
   }, [jobInfo.job_id, spectrogramUrl]);
 
+  if (!captureId) {
+    return (
+      <Alert variant="warning">
+        <Alert.Heading>No Capture Data Found</Alert.Heading>
+        <p>No captures are currently available for spectrogram visualization</p>
+      </Alert>
+    );
+  }
+
   return (
     <div className="page-container">
       <h5>Spectrogram for capture {captureId}</h5>
@@ -171,4 +178,4 @@ const SpectrogramPage = () => {
   );
 };
 
-export default SpectrogramPage;
+export default SpectrogramVizContainer;

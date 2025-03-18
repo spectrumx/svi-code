@@ -1,55 +1,52 @@
 import { useEffect, useState } from 'react';
-import { useParams, Navigate } from 'react-router';
+import { useParams } from 'react-router';
 
 import LoadingSpinner from '../components/LoadingSpinner';
-import SpectrogramPage from './SpectrogramPage';
-import WaterfallPage from './WaterfallPage';
+import SpectrogramVizContainer from '../components/spectrogram/SpectrogramVizContainer';
+import WaterfallVizContainer from '../components/waterfall/WaterfallVizContainer';
 import {
-  Visualization,
+  VisualizationStateDetail,
   getVisualization,
-  getVisualizations,
-  useSyncVisualizations,
 } from '../apiClient/visualizationService';
-import { useAppContext } from '../utils/AppContext';
-
-interface SpectrogramPageProps {
-  captureId: string;
-  settings: Record<string, any>;
-}
-
-interface WaterfallPageProps {
-  captureIds: string[];
-  settings: Record<string, any>;
-}
-
-// Type assertion to handle component props
-const SpectrogramPageWithProps =
-  SpectrogramPage as React.FC<SpectrogramPageProps>;
-const WaterfallPageWithProps = WaterfallPage as React.FC<WaterfallPageProps>;
+import { getFileContent } from '../apiClient/fileService';
+import { FilesWithData } from '../components/types';
 
 /**
  * Router component for visualization pages.
  * Fetches visualization data based on URL parameter and renders the appropriate visualization component.
  */
 const VisualizationPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: vizId } = useParams<{ id: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visualization, setVisualization] = useState<Visualization | null>(
-    null,
-  );
+  const [visualizationState, setVisualizationState] =
+    useState<VisualizationStateDetail | null>(null);
+  const [files, setFiles] = useState<FilesWithData>({});
 
   useEffect(() => {
     const fetchVisualization = async () => {
-      if (!id) {
+      if (!vizId) {
         setError('No visualization ID provided');
         setIsLoading(false);
         return;
       }
 
       try {
-        const viz = await getVisualization(id);
-        setVisualization(viz);
+        const vizState = await getVisualization(vizId);
+        const files: FilesWithData = {};
+
+        for (const capture of vizState.captures) {
+          for (const file of capture.files) {
+            const fileData = await getFileContent(file.id, capture.source);
+            files[file.id] = {
+              ...file,
+              fileData,
+            };
+          }
+        }
+
+        setFiles(files);
+        setVisualizationState(vizState);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load visualization',
@@ -60,7 +57,7 @@ const VisualizationPage = () => {
     };
 
     fetchVisualization();
-  }, [id]);
+  }, [vizId]);
 
   if (isLoading) {
     return (
@@ -78,45 +75,28 @@ const VisualizationPage = () => {
     );
   }
 
-  if (!visualization) {
-    return <Navigate to="/visualizations" replace />;
+  if (!visualizationState) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        No visualization found!
+      </div>
+    );
   }
 
-  return (
-    <div className="page-container">
-      <h1>Type: {visualization.type}</h1>
-      <p>
-        Captures ({visualization.capture_ids.length}):{' '}
-        {visualization.capture_ids.join(', ')}
-      </p>
-      <p>Capture Type: {visualization.capture_type}</p>
-      <p>Capture Source: {visualization.capture_source}</p>
+  const VizContainer =
+    visualizationState.type === 'spectrogram'
+      ? SpectrogramVizContainer
+      : visualizationState.type === 'waterfall'
+        ? WaterfallVizContainer
+        : null;
+
+  return VizContainer ? (
+    <VizContainer visualizationState={visualizationState} files={files} />
+  ) : (
+    <div className="alert alert-danger" role="alert">
+      Unsupported visualization type: {visualizationState.type}
     </div>
   );
-
-  // Route to the appropriate visualization page based on type
-  // switch (visualization.type) {
-  //   case 'spectrogram':
-  //     return (
-  //       <SpectrogramPageWithProps
-  //         captureId={visualization.capture_ids[0]}
-  //         settings={visualization.settings}
-  //       />
-  //     );
-  //   case 'waterfall':
-  //     return (
-  //       <WaterfallPageWithProps
-  //         captureIds={visualization.capture_ids}
-  //         settings={visualization.settings}
-  //       />
-  //     );
-  //   default:
-  //     return (
-  //       <div className="alert alert-danger" role="alert">
-  //         Unsupported visualization type: {visualization.type}
-  //       </div>
-  //     );
-  // }
 };
 
 export default VisualizationPage;

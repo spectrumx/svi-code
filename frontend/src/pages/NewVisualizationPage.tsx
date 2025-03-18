@@ -5,7 +5,7 @@ import _ from 'lodash';
 
 import Button from '../components/Button';
 import { useAppContext } from '../utils/AppContext';
-import { SpectrogramSettings } from './SpectrogramPage';
+import { SpectrogramSettings } from '../components/spectrogram/SpectrogramVizContainer';
 import {
   useSyncCaptures,
   CaptureType,

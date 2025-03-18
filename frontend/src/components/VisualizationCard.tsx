@@ -1,12 +1,20 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router';
+import _ from 'lodash';
+import {
+  CAPTURE_TYPES,
+  CAPTURE_SOURCES,
+  CaptureType,
+  CaptureSource,
+} from '../apiClient/fileService';
+import { VisualizationType } from '../apiClient/visualizationService';
 
 interface VisualizationCardProps {
   id: number;
-  type: string;
-  captureType: string;
-  captureSource: string;
+  type: VisualizationType;
+  captureType: CaptureType;
+  captureSource: CaptureSource;
   captureCount: number;
 }
 
@@ -39,15 +47,13 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
       <Card.Body>
         <Card.Title className="d-flex align-items-center">
           <i className="bi bi-graph-up me-2"></i>
-          {type}
+          {_.startCase(type)}
         </Card.Title>
         <Card.Text>
-          <strong>Capture Type:</strong> {captureType}
-        </Card.Text>
-        <Card.Text>
-          <strong>Source:</strong> {captureSource}
-        </Card.Text>
-        <Card.Text className="mb-0">
+          <strong>Capture Type:</strong> {CAPTURE_TYPES[captureType].name}
+          <br />
+          <strong>Source:</strong> {CAPTURE_SOURCES[captureSource].name}
+          <br />
           <strong>Number of Captures:</strong> {captureCount}
         </Card.Text>
       </Card.Body>
