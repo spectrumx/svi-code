@@ -9,7 +9,15 @@ import {
   getVisualization,
 } from '../apiClient/visualizationService';
 import { getFileContent } from '../apiClient/fileService';
-import { FilesWithData } from '../components/types';
+import { FilesWithContent, FileWithContent } from '../components/types';
+
+/**
+ * Helper function to add a delay between requests
+ * @param ms - Delay in milliseconds
+ * @returns Promise that resolves after the specified delay
+ */
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Router component for visualization pages.
@@ -21,7 +29,7 @@ const VisualizationPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [visualizationState, setVisualizationState] =
     useState<VisualizationStateDetail | null>(null);
-  const [files, setFiles] = useState<FilesWithData>({});
+  const [files, setFiles] = useState<FilesWithContent>({});
 
   useEffect(() => {
     const fetchVisualization = async () => {
@@ -33,17 +41,31 @@ const VisualizationPage = () => {
 
       try {
         const vizState = await getVisualization(vizId);
-        const files: FilesWithData = {};
 
-        for (const capture of vizState.captures) {
-          for (const file of capture.files) {
-            const fileData = await getFileContent(file.id, capture.source);
-            files[file.id] = {
+        // Create an array of promises for concurrent file downloads with delays
+        const fileDownloadPromises = vizState.captures.flatMap((capture) =>
+          capture.files.map(async (file) => {
+            // Add a small delay before each request
+            await delay(500);
+            const fileContent = await getFileContent(file.id, capture.source);
+            return {
               ...file,
-              fileData,
+              fileContent,
             };
-          }
-        }
+          }),
+        );
+
+        // Download all files concurrently
+        const downloadedFiles = await Promise.all(fileDownloadPromises);
+
+        // Convert array of results to object
+        const files: FilesWithContent = downloadedFiles.reduce(
+          (currObj, file: FileWithContent) => ({
+            ...currObj,
+            [file.id]: file,
+          }),
+          {} as FilesWithContent,
+        );
 
         setFiles(files);
         setVisualizationState(vizState);

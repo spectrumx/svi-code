@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from django.conf import settings
 from django.http import FileResponse
@@ -198,14 +200,16 @@ class FileViewSet(viewsets.ModelViewSet):
 
         if source == "sds":
             try:
+                logging.info("Fetching user token")
                 token = request.user.fetch_sds_token()
-                return FileResponse(
-                    requests.get(
-                        f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{pk}/download",
-                        headers={"Authorization": f"Api-Key: {token}"},
-                        timeout=10,
-                    )
+                logging.info(f"Fetching SDS file {pk}")
+                response = requests.get(
+                    f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{pk}/download",
+                    headers={"Authorization": f"Api-Key: {token}"},
+                    timeout=10,
                 )
+                logging.info(f"Returning SDS file {pk}")
+                return FileResponse(response)
             except Exception as e:
                 return Response(
                     {"error": f"Failed to fetch SDS file: {e}"},

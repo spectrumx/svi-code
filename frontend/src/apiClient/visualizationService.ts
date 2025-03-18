@@ -92,10 +92,10 @@ export const getVisualization = async (
 
 export const createVisualization = async (
   request: CreateVisualizationRequest,
-): Promise<VisualizationState> => {
+): Promise<VisualizationStateDetail> => {
   try {
     const response = await apiClient.post('/api/visualizations/', request);
-    return VisualizationStateSchema.parse(response.data);
+    return VisualizationStateDetailSchema.parse(response.data);
   } catch (error) {
     console.error('Error creating visualization:', error);
     throw error;

@@ -108,6 +108,15 @@ export interface Display {
   errors?: ScanOptionsType['errors'];
 }
 
+interface Requested {
+  fmin?: number;
+  fmax?: number;
+  span?: number;
+  rbw?: number;
+  samples?: number;
+  gain?: number;
+}
+
 /**
  * RadioHound format (.rh) capture for periodograms
  *
@@ -117,45 +126,48 @@ export interface Display {
  * TODO: Update this type to match schema
  */
 export interface RadioHoundCapture {
-  short_name?: string;
+  data: string;
+  gain: number;
+  latitude: number;
+  longitude: number;
   mac_address: string;
-  metadata?: {
-    data_type?: string;
+  metadata: {
+    data_type: string;
+    fmax: number;
+    fmin: number;
+    gps_lock: boolean;
+    nfft: number;
+    scan_time: number;
+    archive_result?: boolean;
+    // Deprecated metadata fields
+    xcount?: number;
     xstart?: number;
     xstop?: number;
-    fmin?: number;
-    fmax?: number;
-    nfft?: number;
-    xcount?: number;
-    gps_lock?: boolean;
-    scan_time?: number;
+    suggested_gain?: number;
+    uncertainty?: number;
     archiveResult?: boolean;
   };
-  data: number[] | FloatArray | string;
-  type?: string;
-  sample_rate?: number;
-  gain?: number;
-  timestamp?: string;
+  sample_rate: number;
+  short_name: string;
+  timestamp: string;
+  type: string;
+  version: string;
+  altitude?: number;
   center_frequency?: number;
+  custom_fields?: {
+    requested: Requested;
+  } & Record<string, unknown>;
+  hardware_board_id?: string;
+  hardware_version?: string;
+  scan_group?: string;
+  software_version?: string;
+  // Deprecated fields
+  batch?: number;
   m4s_min?: string;
   m4s_max?: string;
   m4s_mean?: string;
   m4s_median?: string;
-  requested?: {
-    rbw?: number;
-    span: number;
-    fmin?: number;
-    fmax?: number;
-    gain?: number;
-    samples?: number;
-  };
-  latitude?: number;
-  longitude?: number;
-  altitude?: number;
-  batch?: number;
-  hardware_version?: string;
-  hardware_board_id?: string;
-  software_version?: string;
+  requested?: Requested;
 }
 
 export type FloatArray = Float32Array | Float64Array;

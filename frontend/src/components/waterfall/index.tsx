@@ -245,8 +245,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     input: RadioHoundCapture,
     processedValues: (typeof processedData)[number],
   ) => {
-    let dataArray: FloatArray | number[] | undefined;
-    let arrayLength: number | undefined = Number(input.metadata?.xcount);
     const pointArr: DataPoint[] = [];
     let yValue: number | undefined,
       xValue: number,
@@ -264,25 +262,31 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let m4sMedian: FloatArray | undefined;
 
     // Use pre-processed data
-    dataArray = processedValues.floatArray;
+    const dataArray = processedValues.floatArray;
     const yValues = processedValues.dbValues;
-    arrayLength = dataArray?.length;
+    const arrayLength = dataArray?.length ?? input.metadata.xcount;
 
-    if (input.metadata?.xstart == null) {
+    if (!input.metadata.xstart && input.center_frequency) {
       // OLD
-      fMin = Number(input.center_frequency) - Number(input.sample_rate) / 2;
-      fMax = Number(input.center_frequency) + Number(input.sample_rate) / 2;
-      freqStep = Number(input.sample_rate) / Number(input.metadata?.nfft);
+      fMin = Number(input.center_frequency) - input.sample_rate / 2;
+      fMax = Number(input.center_frequency) + input.sample_rate / 2;
+      freqStep = input.sample_rate / input.metadata.nfft;
       centerFreq = input.center_frequency;
-    } else {
+    } else if (
+      input.metadata.xstart &&
+      input.metadata.xstop &&
+      input.metadata.xcount
+    ) {
       // NEW Icarus
-      fMin = Number(input.metadata.xstart);
-      fMax = Number(input.metadata.xstop);
-      freqStep =
-        (Number(input.metadata.xstop) - Number(input.metadata.xstart)) /
-        Number(input.metadata.xcount);
-      centerFreq =
-        (Number(input.metadata.xstop) + Number(input.metadata.xstart)) / 2;
+      fMin = input.metadata.xstart;
+      fMax = input.metadata.xstop;
+      freqStep = (fMax - fMin) / input.metadata.xcount;
+      centerFreq = (fMax + fMin) / 2;
+    } else {
+      fMin = input.metadata.fmin;
+      fMax = input.metadata.fmax;
+      freqStep = input.sample_rate / input.metadata.nfft;
+      centerFreq = (fMax + fMin) / 2;
     }
 
     if (input.m4s_min && input.m4s_max && input.m4s_mean && input.m4s_median) {
@@ -295,9 +299,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const tmpDisplay = _.cloneDeep(display);
 
     if (
-      input.mac_address &&
-      (display.maxHoldValues[input.mac_address] === undefined ||
-        dataArray?.length !== display.maxHoldValues[input.mac_address].length)
+      display.maxHoldValues[input.mac_address] === undefined ||
+      dataArray?.length !== display.maxHoldValues[input.mac_address].length
     ) {
       tmpDisplay.maxHoldValues[input.mac_address] = [];
     }
@@ -364,7 +367,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       name:
         input.short_name +
         ' (' +
-        input.mac_address?.substring(input.mac_address.length - 4) +
+        input.mac_address.substring(input.mac_address.length - 4) +
         ')',
       toolTipContent: input.short_name + ': {x}, {y}',
       _id: input.mac_address,
@@ -420,7 +423,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         ..._.cloneDeep(tmpChart.data[nextIndex - 1]),
         name:
           'Max Hold (' +
-          input.mac_address?.substring(input.mac_address.length - 4) +
+          input.mac_address.substring(input.mac_address.length - 4) +
           ')',
         _id: 'maxhold_' + input.mac_address,
         dataPoints: tmpDisplay.maxHoldValues[input.mac_address],
@@ -558,7 +561,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       // Update x range
       let currentXMin = Infinity;
       let currentXMax = -Infinity;
-      if (capture.metadata?.xstart && capture.metadata?.xstop) {
+      if (capture.metadata.xstart && capture.metadata.xstop) {
         currentXMin = capture.metadata.xstart;
         currentXMax = capture.metadata.xstop;
       } else if (capture.center_frequency && capture.sample_rate) {

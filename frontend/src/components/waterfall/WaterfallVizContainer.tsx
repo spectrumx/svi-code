@@ -10,7 +10,7 @@ import { VizContainerProps } from '../types';
 
 interface WaterfallData {
   capture: Capture;
-  fileData: RadioHoundCapture;
+  fileContent: RadioHoundCapture;
 }
 
 export interface WaterfallSettings {
@@ -32,7 +32,7 @@ export const WaterfallVizContainer = ({
   const waterfallData: WaterfallData[] = visualizationState.captures.map(
     (capture) => ({
       capture,
-      fileData: files[capture.files[0].id].fileData,
+      fileContent: files[capture.files[0].id].fileContent,
     }),
   );
 
@@ -62,14 +62,14 @@ export const WaterfallVizContainer = ({
         <Col>
           <Row>
             <WaterfallVisualization
-              data={waterfallData.map((data) => data.fileData)}
+              data={waterfallData.map((data) => data.fileContent)}
               settings={settings}
               setSettings={setSettings}
             />
           </Row>
           <Row>
             <ScanDetailsTable
-              capture={waterfallData[settings.captureIndex].fileData}
+              capture={waterfallData[settings.captureIndex].fileContent}
             />
           </Row>
         </Col>
