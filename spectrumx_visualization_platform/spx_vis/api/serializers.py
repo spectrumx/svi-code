@@ -301,12 +301,14 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
 
         elif capture_source == "svi_user":
             # Get local captures
+            int_ids = [int(capture_id) for capture_id in capture_ids]
             local_captures = Capture.objects.filter(
-                id__in=capture_ids, owner=user, type=capture_type
+                id__in=int_ids, owner=user, type=capture_type
             ).values_list("id", flat=True)
+            local_capture_ids = [str(capture_id) for capture_id in local_captures]
 
             # Verify all requested captures were found
-            missing_ids = set(capture_ids) - set(local_captures)
+            missing_ids = set(capture_ids) - set(local_capture_ids)
             if missing_ids:
                 error_message = f"Local captures of type {capture_type} not found: {', '.join(missing_ids)}"
                 raise serializers.ValidationError(error_message)

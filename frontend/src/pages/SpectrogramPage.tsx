@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router';
 import { Row, Col, Button } from 'react-bootstrap';
 
 import { SpectrogramVisualization } from '../components/spectrogram';
@@ -22,10 +21,11 @@ export interface JobInfo {
   results_id?: string;
 }
 
-const SpectrogramPage = () => {
-  const { captureId: captureIdString } = useParams();
-  const captureId = Number(captureIdString);
+interface SpectrogramPageProps {
+  captureId: string;
+}
 
+const SpectrogramPage = ({ captureId }: SpectrogramPageProps) => {
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
@@ -45,7 +45,7 @@ const SpectrogramPage = () => {
 
     try {
       const response = await postSpectrogramJob(
-        captureId,
+        Number(captureId),
         // spectrogramSettings.fftSize,
         width,
         height,

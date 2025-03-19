@@ -337,7 +337,7 @@ def format_local_capture(capture: dict) -> dict:
         "source": "svi_user",
         "files": capture["files"],
         "owner": capture["owner"],
-        "type": capture.get("metadata", {}).get("data_type", "rh"),
+        "type": capture["type"],
         "min_freq": capture.get("metadata", {}).get("fmin", ""),
         "max_freq": capture.get("metadata", {}).get("fmax", ""),
         "scan_time": scan_time,

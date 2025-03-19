@@ -8,11 +8,9 @@ import './App.css';
 import LandingPage from './pages/LandingPage';
 import WorkspacePage from './pages/WorkspacePage';
 import MyDataPage from './pages/MyDataPage';
-// import SpectrogramPage from './pages/SpectrogramPage';
 import TokenPage from './pages/TokenPage';
 import NewVisualizationPage from './pages/NewVisualizationPage';
 import VisualizationPage from './pages/VisualizationPage';
-// import WaterfallPage from './pages/WaterfallPage';
 import SearchPage from './pages/SearchPage';
 import JupyterNotebookPage from './pages/JupyterNotebookPage';
 import Header from './components/Header';
@@ -50,11 +48,6 @@ function App() {
               element={<NewVisualizationPage />}
             />
             <Route path="visualization/:id" element={<VisualizationPage />} />
-            {/* <Route
-              path="visualization/spectrogram/:captureId"
-              element={<SpectrogramPage />}
-            />
-            <Route path="visualization/waterfall" element={<WaterfallPage />} /> */}
             <Route path="token" element={<TokenPage />} />
             <Route
               path="*"

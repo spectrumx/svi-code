@@ -7,25 +7,7 @@ import WaterfallPage from './WaterfallPage';
 import {
   Visualization,
   getVisualization,
-  getVisualizations,
-  useSyncVisualizations,
 } from '../apiClient/visualizationService';
-import { useAppContext } from '../utils/AppContext';
-
-interface SpectrogramPageProps {
-  captureId: string;
-  settings: Record<string, any>;
-}
-
-interface WaterfallPageProps {
-  captureIds: string[];
-  settings: Record<string, any>;
-}
-
-// Type assertion to handle component props
-const SpectrogramPageWithProps =
-  SpectrogramPage as React.FC<SpectrogramPageProps>;
-const WaterfallPageWithProps = WaterfallPage as React.FC<WaterfallPageProps>;
 
 /**
  * Router component for visualization pages.
@@ -82,41 +64,27 @@ const VisualizationPage = () => {
     return <Navigate to="/visualizations" replace />;
   }
 
-  return (
-    <div className="page-container">
-      <h1>Type: {visualization.type}</h1>
-      <p>
-        Captures ({visualization.capture_ids.length}):{' '}
-        {visualization.capture_ids.join(', ')}
-      </p>
-      <p>Capture Type: {visualization.capture_type}</p>
-      <p>Capture Source: {visualization.capture_source}</p>
-    </div>
-  );
+  if (visualization.capture_source === 'sds') {
+    return (
+      <div className="alert alert-danger" role="alert">
+        SDS visualizations are not yet supported
+      </div>
+    );
+  }
 
   // Route to the appropriate visualization page based on type
-  // switch (visualization.type) {
-  //   case 'spectrogram':
-  //     return (
-  //       <SpectrogramPageWithProps
-  //         captureId={visualization.capture_ids[0]}
-  //         settings={visualization.settings}
-  //       />
-  //     );
-  //   case 'waterfall':
-  //     return (
-  //       <WaterfallPageWithProps
-  //         captureIds={visualization.capture_ids}
-  //         settings={visualization.settings}
-  //       />
-  //     );
-  //   default:
-  //     return (
-  //       <div className="alert alert-danger" role="alert">
-  //         Unsupported visualization type: {visualization.type}
-  //       </div>
-  //     );
-  // }
+  switch (visualization.type) {
+    case 'spectrogram':
+      return <SpectrogramPage captureId={visualization.capture_ids[0]} />;
+    case 'waterfall':
+      return <WaterfallPage captureIds={visualization.capture_ids} />;
+    default:
+      return (
+        <div className="alert alert-danger" role="alert">
+          Unsupported visualization type: {visualization.type}
+        </div>
+      );
+  }
 };
 
 export default VisualizationPage;
