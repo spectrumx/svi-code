@@ -8,6 +8,7 @@ import {
   ChartAxisXOptions,
   ChartAxisYOptions,
 } from 'canvasjs';
+import { z as zod } from 'zod';
 
 export interface Data extends ChartDataSeriesOptions {
   // Custom prop
@@ -108,67 +109,73 @@ export interface Display {
   errors?: ScanOptionsType['errors'];
 }
 
-interface Requested {
-  fmin?: number;
-  fmax?: number;
-  span?: number;
-  rbw?: number;
-  samples?: number;
-  gain?: number;
-}
-
 /**
- * RadioHound format (.rh) capture for periodograms
+ * RadioHound format (.rh/.rh.json) capture for periodograms
  *
  * Schema definition:
  * https://github.com/spectrumx/schema-definitions/tree/master/definitions/sds/metadata-formats/radiohound
- *
- * TODO: Update this type to match schema
  */
-export interface RadioHoundCapture {
-  data: string;
-  gain: number;
-  latitude: number;
-  longitude: number;
-  mac_address: string;
-  metadata: {
-    data_type: string;
-    fmax: number;
-    fmin: number;
-    gps_lock: boolean;
-    nfft: number;
-    scan_time: number;
-    archive_result?: boolean;
-    // Deprecated metadata fields
-    xcount?: number;
-    xstart?: number;
-    xstop?: number;
-    suggested_gain?: number;
-    uncertainty?: number;
-    archiveResult?: boolean;
-  };
-  sample_rate: number;
-  short_name: string;
-  timestamp: string;
-  type: string;
-  version: string;
-  altitude?: number;
-  center_frequency?: number;
-  custom_fields?: {
-    requested: Requested;
-  } & Record<string, unknown>;
-  hardware_board_id?: string;
-  hardware_version?: string;
-  scan_group?: string;
-  software_version?: string;
+const RequestedSchema = zod.object({
+  fmin: zod.number().optional(),
+  fmax: zod.number().optional(),
+  span: zod.number().optional(),
+  rbw: zod.number().optional(),
+  samples: zod.number().optional(),
+  gain: zod.number().optional(),
+});
+
+const RadioHoundMetadataSchema = zod.object({
+  data_type: zod.string(),
+  fmax: zod.number(),
+  fmin: zod.number(),
+  gps_lock: zod.boolean(),
+  nfft: zod.number(),
+  scan_time: zod.number(),
+  archive_result: zod.boolean().optional(),
   // Deprecated fields
-  batch?: number;
-  m4s_min?: string;
-  m4s_max?: string;
-  m4s_mean?: string;
-  m4s_median?: string;
-  requested?: Requested;
-}
+  xcount: zod.number().optional(),
+  xstart: zod.number().optional(),
+  xstop: zod.number().optional(),
+  suggested_gain: zod.number().optional(),
+  uncertainty: zod.number().optional(),
+  archiveResult: zod.boolean().optional(),
+});
+
+const RadioHoundCustomFieldsSchema = zod
+  .object({
+    requested: RequestedSchema,
+  })
+  .catchall(zod.unknown());
+
+export const RadioHoundCaptureSchema = zod.object({
+  data: zod.string(),
+  gain: zod.number(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  mac_address: zod.string(),
+  metadata: RadioHoundMetadataSchema,
+  sample_rate: zod.number(),
+  short_name: zod.string(),
+  timestamp: zod.string(),
+  type: zod.string(),
+  version: zod.string(),
+  altitude: zod.number().optional(),
+  center_frequency: zod.number().optional(),
+  custom_fields: RadioHoundCustomFieldsSchema.optional(),
+  hardware_board_id: zod.string().optional(),
+  hardware_version: zod.string().optional(),
+  scan_group: zod.string().optional(),
+  software_version: zod.string().optional(),
+  // Deprecated fields
+  batch: zod.number().optional(),
+  m4s_min: zod.string().optional(),
+  m4s_max: zod.string().optional(),
+  m4s_mean: zod.string().optional(),
+  m4s_median: zod.string().optional(),
+  requested: RequestedSchema.optional(),
+});
+
+export type RadioHoundCapture = zod.infer<typeof RadioHoundCaptureSchema>;
 
 export type FloatArray = Float32Array | Float64Array;
 

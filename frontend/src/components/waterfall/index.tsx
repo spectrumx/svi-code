@@ -266,25 +266,32 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const yValues = processedValues.dbValues;
     const arrayLength = dataArray?.length ?? input.metadata.xcount;
 
-    if (!input.metadata.xstart && input.center_frequency) {
-      // OLD
-      fMin = Number(input.center_frequency) - input.sample_rate / 2;
-      fMax = Number(input.center_frequency) + input.sample_rate / 2;
-      freqStep = input.sample_rate / input.metadata.nfft;
-      centerFreq = input.center_frequency;
-    } else if (
-      input.metadata.xstart &&
-      input.metadata.xstop &&
-      input.metadata.xcount
-    ) {
-      // NEW Icarus
+    const requested =
+      input.custom_fields?.requested ?? input.requested ?? undefined;
+
+    if (requested && requested.fmin && requested.fmax) {
+      fMin = requested.fmin;
+      fMax = requested.fmax;
+    } else if (input.metadata.fmin && input.metadata.fmax) {
+      fMin = input.metadata.fmin;
+      fMax = input.metadata.fmax;
+    } else if (input.metadata.xstart && input.metadata.xstop) {
       fMin = input.metadata.xstart;
       fMax = input.metadata.xstop;
+    } else if (input.center_frequency) {
+      fMin = input.center_frequency - input.sample_rate / 2;
+      fMax = input.center_frequency + input.sample_rate / 2;
+    } else {
+      throw new Error('No frequency range found');
+    }
+
+    if (input.center_frequency) {
+      freqStep = input.sample_rate / input.metadata.nfft;
+      centerFreq = input.center_frequency;
+    } else if (input.metadata.xcount) {
       freqStep = (fMax - fMin) / input.metadata.xcount;
       centerFreq = (fMax + fMin) / 2;
     } else {
-      fMin = input.metadata.fmin;
-      fMax = input.metadata.fmax;
       freqStep = input.sample_rate / input.metadata.nfft;
       centerFreq = (fMax + fMin) / 2;
     }

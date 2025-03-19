@@ -10,6 +10,7 @@ import {
 } from '../apiClient/visualizationService';
 import { getFileContent } from '../apiClient/fileService';
 import { FilesWithContent, FileWithContent } from '../components/types';
+import { RadioHoundCaptureSchema } from '../components/waterfall/types';
 
 /**
  * Helper function to add a delay between requests
@@ -48,9 +49,24 @@ const VisualizationPage = () => {
             // Add a small delay before each request
             await delay(500);
             const fileContent = await getFileContent(file.id, capture.source);
+            let isValid: boolean | undefined;
+
+            if (capture.type === 'rh') {
+              const validationResult =
+                RadioHoundCaptureSchema.safeParse(fileContent);
+              isValid = validationResult.success;
+
+              if (!isValid) {
+                console.warn(
+                  `Invalid RadioHound file content for ${file.id}: ${validationResult.error}`,
+                );
+              }
+            }
+
             return {
               ...file,
               fileContent,
+              isValid,
             };
           }),
         );

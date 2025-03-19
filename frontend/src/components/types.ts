@@ -3,6 +3,7 @@ import { FileMetadata } from '../apiClient/fileService';
 
 export interface FileWithContent extends FileMetadata {
   fileContent: any;
+  isValid?: boolean;
 }
 
 export type FilesWithContent = {
