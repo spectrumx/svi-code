@@ -6,9 +6,14 @@ from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
     RadioHoundUtility,
 )
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
+from spectrumx_visualization_platform.spx_vis.models import CAPTURE_TYPE_CHOICES
+from spectrumx_visualization_platform.spx_vis.models import VISUALIZATION_TYPE_CHOICES
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
+from spectrumx_visualization_platform.spx_vis.models import Visualization
+from spectrumx_visualization_platform.spx_vis.models import VisualizationType
+from spectrumx_visualization_platform.users.models import User
 
 
 class FileSerializer(serializers.ModelSerializer[File]):
@@ -123,7 +128,8 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         elif capture_type == CaptureType.SigMF:
             capture_utility = SigMFUtility
         else:
-            raise ValueError(f"Unsupported capture type: {capture_type}")
+            error_message = f"Unsupported capture type: {capture_type}"
+            raise ValueError(error_message)
 
         # Set defaults for required fields
         validated_data["owner"] = self.context["request"].user
@@ -170,7 +176,8 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         if capture_type == CaptureType.SigMF:
             capture_utility = SigMFUtility
         else:
-            raise ValueError(f"Unsupported capture type: {capture_type}")
+            error_message = f"Unsupported capture type: {capture_type}"
+            raise ValueError(error_message)
 
         # Extract timestamp from files based on capture type
         validated_data["timestamp"] = capture_utility.extract_timestamp(uploaded_files)
@@ -197,3 +204,203 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             )
 
         return capture
+
+
+class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
+    """Serializer for Visualization model.
+
+    Handles validation and serialization of visualization configurations created through
+    the visualization wizard.
+    """
+
+    owner = serializers.ReadOnlyField(source="owner.username")
+    capture_ids = serializers.JSONField(
+        help_text="List of capture IDs used in this visualization"
+    )
+
+    # Define supported capture types for each visualization type
+    SUPPORTED_CAPTURE_TYPES = {
+        VisualizationType.Spectrogram: [CaptureType.SigMF],
+        VisualizationType.Waterfall: [CaptureType.RadioHound],
+    }
+
+    class Meta:
+        model = Visualization
+        fields = [
+            "id",
+            "owner",
+            "type",
+            "capture_ids",
+            "capture_type",
+            "capture_source",
+            "settings",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def validate_capture_ids(self, value) -> list[str]:
+        """Validate that capture_ids is a non-empty list of strings.
+
+        Args:
+            value: The capture_ids value to validate
+
+        Returns:
+            The validated value
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        if not isinstance(value, list):
+            error_message = "capture_ids must be a list"
+            raise serializers.ValidationError(error_message)
+
+        if not value:
+            error_message = "capture_ids cannot be empty"
+            raise serializers.ValidationError(error_message)
+
+        if not all(isinstance(capture_id, str) for capture_id in value):
+            error_message = "All capture IDs must be strings"
+            raise serializers.ValidationError(error_message)
+
+        return value
+
+    def _check_captures(
+        self,
+        capture_ids: list[str],
+        capture_source: str,
+        capture_type: str,
+        user: User,
+    ):
+        """Check if the given capture IDs are valid and accessible to the user.
+
+        Queries either local database or SDS based on the capture source.
+        Verifies all captures have the correct type.
+
+        Args:
+            capture_ids: List of capture IDs to look up
+            capture_source: Source of the captures ("sds" or "svi_user")
+            capture_type: Type of the captures
+            user: The user making the request
+
+        Raises:
+            serializers.ValidationError: If captures have inconsistent types or can't be found
+        """
+        if capture_source == "sds":
+            sds_client = user.sds_client()
+
+            # Get SDS captures
+            sds_captures = sds_client.captures.listing(capture_type=capture_type)
+            sds_capture_ids = [str(capture.uuid) for capture in sds_captures]
+
+            # Verify all requested captures were found
+            missing_ids = set(capture_ids) - set(sds_capture_ids)
+            if missing_ids:
+                error_message = f"SDS captures of type {capture_type} not found: {', '.join(missing_ids)}"
+                raise serializers.ValidationError(error_message)
+
+        elif capture_source == "svi_user":
+            # Get local captures
+            int_ids = [int(capture_id) for capture_id in capture_ids]
+            local_captures = Capture.objects.filter(
+                id__in=int_ids, owner=user, type=capture_type
+            ).values_list("id", flat=True)
+            local_capture_ids = [str(capture_id) for capture_id in local_captures]
+
+            # Verify all requested captures were found
+            missing_ids = set(capture_ids) - set(local_capture_ids)
+            if missing_ids:
+                error_message = f"Local captures of type {capture_type} not found: {', '.join(missing_ids)}"
+                raise serializers.ValidationError(error_message)
+
+        elif capture_source == "svi_public":
+            # Not yet implemented
+            error_message = "Public SVI captures are not yet implemented"
+            raise serializers.ValidationError(error_message)
+
+        else:
+            error_message = f"Invalid capture source: {capture_source}"
+            raise serializers.ValidationError(error_message)
+
+    def validate(self, data: dict) -> dict:
+        """Validate the visualization data.
+
+        Performs the following checks:
+        - For spectrogram visualizations, only one capture ID is allowed
+        - All captures exist and are accessible to the user
+        - All captures are of the same type
+        - The capture type is supported for the chosen visualization type
+
+        Args:
+            data: The data to validate
+
+        Returns:
+            The validated data
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        # Validate number of captures for spectrogram
+        if (
+            data["type"] == VisualizationType.Spectrogram
+            and len(data["capture_ids"]) != 1
+        ):
+            error_message = "Spectrogram visualizations must have exactly one capture"
+            raise serializers.ValidationError(error_message)
+
+        # Check if the given capture IDs are valid and accessible to the user
+        self._check_captures(
+            data["capture_ids"],
+            data["capture_source"],
+            data["capture_type"],
+            self.context["request"].user,
+        )
+
+        # Validate that the capture type is supported for this visualization type
+        supported_types = self.SUPPORTED_CAPTURE_TYPES.get(data["type"], [])
+        if data["capture_type"] not in supported_types:
+            supported_names = [dict(CAPTURE_TYPE_CHOICES)[t] for t in supported_types]
+            error_message = (
+                f"{dict(VISUALIZATION_TYPE_CHOICES)[data['type']]} visualizations only support "
+                f"the following capture types: {', '.join(supported_names)}"
+            )
+            raise serializers.ValidationError(error_message)
+
+        return data
+
+    def create(self, validated_data: dict) -> Visualization:
+        """Create a new Visualization instance or return an existing matching one.
+
+        Checks if a visualization with identical configuration already exists for the user.
+        If found, returns the existing visualization instead of creating a new one.
+
+        Args:
+            validated_data: The validated data for creating the visualization
+
+        Returns:
+            The created or existing Visualization instance
+        """
+        user = self.context["request"].user
+        validated_data["owner"] = user
+
+        # Sort the input capture_ids
+        sorted_capture_ids = sorted(validated_data["capture_ids"])
+        validated_data["capture_ids"] = sorted_capture_ids
+
+        # Check for existing visualization with same configuration
+        existing_visualization = Visualization.objects.filter(
+            owner=user,
+            type=validated_data["type"],
+            capture_ids=sorted_capture_ids,
+            capture_type=validated_data["capture_type"],
+            capture_source=validated_data["capture_source"],
+            settings=validated_data.get("settings", {}),
+        ).first()
+
+        if existing_visualization:
+            print(
+                f"Returning existing visualization with same config: {existing_visualization.id}"
+            )
+            return existing_visualization
+
+        return super().create(validated_data)
