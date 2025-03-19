@@ -245,26 +245,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     input: RadioHoundCapture,
     processedValues: (typeof processedData)[number],
   ) => {
-    const pointArr: DataPoint[] = [];
-    let yValue: number | undefined,
-      xValue: number,
-      fMin: number,
-      fMax: number,
-      freqStep: number,
-      centerFreq: number | undefined;
-    const minArray: DataPoint[] = [];
-    let m4sMin: FloatArray | undefined;
-    const maxArray: DataPoint[] = [];
-    let m4sMax: FloatArray | undefined;
-    const meanArray: DataPoint[] = [];
-    let m4sMean: FloatArray | undefined;
-    const medianArray: DataPoint[] = [];
-    let m4sMedian: FloatArray | undefined;
-
-    // Use pre-processed data
-    const dataArray = processedValues.floatArray;
-    const yValues = processedValues.dbValues;
-    const arrayLength = dataArray?.length ?? input.metadata.xcount;
+    let fMin: number;
+    let fMax: number;
 
     const requested =
       input.custom_fields?.requested ?? input.requested ?? undefined;
@@ -285,6 +267,9 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       throw new Error('No frequency range found');
     }
 
+    let freqStep: number;
+    let centerFreq: number;
+
     if (input.center_frequency) {
       freqStep = input.sample_rate / input.metadata.nfft;
       centerFreq = input.center_frequency;
@@ -296,6 +281,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       centerFreq = (fMax + fMin) / 2;
     }
 
+    let m4sMin: FloatArray | undefined;
+    let m4sMax: FloatArray | undefined;
+    let m4sMean: FloatArray | undefined;
+    let m4sMedian: FloatArray | undefined;
+
     if (input.m4s_min && input.m4s_max && input.m4s_mean && input.m4s_median) {
       m4sMin = binaryStringToFloatArray(input.m4s_min, input.type);
       m4sMax = binaryStringToFloatArray(input.m4s_max, input.type);
@@ -305,12 +295,25 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     const tmpDisplay = _.cloneDeep(display);
 
+    // Use pre-processed data
+    const dataArray = processedValues.floatArray;
+
     if (
       display.maxHoldValues[input.mac_address] === undefined ||
       dataArray?.length !== display.maxHoldValues[input.mac_address].length
     ) {
       tmpDisplay.maxHoldValues[input.mac_address] = [];
     }
+
+    const yValues = processedValues.dbValues;
+    const arrayLength = dataArray?.length ?? input.metadata.xcount;
+    const pointArr: DataPoint[] = [];
+    const minArray: DataPoint[] = [];
+    const maxArray: DataPoint[] = [];
+    const meanArray: DataPoint[] = [];
+    const medianArray: DataPoint[] = [];
+    let yValue: number | undefined;
+    let xValue: number;
 
     if (dataArray && arrayLength && yValues) {
       for (let i = 0; i < arrayLength; i++) {
