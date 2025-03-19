@@ -10,7 +10,7 @@ const LandingPage = () => {
   return (
     <section className="hero">
       <div className="container">
-        <h1>SpectrumX Visualizations & Interface</h1>
+        <h1>Spectrum Visualization Interface</h1>
         <div className="hero-content">
           <div className="hero-boxes">
             <Card className="hero-box">
