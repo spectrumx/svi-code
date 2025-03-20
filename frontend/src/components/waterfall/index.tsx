@@ -721,7 +721,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     <div>
       <h5>
         Capture {displayedCaptureIndex + 1} (
-        {data[displayedCaptureIndex].timestamp} UTC)
+        {data[displayedCaptureIndex].timestamp})
       </h5>
       <Periodogram
         chartOptions={chart}
