@@ -1,6 +1,7 @@
 import io
 import logging
 import zipfile
+from datetime import UTC
 from datetime import datetime
 
 import requests
@@ -429,7 +430,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             Response: 400 if there's an error fetching files
         """
         visualization: Visualization = self.get_object()
-        timestamp = datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         zip_filename = f"visualization_{visualization.id}_{timestamp}.zip"
 
         # Create a BytesIO object to store the ZIP file
