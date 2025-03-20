@@ -288,7 +288,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         This endpoint retrieves all files from both local and SDS sources associated
         with the visualization's captures and packages them into a ZIP file.
 
-        For SDS captures, it downloads individual files using the SDS client.
+        For SDS captures, it downloads files directly from the SDS API.
         For local captures, it reads files directly from the database.
 
         Files are organized in the ZIP by capture ID, with each capture's files
@@ -314,15 +314,8 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             if visualization.capture_source == "sds":
                 try:
-                    # Get SDS client
-                    user: User = request.user
-                    logging.info(f"Getting SDS client for user {user.id}")
-                    sds = user.sds_client()
-                    logging.info("SDS client initialized")
-
-                    # Create a temporary directory for downloads
-                    temp_dir = Path("/tmp") / f"sds_downloads_{timestamp}"
-                    temp_dir.mkdir(parents=True, exist_ok=True)
+                    # Get user token for SDS API
+                    token = request.user.fetch_sds_token()
 
                     # Get all SDS captures for this user
                     logging.info("Getting SDS captures")
@@ -353,38 +346,48 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                             # Download each file for this capture
                             for file in capture.get("files", []):
                                 try:
-                                    # Download the file to a temporary location
                                     file_id = file["id"]
-                                    local_path = temp_dir / f"{file_id}.tmp"
                                     logging.info(f"Downloading file with ID {file_id}")
-                                    sds_file = sds.download_file(
-                                        file_uuid=file_id,
-                                        to_local_path=local_path,
+
+                                    # Download file directly from SDS API
+                                    response = requests.get(
+                                        f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_id}/download",
+                                        headers={"Authorization": f"Api-Key: {token}"},
+                                        timeout=10,
+                                        stream=True,
                                     )
+                                    response.raise_for_status()
                                     logging.info(f"File with ID {file_id} downloaded")
+
+                                    # Get filename from Content-Disposition header or use file ID
+                                    content_disposition = response.headers.get(
+                                        "Content-Disposition", ""
+                                    )
+                                    filename = next(
+                                        (
+                                            part.split("=")[1].strip('"')
+                                            for part in content_disposition.split(";")
+                                            if part.strip().startswith("filename=")
+                                        ),
+                                        file["name"],
+                                    )
+
                                     # Check for duplicate filename
-                                    if sds_file.name in seen_filenames:
+                                    if filename in seen_filenames:
                                         return Response(
                                             {
                                                 "error": f"Duplicate filename found for capture with ID {capture_id}. "
-                                                f"File name: {sds_file.name}"
+                                                f"File name: {filename}"
                                             },
                                             status=status.HTTP_400_BAD_REQUEST,
                                         )
-                                    seen_filenames.add(sds_file.name)
+                                    seen_filenames.add(filename)
 
-                                    # Add file to ZIP in capture-specific directory
-                                    zip_path = f"{capture_id}/{sds_file.name}"
-                                    logging.info(
-                                        f"Adding file with ID {file_id} to ZIP"
-                                    )
-                                    zip_file.write(local_path, zip_path)
-                                    logging.info(f"File with ID {file_id} added to ZIP")
+                                    # Add file content directly to ZIP in capture-specific directory
+                                    zip_path = f"{capture_id}/{filename}"
+                                    zip_file.writestr(zip_path, response.content)
 
-                                    # Clean up temporary file
-                                    local_path.unlink()
-
-                                except Exception as e:
+                                except requests.RequestException as e:
                                     message = f"Failed to download file with ID {file['id']} from capture with ID {capture_id}: {e}"
                                     logging.error(message)
                                     return Response(
@@ -401,11 +404,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                                 {"error": message},
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
-
-                    # Clean up temporary directory
-                    import shutil
-
-                    shutil.rmtree(temp_dir)
 
                 except Exception as e:
                     message = f"Failed to fetch SDS files: {e!s}"
