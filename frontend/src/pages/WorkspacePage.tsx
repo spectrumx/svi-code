@@ -41,7 +41,7 @@ const WorkspacePage = () => {
                 type={visualization.type}
                 captureType={visualization.capture_type}
                 captureSource={visualization.capture_source}
-                captures={visualization.capture_ids}
+                captureCount={visualization.capture_ids.length}
               />
             </Col>
           ))}

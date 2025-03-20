@@ -113,9 +113,7 @@ export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
             label="Timestamp"
             value={
               getCaptureValue('timestamp')
-                ? `${getCaptureValue<string>('timestamp')
-                    ?.substring(0, 19)
-                    .replace('T', ' ')} (UTC)`
+                ? getCaptureValue<string>('timestamp')
                 : undefined
             }
           />

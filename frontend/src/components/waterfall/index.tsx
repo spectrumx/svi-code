@@ -3,7 +3,7 @@ import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
 import { WaterfallPlot } from './WaterfallPlot';
-import { WaterfallSettings } from '../../pages/WaterfallPage';
+import { WaterfallSettings } from './WaterfallVizContainer';
 import {
   Chart,
   Data,
@@ -245,45 +245,46 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     input: RadioHoundCapture,
     processedValues: (typeof processedData)[number],
   ) => {
-    let dataArray: FloatArray | number[] | undefined;
-    let arrayLength: number | undefined = Number(input.metadata?.xcount);
-    const pointArr: DataPoint[] = [];
-    let yValue: number | undefined,
-      xValue: number,
-      fMin: number,
-      fMax: number,
-      freqStep: number,
-      centerFreq: number | undefined;
-    const minArray: DataPoint[] = [];
-    let m4sMin: FloatArray | undefined;
-    const maxArray: DataPoint[] = [];
-    let m4sMax: FloatArray | undefined;
-    const meanArray: DataPoint[] = [];
-    let m4sMean: FloatArray | undefined;
-    const medianArray: DataPoint[] = [];
-    let m4sMedian: FloatArray | undefined;
+    let fMin: number;
+    let fMax: number;
 
-    // Use pre-processed data
-    dataArray = processedValues.floatArray;
-    const yValues = processedValues.dbValues;
-    arrayLength = dataArray?.length;
+    const requested =
+      input.custom_fields?.requested ?? input.requested ?? undefined;
 
-    if (input.metadata?.xstart == null) {
-      // OLD
-      fMin = Number(input.center_frequency) - Number(input.sample_rate) / 2;
-      fMax = Number(input.center_frequency) + Number(input.sample_rate) / 2;
-      freqStep = Number(input.sample_rate) / Number(input.metadata?.nfft);
-      centerFreq = input.center_frequency;
+    if (requested && requested.fmin && requested.fmax) {
+      fMin = requested.fmin;
+      fMax = requested.fmax;
+    } else if (input.metadata.fmin && input.metadata.fmax) {
+      fMin = input.metadata.fmin;
+      fMax = input.metadata.fmax;
+    } else if (input.metadata.xstart && input.metadata.xstop) {
+      fMin = input.metadata.xstart;
+      fMax = input.metadata.xstop;
+    } else if (input.center_frequency) {
+      fMin = input.center_frequency - input.sample_rate / 2;
+      fMax = input.center_frequency + input.sample_rate / 2;
     } else {
-      // NEW Icarus
-      fMin = Number(input.metadata.xstart);
-      fMax = Number(input.metadata.xstop);
-      freqStep =
-        (Number(input.metadata.xstop) - Number(input.metadata.xstart)) /
-        Number(input.metadata.xcount);
-      centerFreq =
-        (Number(input.metadata.xstop) + Number(input.metadata.xstart)) / 2;
+      throw new Error('No frequency range found');
     }
+
+    let freqStep: number;
+    let centerFreq: number;
+
+    if (input.center_frequency) {
+      freqStep = input.sample_rate / input.metadata.nfft;
+      centerFreq = input.center_frequency;
+    } else if (input.metadata.xcount) {
+      freqStep = (fMax - fMin) / input.metadata.xcount;
+      centerFreq = (fMax + fMin) / 2;
+    } else {
+      freqStep = input.sample_rate / input.metadata.nfft;
+      centerFreq = (fMax + fMin) / 2;
+    }
+
+    let m4sMin: FloatArray | undefined;
+    let m4sMax: FloatArray | undefined;
+    let m4sMean: FloatArray | undefined;
+    let m4sMedian: FloatArray | undefined;
 
     if (input.m4s_min && input.m4s_max && input.m4s_mean && input.m4s_median) {
       m4sMin = binaryStringToFloatArray(input.m4s_min, input.type);
@@ -294,13 +295,25 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     const tmpDisplay = _.cloneDeep(display);
 
+    // Use pre-processed data
+    const dataArray = processedValues.floatArray;
+
     if (
-      input.mac_address &&
-      (display.maxHoldValues[input.mac_address] === undefined ||
-        dataArray?.length !== display.maxHoldValues[input.mac_address].length)
+      display.maxHoldValues[input.mac_address] === undefined ||
+      dataArray?.length !== display.maxHoldValues[input.mac_address].length
     ) {
       tmpDisplay.maxHoldValues[input.mac_address] = [];
     }
+
+    const yValues = processedValues.dbValues;
+    const arrayLength = dataArray?.length ?? input.metadata.xcount;
+    const pointArr: DataPoint[] = [];
+    const minArray: DataPoint[] = [];
+    const maxArray: DataPoint[] = [];
+    const meanArray: DataPoint[] = [];
+    const medianArray: DataPoint[] = [];
+    let yValue: number | undefined;
+    let xValue: number;
 
     if (dataArray && arrayLength && yValues) {
       for (let i = 0; i < arrayLength; i++) {
@@ -364,7 +377,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       name:
         input.short_name +
         ' (' +
-        input.mac_address?.substring(input.mac_address.length - 4) +
+        input.mac_address.substring(input.mac_address.length - 4) +
         ')',
       toolTipContent: input.short_name + ': {x}, {y}',
       _id: input.mac_address,
@@ -420,7 +433,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         ..._.cloneDeep(tmpChart.data[nextIndex - 1]),
         name:
           'Max Hold (' +
-          input.mac_address?.substring(input.mac_address.length - 4) +
+          input.mac_address.substring(input.mac_address.length - 4) +
           ')',
         _id: 'maxhold_' + input.mac_address,
         dataPoints: tmpDisplay.maxHoldValues[input.mac_address],
@@ -558,7 +571,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       // Update x range
       let currentXMin = Infinity;
       let currentXMax = -Infinity;
-      if (capture.metadata?.xstart && capture.metadata?.xstop) {
+      if (capture.metadata.xstart && capture.metadata.xstop) {
         currentXMin = capture.metadata.xstart;
         currentXMax = capture.metadata.xstop;
       } else if (capture.center_frequency && capture.sample_rate) {
@@ -708,7 +721,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     <div>
       <h5>
         Capture {displayedCaptureIndex + 1} (
-        {data[displayedCaptureIndex].timestamp} UTC)
+        {data[displayedCaptureIndex].timestamp})
       </h5>
       <Periodogram
         chartOptions={chart}
