@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+import JSZip from 'jszip';
 
 import LoadingSpinner from '../components/LoadingSpinner';
 import SpectrogramVizContainer from '../components/spectrogram/SpectrogramVizContainer';
@@ -7,18 +8,10 @@ import WaterfallVizContainer from '../components/waterfall/WaterfallVizContainer
 import {
   VisualizationStateDetail,
   getVisualization,
+  downloadVizFiles,
 } from '../apiClient/visualizationService';
-import { getFileContent } from '../apiClient/fileService';
-import { FilesWithContent, FileWithContent } from '../components/types';
+import { FilesWithContent } from '../components/types';
 import { RadioHoundCaptureSchema } from '../components/waterfall/types';
-
-/**
- * Helper function to add a delay between requests
- * @param ms - Delay in milliseconds
- * @returns Promise that resolves after the specified delay
- */
-const delay = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Router component for visualization pages.
@@ -43,48 +36,64 @@ const VisualizationPage = () => {
       try {
         const vizState = await getVisualization(vizId);
 
-        // Create an array of promises for concurrent file downloads with delays
-        const fileDownloadPromises = vizState.captures.flatMap((capture) =>
-          capture.files.map(async (file) => {
-            // Add a small delay before each request
-            await delay(500);
-            const fileContent = await getFileContent(file.id, capture.source);
+        // Download the ZIP file containing all files
+        const zipBlob = await downloadVizFiles(vizId);
+
+        // Parse the ZIP file
+        const zip = new JSZip();
+        const zipContent = await zip.loadAsync(zipBlob);
+
+        // Process each file in the ZIP
+        const files: FilesWithContent = {};
+
+        // Process each capture in the visualization state
+        for (const capture of vizState.captures) {
+          const captureDir = zipContent.folder(capture.id.toString());
+          if (!captureDir) {
+            console.warn(
+              `Capture directory not found for capture ID ${capture.id}`,
+            );
+            continue;
+          }
+
+          // Process each file in the capture
+          for (const file of capture.files) {
+            const zipFile = captureDir.file(file.name);
+            if (!zipFile) {
+              console.warn(`File not found: ${file.name}`);
+              continue;
+            }
+
+            const content = await (zipFile as JSZip.JSZipObject).async('blob');
+            let parsedContent: unknown = content;
             let isValid: boolean | undefined;
 
-            if (capture.type === 'rh') {
+            // Validate RadioHound files
+            if (vizState.capture_type === 'rh') {
+              parsedContent = JSON.parse(await content.text());
               const validationResult =
-                RadioHoundCaptureSchema.safeParse(fileContent);
+                RadioHoundCaptureSchema.safeParse(parsedContent);
               isValid = validationResult.success;
 
               if (!isValid) {
                 console.warn(
-                  `Invalid RadioHound file content for ${file.id}: ${validationResult.error}`,
+                  `Invalid RadioHound file content for ${file.name}: ${validationResult.error}`,
                 );
               }
             }
 
-            return {
-              ...file,
-              fileContent,
+            // Add the file to our files object
+            files[file.id] = {
+              id: file.id,
+              name: file.name,
+              fileContent: parsedContent,
               isValid,
             };
-          }),
-        );
+          }
+        }
 
-        // Download all files concurrently
-        const downloadedFiles = await Promise.all(fileDownloadPromises);
-
-        // Convert array of results to object
-        const files: FilesWithContent = downloadedFiles.reduce(
-          (currObj, file: FileWithContent) => ({
-            ...currObj,
-            [file.id]: file,
-          }),
-          {} as FilesWithContent,
-        );
-
-        setFiles(files);
         setVisualizationState(vizState);
+        setFiles(files);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load visualization',

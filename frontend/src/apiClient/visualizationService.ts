@@ -112,3 +112,18 @@ export const useSyncVisualizations = () => {
 
   return syncVisualizations;
 };
+
+/**
+ * Downloads all files associated with a visualization as a ZIP file.
+ * @param id - The ID of the visualization
+ * @returns A blob containing the ZIP file
+ */
+export const downloadVizFiles = async (id: string): Promise<Blob> => {
+  const response = await apiClient.get(
+    `/api/visualizations/${id}/download_files/`,
+    {
+      responseType: 'blob',
+    },
+  );
+  return response.data;
+};

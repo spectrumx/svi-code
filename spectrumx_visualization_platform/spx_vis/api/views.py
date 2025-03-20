@@ -3,8 +3,6 @@ import logging
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
-from typing import List
 
 import requests
 from django.conf import settings
@@ -39,7 +37,6 @@ from spectrumx_visualization_platform.spx_vis.source_utils.local import (
 )
 from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
 from spectrumx_visualization_platform.users.models import User
-from spectrumx.models.captures import Capture as SDSCapture
 
 
 @api_view(["GET"])
@@ -291,8 +288,11 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         This endpoint retrieves all files from both local and SDS sources associated
         with the visualization's captures and packages them into a ZIP file.
 
-        For SDS captures, it downloads entire directories using the SDS client.
+        For SDS captures, it downloads individual files using the SDS client.
         For local captures, it reads files directly from the database.
+
+        Files are organized in the ZIP by capture ID, with each capture's files
+        in its own directory.
 
         Args:
             request: The HTTP request
@@ -305,16 +305,9 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             Response: 400 if there's an error fetching files, duplicate filenames found,
                      or if any files are missing from the captures
         """
-        visualization = self.get_object()
+        visualization: Visualization = self.get_object()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         zip_filename = f"visualization_{visualization.id}_{timestamp}.zip"
-
-        # Track filenames to detect duplicates and file IDs to verify completeness
-        seen_filenames: set[str] = set()
-        expected_file_ids: dict[
-            str, set[str]
-        ] = {}  # capture_id -> set of expected file IDs
-        file_id_to_name: dict[str, str] = {}  # file_id -> filename mapping
 
         # Create a BytesIO object to store the ZIP file
         zip_buffer = io.BytesIO()
@@ -323,86 +316,91 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 try:
                     # Get SDS client
                     user: User = request.user
+                    logging.info(f"Getting SDS client for user {user.id}")
                     sds = user.sds_client()
+                    logging.info("SDS client initialized")
 
                     # Create a temporary directory for downloads
                     temp_dir = Path("/tmp") / f"sds_downloads_{timestamp}"
                     temp_dir.mkdir(parents=True, exist_ok=True)
 
-                    # Group captures by their SDS directory
-                    sds_directories: dict[str, list[str]] = {}
+                    # Get all SDS captures for this user
+                    logging.info("Getting SDS captures")
                     sds_captures = get_sds_captures(request)
+                    logging.info(f"Got {len(sds_captures)} SDS captures")
 
                     for capture_id in visualization.capture_ids:
                         try:
-                            # Get capture details from SDS to find its directory
+                            # Get capture details from SDS
                             capture = next(
-                                (c for c in sds_captures if c["uuid"] == capture_id),
+                                (c for c in sds_captures if c["id"] == capture_id),
                                 None,
                             )
 
                             if capture is None:
-                                logging.error(
-                                    f"Failed to get SDS capture {capture_id}: capture not found"
+                                message = (
+                                    f"Capture with ID {capture_id} not found in SDS"
                                 )
-                                continue
+                                logging.error(message)
+                                return Response(
+                                    {"error": message},
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                )
 
-                            sds_dir = capture["top_level_dir"]
-                            if sds_dir not in sds_directories:
-                                sds_directories[sds_dir] = []
-                            sds_directories[sds_dir].append(capture_id)
+                            # Track filenames to detect duplicates
+                            seen_filenames: set[str] = set()
 
-                            # Record expected file IDs for this capture
-                            expected_file_ids[capture_id] = set(
-                                capture.get("files", [])
-                            )
-                        except Exception as e:
-                            logging.error(
-                                f"Failed to get SDS capture {capture_id}: {e}"
-                            )
-                            continue
-
-                    # Download each directory and add files to ZIP
-                    for sds_dir, capture_ids in sds_directories.items():
-                        try:
-                            # Create a subdirectory for this SDS directory
-                            local_dir = temp_dir / sds_dir
-                            local_dir.mkdir(parents=True, exist_ok=True)
-
-                            # Download the directory from SDS
-                            sds.download(
-                                from_sds_path=sds_dir,
-                                to_local_path=local_dir,
-                                overwrite=False,
-                                verbose=True,
-                            )
-
-                            # Add all files from this directory to the ZIP
-                            for file_path in local_dir.rglob("*"):
-                                if file_path.is_file():
-                                    filename = file_path.name
-                                    if filename in seen_filenames:
+                            # Download each file for this capture
+                            for file in capture.get("files", []):
+                                try:
+                                    # Download the file to a temporary location
+                                    file_id = file["id"]
+                                    local_path = temp_dir / f"{file_id}.tmp"
+                                    logging.info(f"Downloading file with ID {file_id}")
+                                    sds_file = sds.download_file(
+                                        file_uuid=file_id,
+                                        to_local_path=local_path,
+                                    )
+                                    logging.info(f"File with ID {file_id} downloaded")
+                                    # Check for duplicate filename
+                                    if sds_file.name in seen_filenames:
                                         return Response(
                                             {
-                                                "error": f"Duplicate filename found: {filename}"
+                                                "error": f"Duplicate filename found for capture with ID {capture_id}. "
+                                                f"File name: {sds_file.name}"
                                             },
                                             status=status.HTTP_400_BAD_REQUEST,
                                         )
-                                    seen_filenames.add(filename)
-                                    zip_file.write(file_path, filename)
+                                    seen_filenames.add(sds_file.name)
 
-                                    # Record the file ID to name mapping
-                                    # TODO: This logic is wrong. The stem is not the file ID.
-                                    file_id = (
-                                        file_path.stem
-                                    )  # Assuming file ID is the stem
-                                    file_id_to_name[file_id] = filename
+                                    # Add file to ZIP in capture-specific directory
+                                    zip_path = f"{capture_id}/{sds_file.name}"
+                                    logging.info(
+                                        f"Adding file with ID {file_id} to ZIP"
+                                    )
+                                    zip_file.write(local_path, zip_path)
+                                    logging.info(f"File with ID {file_id} added to ZIP")
+
+                                    # Clean up temporary file
+                                    local_path.unlink()
+
+                                except Exception as e:
+                                    message = f"Failed to download file with ID {file['id']} from capture with ID {capture_id}: {e}"
+                                    logging.error(message)
+                                    return Response(
+                                        {"error": message},
+                                        status=status.HTTP_400_BAD_REQUEST,
+                                    )
 
                         except Exception as e:
-                            logging.error(
-                                f"Failed to download SDS directory {sds_dir}: {e}"
+                            message = (
+                                f"Failed to process capture with ID {capture_id}: {e}"
                             )
-                            continue
+                            logging.error(message)
+                            return Response(
+                                {"error": message},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
 
                     # Clean up temporary directory
                     import shutil
@@ -410,8 +408,10 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     shutil.rmtree(temp_dir)
 
                 except Exception as e:
+                    message = f"Failed to fetch SDS files: {e!s}"
+                    logging.error(message)
                     return Response(
-                        {"error": f"Failed to fetch SDS files: {str(e)}"},
+                        {"error": message},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
             else:
@@ -419,49 +419,42 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 for capture_id in visualization.capture_ids:
                     try:
                         capture = Capture.objects.get(id=capture_id, owner=request.user)
-                        # Record expected file IDs for this capture
-                        expected_file_ids[capture_id] = {
-                            str(f.id) for f in capture.files.all()
-                        }
+
+                        # Track filenames to detect duplicates
+                        seen_filenames: set[str] = set()
 
                         for file_obj in capture.files.all():
                             # Check for duplicate filename
                             if file_obj.name in seen_filenames:
+                                message = f"Duplicate filename found for capture with ID {capture_id}. "
+                                f"File name: {file_obj.name}"
+                                logging.error(message)
                                 return Response(
-                                    {
-                                        "error": f"Duplicate filename found: {file_obj.name}"
-                                    },
+                                    {"error": message},
                                     status=status.HTTP_400_BAD_REQUEST,
                                 )
                             seen_filenames.add(file_obj.name)
 
-                            # Record the file ID to name mapping
-                            file_id_to_name[str(file_obj.id)] = file_obj.name
-
-                            # Read file content and add to ZIP using original filename
+                            # Read file content and add to ZIP in capture-specific directory
+                            zip_path = f"{capture_id}/{file_obj.name}"
                             with file_obj.file.open("rb") as f:
-                                zip_file.writestr(file_obj.name, f.read())
-                    except (Capture.DoesNotExist, Exception) as e:
+                                zip_file.writestr(zip_path, f.read())
+                    except Capture.DoesNotExist:
+                        message = f"Capture {capture_id} not found"
+                        logging.error(message)
                         return Response(
-                            {"error": f"Failed to fetch local files: {str(e)}"},
+                            {"error": message},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    except Exception as e:
+                        message = f"Failed to fetch local files: {e!s}"
+                        logging.error(message)
+                        return Response(
+                            {"error": message},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
-            # Verify we have all expected files by ID
-            missing_files: dict[str, set[str]] = {}
-            for capture_id, expected_ids in expected_file_ids.items():
-                missing_ids = expected_ids - set(file_id_to_name.keys())
-                if missing_ids:
-                    missing_files[capture_id] = missing_ids
-
-            if missing_files:
-                error_msg = "Missing files from captures:\n"
-                for capture_id, file_ids in missing_files.items():
-                    error_msg += f"Capture {capture_id}: {', '.join(file_ids)}\n"
-                return Response(
-                    {"error": error_msg},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        logging.info("All files added to ZIP")
 
         # Reset buffer position to start
         zip_buffer.seek(0)
@@ -469,4 +462,5 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         # Return the ZIP file
         response = FileResponse(zip_buffer, content_type="application/zip")
         response["Content-Disposition"] = f'attachment; filename="{zip_filename}"'
+        logging.info(f"Returning ZIP file {zip_filename}")
         return response

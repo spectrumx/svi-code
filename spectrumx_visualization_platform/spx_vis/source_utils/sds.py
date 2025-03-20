@@ -46,7 +46,6 @@ def format_sds_capture(sds_capture: dict, user_id: int):
     Returns:
         dict: Formatted capture data
     """
-    print("sds_capture", sds_capture)
     capture_props = sds_capture["capture_props"]
     metadata = capture_props["metadata"]
     custom_fields = capture_props["custom_fields"]

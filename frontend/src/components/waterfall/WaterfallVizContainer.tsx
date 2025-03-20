@@ -32,7 +32,7 @@ export const WaterfallVizContainer = ({
   const waterfallData: WaterfallData[] = visualizationState.captures.map(
     (capture) => ({
       capture,
-      fileContent: files[capture.files[0].id].fileContent,
+      fileContent: files[capture.files[0].id].fileContent as RadioHoundCapture,
     }),
   );
 

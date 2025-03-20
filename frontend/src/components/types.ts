@@ -2,7 +2,7 @@ import { VisualizationStateDetail } from '../apiClient/visualizationService';
 import { FileMetadata } from '../apiClient/fileService';
 
 export interface FileWithContent extends FileMetadata {
-  fileContent: any;
+  fileContent: unknown;
   isValid?: boolean;
 }
 
