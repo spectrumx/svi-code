@@ -29,12 +29,16 @@ export const WaterfallVizContainer = ({
     playbackSpeed: '1 fps',
   });
 
-  const waterfallData: WaterfallData[] = visualizationState.captures.map(
-    (capture) => ({
+  const waterfallData: WaterfallData[] = visualizationState.captures
+    .map((capture) => ({
       capture,
       fileContent: files[capture.files[0].id].fileContent as RadioHoundCapture,
-    }),
-  );
+    }))
+    .sort(
+      (a, b) =>
+        new Date(a.fileContent.timestamp).getTime() -
+        new Date(b.fileContent.timestamp).getTime(),
+    );
 
   if (waterfallData.length === 0) {
     return (

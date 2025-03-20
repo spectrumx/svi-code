@@ -35,6 +35,7 @@ const VisualizationPage = () => {
 
       try {
         const vizState = await getVisualization(vizId);
+        console.log('vizState.captures', vizState.captures);
 
         // Download the ZIP file containing all files
         const zipBlob = await downloadVizFiles(vizId);
@@ -93,6 +94,7 @@ const VisualizationPage = () => {
         }
 
         setVisualizationState(vizState);
+        console.log('files', files);
         setFiles(files);
       } catch (err) {
         setError(
