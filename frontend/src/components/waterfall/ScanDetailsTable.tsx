@@ -2,7 +2,7 @@ import { Table } from 'react-bootstrap';
 import _ from 'lodash';
 
 import { formatHertz } from './index';
-import { RadioHoundCapture } from './types';
+import { RadioHoundFile } from './types';
 
 interface DetailRowProps {
   label: string;
@@ -19,10 +19,10 @@ function DetailRow({ label, value }: DetailRowProps): JSX.Element {
 }
 
 interface ScanDetailsProps {
-  capture: RadioHoundCapture;
+  rhFile: RadioHoundFile;
 }
 
-export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
+export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
   // const downloadUrl = useMemo(() => {
   //   const blob = new Blob([JSON.stringify(capture, null, 4)], {
   //     type: 'application/json',
@@ -46,11 +46,11 @@ export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
   // }, [downloadUrl]);
 
   // Helper function to safely get nested values
-  const getCaptureValue = <T,>(
+  const getRhFileValue = <T,>(
     path: string,
     defaultValue?: T,
   ): T | undefined => {
-    return _.get(capture, path, defaultValue) as T;
+    return _.get(rhFile, path, defaultValue) as T;
   };
 
   return (
@@ -60,19 +60,19 @@ export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
         <tbody>
           <DetailRow
             label="Node"
-            value={`${getCaptureValue('short_name')}${
-              getCaptureValue('mac_address')
-                ? ` (${getCaptureValue('mac_address')})`
+            value={`${getRhFileValue('short_name')}${
+              getRhFileValue('mac_address')
+                ? ` (${getRhFileValue('mac_address')})`
                 : ''
             }`}
           />
           <DetailRow
             label="Scan Time"
             value={
-              getCaptureValue('metadata.scan_time')
+              getRhFileValue('metadata.scan_time')
                 ? `${
                     Math.round(
-                      Number(getCaptureValue('metadata.scan_time')) * 1000,
+                      Number(getRhFileValue('metadata.scan_time')) * 1000,
                     ) / 1000
                   }s`
                 : undefined
@@ -80,57 +80,55 @@ export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
           />
           <DetailRow
             label="Sample Rate"
-            value={getCaptureValue('sample_rate')}
+            value={getRhFileValue('sample_rate')}
           />
-          <DetailRow label="Gain" value={getCaptureValue('gain')} />
+          <DetailRow label="Gain" value={getRhFileValue('gain')} />
           <DetailRow
             label="Frequency Minimum"
             value={
-              getCaptureValue('metadata.fmin')
-                ? formatHertz(getCaptureValue('metadata.fmin') as number)
+              getRhFileValue('metadata.fmin')
+                ? formatHertz(getRhFileValue('metadata.fmin') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Frequency Maximum"
             value={
-              getCaptureValue('metadata.fmax')
-                ? formatHertz(getCaptureValue('metadata.fmax') as number)
+              getRhFileValue('metadata.fmax')
+                ? formatHertz(getRhFileValue('metadata.fmax') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Number of Samples"
             value={
-              typeof getCaptureValue('metadata.xcount') === 'number'
-                ? (
-                    getCaptureValue('metadata.xcount') as number
-                  ).toLocaleString()
+              typeof getRhFileValue('metadata.xcount') === 'number'
+                ? (getRhFileValue('metadata.xcount') as number).toLocaleString()
                 : undefined
             }
           />
           <DetailRow
             label="Timestamp"
             value={
-              getCaptureValue('timestamp')
-                ? getCaptureValue<string>('timestamp')
+              getRhFileValue('timestamp')
+                ? getRhFileValue<string>('timestamp')
                 : undefined
             }
           />
           <DetailRow
             label="GPS Lock"
             value={
-              getCaptureValue('metadata.gps_lock') !== undefined
-                ? getCaptureValue('metadata.gps_lock')
+              getRhFileValue('metadata.gps_lock') !== undefined
+                ? getRhFileValue('metadata.gps_lock')
                   ? 'True'
                   : 'False'
                 : undefined
             }
           />
-          <DetailRow label="Job" value={getCaptureValue('metadata.name')} />
+          <DetailRow label="Job" value={getRhFileValue('metadata.name')} />
           <DetailRow
             label="Comments"
-            value={getCaptureValue('metadata.comments')}
+            value={getRhFileValue('metadata.comments')}
           />
         </tbody>
       </Table>

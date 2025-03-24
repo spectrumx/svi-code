@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Row, Col } from 'react-bootstrap';
 
 import { WaterfallVisualization } from '.';
-import { RadioHoundCapture } from './types';
+import { RadioHoundFile } from './types';
 import WaterfallControls from './WaterfallControls';
 import { Capture } from '../../apiClient/fileService';
 import ScanDetailsTable from './ScanDetailsTable';
@@ -10,7 +10,7 @@ import { VizContainerProps } from '../types';
 
 interface WaterfallData {
   capture: Capture;
-  fileContent: RadioHoundCapture;
+  fileContent: RadioHoundFile;
 }
 
 export interface WaterfallSettings {
@@ -32,7 +32,7 @@ export const WaterfallVizContainer = ({
   const waterfallData: WaterfallData[] = visualizationRecord.captures
     .map((capture) => ({
       capture,
-      fileContent: files[capture.files[0].id].fileContent as RadioHoundCapture,
+      fileContent: files[capture.files[0].id].fileContent as RadioHoundFile,
     }))
     .sort(
       (a, b) =>
@@ -66,14 +66,14 @@ export const WaterfallVizContainer = ({
         <Col>
           <Row>
             <WaterfallVisualization
-              data={waterfallData.map((data) => data.fileContent)}
+              rhFiles={waterfallData.map((data) => data.fileContent)}
               settings={settings}
               setSettings={setSettings}
             />
           </Row>
           <Row>
             <ScanDetailsTable
-              capture={waterfallData[settings.captureIndex].fileContent}
+              rhFile={waterfallData[settings.captureIndex].fileContent}
             />
           </Row>
         </Col>

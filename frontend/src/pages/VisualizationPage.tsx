@@ -11,7 +11,7 @@ import {
   downloadVizFiles,
 } from '../apiClient/visualizationService';
 import { FilesWithContent } from '../components/types';
-import { RadioHoundCaptureSchema } from '../components/waterfall/types';
+import { RadioHoundFileSchema } from '../components/waterfall/types';
 
 /**
  * Router component for visualization pages.
@@ -72,7 +72,7 @@ const VisualizationPage = () => {
             if (vizRecord.capture_type === 'rh') {
               parsedContent = JSON.parse(await content.text());
               const validationResult =
-                RadioHoundCaptureSchema.safeParse(parsedContent);
+                RadioHoundFileSchema.safeParse(parsedContent);
               isValid = validationResult.success;
 
               if (!isValid) {

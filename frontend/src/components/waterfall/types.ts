@@ -147,7 +147,7 @@ const RadioHoundCustomFieldsSchema = zod
   })
   .catchall(zod.unknown());
 
-export const RadioHoundCaptureSchema = zod.object({
+export const RadioHoundFileSchema = zod.object({
   data: zod.string(),
   gain: zod.number(),
   latitude: zod.number(),
@@ -175,7 +175,7 @@ export const RadioHoundCaptureSchema = zod.object({
   requested: RequestedSchema.optional(),
 });
 
-export type RadioHoundCapture = zod.infer<typeof RadioHoundCaptureSchema>;
+export type RadioHoundFile = zod.infer<typeof RadioHoundFileSchema>;
 
 export type FloatArray = Float32Array | Float64Array;
 
@@ -185,13 +185,13 @@ export interface ScanState {
   receivedHeatmap: boolean;
   scansRequested: number;
   // I inferred allData's type, but it doesn't seem correct
-  allData: (Data | RadioHoundCapture | number[])[];
+  allData: (Data | RadioHoundFile | number[])[];
   yMin: number;
   yMax: number;
   xMin?: number;
   xMax?: number;
   spinner: boolean;
-  periodogram?: RadioHoundCapture | number[];
+  periodogram?: RadioHoundFile | number[];
   heatmapData: Data[];
   scaleMin: number | undefined;
   scaleMax: number | undefined;

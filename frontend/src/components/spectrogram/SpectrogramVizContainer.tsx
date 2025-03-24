@@ -147,7 +147,7 @@ const SpectrogramVizContainer = ({
     return (
       <Alert variant="warning">
         <Alert.Heading>No Capture Data Found</Alert.Heading>
-        <p>No captures are currently available for spectrogram visualization</p>
+        <p>No capture data found for this visualization</p>
       </Alert>
     );
   }
