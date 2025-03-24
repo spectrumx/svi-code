@@ -12,18 +12,27 @@ def calculate_end_time(start_time, scan_time):
     return None
 
 
-def datetime_check(value):
+def datetime_check(value) -> datetime | None:
     if not value:
         return None
-    try:
-        dt = datetime.strptime(value + "Z", "%Y-%m-%dT%H:%M%z")
-        return dt.astimezone(timezone.utc)
-    except ValueError:
+
+    # List of format patterns to try
+    formats = [
+        "%Y-%m-%dT%H:%M%z",
+        "%Y-%m-%d %H:%M:%S.%f%z",
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+    ]
+
+    for fmt in formats:
         try:
-            dt = datetime.strptime(value + "Z", "%Y-%m-%d %H:%M:%S.%f%z")
+            # Make sure the timezone is included so we can safely ignore DTZ007
+            new_format = fmt.replace("%z", "") + "%z"
+            dt = datetime.strptime(value, new_format)  # noqa: DTZ007
             return dt.astimezone(timezone.utc)
         except ValueError:
-            return None
+            continue
+
+    return None
 
 
 def float_check(value, default=0.0):
