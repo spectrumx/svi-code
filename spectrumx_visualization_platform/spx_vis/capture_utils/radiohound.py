@@ -1,6 +1,5 @@
 import json
 import logging
-import mimetypes
 from datetime import datetime
 
 from django.core.files.uploadedfile import UploadedFile
@@ -14,39 +13,59 @@ class RadioHoundUtility(CaptureUtility):
     """Utility for RadioHound capture type operations.
 
     Provides utilities for processing and extracting information from RadioHound files.
+    Each RadioHound file is a self-contained JSON file containing both metadata and data.
+    Multiple RadioHound files can be grouped together to form a single capture.
     """
 
     file_extensions = (".json", ".rh")
 
     @staticmethod
     def extract_timestamp(files: list[UploadedFile]) -> datetime | None:
-        """Extract timestamp from RadioHound JSON file.
+        """Extract timestamp from RadioHound JSON files.
+
+        Finds the earliest timestamp from all RadioHound JSON files in the set.
+        If no valid timestamps are found or files cannot be parsed, returns None.
 
         Args:
-            json_file: The uploaded RadioHound JSON file
+            files: List of uploaded RadioHound JSON files
 
         Returns:
-            datetime: The extracted timestamp if found, None otherwise
+            Optional[datetime]: The earliest timestamp found, None otherwise
         """
-        # Find the first file with a valid RadioHound extension
-        json_file = next(
-            (f for f in files if f.name.endswith(RadioHoundUtility.file_extensions)),
-            None,
-        )
-
-        if not json_file:
-            return None
-        try:
-            data = json.load(json_file)
-            timestamp: str = data.get("timestamp")
-
-            if timestamp:
-                return datetime.fromisoformat(timestamp)
+        if not files:
+            logger.warning("No files provided for timestamp extraction")
             return None
 
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            logger.error(f"Error extracting timestamp from RadioHound file: {e}")
-            return None
+        oldest_timestamp: datetime | None = None
+
+        for file in files:
+            if not file.name.endswith(RadioHoundUtility.file_extensions):
+                logger.warning(f"File {file.name} is not a RadioHound JSON file")
+                continue
+
+            try:
+                data = json.load(file)
+                timestamp_str: str = data.get("timestamp")
+
+                if timestamp_str:
+                    current_timestamp = datetime.fromisoformat(timestamp_str)
+                    if oldest_timestamp is None or current_timestamp < oldest_timestamp:
+                        oldest_timestamp = current_timestamp
+                else:
+                    logger.warning(
+                        f"No timestamp found in RadioHound file: {file.name}"
+                    )
+
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                logger.error(
+                    f"Error extracting timestamp from RadioHound file {file.name}: {e}"
+                )
+                continue
+
+        if oldest_timestamp is None:
+            logger.warning("No valid timestamps found in any RadioHound files")
+
+        return oldest_timestamp
 
     @staticmethod
     def get_media_type(file: UploadedFile) -> str:
@@ -56,46 +75,47 @@ class RadioHoundUtility(CaptureUtility):
             file: The uploaded RadioHound file
 
         Returns:
-            str: The media type for the RadioHound file
+            str: The media type for the file (always application/json)
         """
-        if file.name.endswith(RadioHoundUtility.file_extensions):
-            return "application/json"
-
-        media_type, _ = mimetypes.guess_type(file.name)
-        if media_type is None:
-            media_type = "application/octet-stream"
-        return media_type
+        return "application/json"
 
     @staticmethod
-    def get_capture_names(files: list[UploadedFile], name: str | None) -> list[str]:
-        """Infer the capture names from the files.
+    def get_capture_names(
+        files: list[UploadedFile], name: str | None = None
+    ) -> list[str]:
+        """Generate a name for the RadioHound capture.
+
+        If a name is provided, uses that. Otherwise, generates a name based on the first file.
+        Returns a single-item list since we create one capture per set of files.
 
         Args:
-            files: The uploaded RadioHound files
-            name: The requested name for the captures. If provided, will be used as the
-                  base name with an incrementing number appended.
+            files: List of uploaded RadioHound JSON files
+            name: Optional name to use for the capture
 
         Returns:
-            list[str]: The inferred capture names
+            list[str]: List containing a single capture name
 
         Raises:
-            ValueError: If files list is empty
+            ValueError: If files list is empty or no valid RadioHound files are found
         """
         if not files:
             error_message = "Cannot generate capture name: no files provided"
             logger.error(error_message)
             raise ValueError(error_message)
 
-        capture_names = []
+        if name:
+            return [name]
 
-        for i, file in enumerate(files):
-            if name:
-                if len(files) > 1:
-                    capture_names.append(f"{name}_{i + 1}")
-                else:
-                    capture_names.append(name)
-            else:
-                # Get the file name and remove last extension
-                capture_names.append(".".join(file.name.split(".")[:-1]))
+        # Find the first valid RadioHound file to use as base for the name
+        first_file = next(
+            (f for f in files if f.name.endswith(RadioHoundUtility.file_extensions)),
+            None,
+        )
 
-        return capture_names
+        if not first_file:
+            error_message = "No valid RadioHound JSON files found"
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+        # Use the file name (without extension) as the capture name
+        return [".".join(first_file.name.split(".")[:-1])]
