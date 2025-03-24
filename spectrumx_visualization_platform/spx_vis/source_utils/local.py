@@ -26,6 +26,8 @@ def format_local_capture(capture: dict) -> dict:
     Returns:
         dict: Formatted capture data
     """
+    # TODO: Fix this function, as the Capture model doesn't have some of these fields
+    # it's trying to access
     timestamp = capture.get("timestamp", "")
     scan_time = capture.get("scan_time")
 
@@ -35,10 +37,10 @@ def format_local_capture(capture: dict) -> dict:
         "media_type": capture.get("metadata", {}).get("data_type", "unknown"),
         "timestamp": timestamp,
         "created_at": timestamp,
-        "source": "svi_user",
+        "source": capture["source"],
         "files": capture["files"],
         "owner": capture["owner"],
-        "type": capture.get("metadata", {}).get("data_type", "rh"),
+        "type": capture["type"],
         "min_freq": capture.get("metadata", {}).get("fmin", ""),
         "max_freq": capture.get("metadata", {}).get("fmax", ""),
         "scan_time": scan_time,
