@@ -120,7 +120,7 @@ const initialScan: ScanState = {
   lastScanOptions: undefined,
   receivedHeatmap: false,
   scansRequested: 0,
-  allData: [] as Data[],
+  allData: [],
   yMin: 100000,
   yMax: -100000,
   xMin: 100000,
@@ -152,53 +152,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     startIndex: 0,
     endIndex: 0,
   });
-
-  // Process all RadioHound files once and store the results
-  const processedData = useMemo(() => {
-    return rhFiles.map((rhFile) => {
-      let floatArray: FloatArray | number[] | undefined;
-
-      if (typeof rhFile.data === 'string') {
-        if (rhFile.data.slice(0, 8) === 'AAAAAAAA') {
-          return { floatArray: undefined, dbValues: undefined };
-        }
-        floatArray = binaryStringToFloatArray(rhFile.data, rhFile.type);
-      } else {
-        floatArray = rhFile.data;
-      }
-
-      if (!floatArray) {
-        return { floatArray: undefined, dbValues: undefined };
-      }
-
-      const dbValues = floatArray.map((i) =>
-        Math.round(10 * Math.log10(i * 1000)),
-      ) as FloatArray | number[];
-
-      return { floatArray, dbValues };
-    });
-  }, [rhFiles]);
-
-  const globalYAxisRange = useMemo(() => {
-    let globalMin = Infinity;
-    let globalMax = -Infinity;
-
-    processedData.forEach(({ dbValues }) => {
-      if (!dbValues) return;
-
-      const minValue = _.min(dbValues);
-      const maxValue = _.max(dbValues);
-
-      if (minValue !== undefined) globalMin = Math.min(globalMin, minValue);
-      if (maxValue !== undefined) globalMax = Math.max(globalMax, maxValue);
-    });
-
-    return {
-      min: globalMin !== Infinity ? globalMin : undefined,
-      max: globalMax !== -Infinity ? globalMax : undefined,
-    };
-  }, [processedData]);
-
   const [scan, setScan] = useState<ScanState>(initialScan);
   const [display, setDisplay] = useState<Display>(initialDisplay);
   const [chart, setChart] = useState<Chart>(initialChart);
@@ -238,6 +191,53 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
   };
 
+  // Process all RadioHound files once and store the results
+  const processedData = useMemo(() => {
+    return rhFiles.map((rhFile) => {
+      let floatArray: FloatArray | number[] | undefined;
+
+      if (typeof rhFile.data === 'string') {
+        if (rhFile.data.slice(0, 8) === 'AAAAAAAA') {
+          return { floatArray: undefined, dbValues: undefined };
+        }
+        floatArray = binaryStringToFloatArray(rhFile.data, rhFile.type);
+      } else {
+        // Old RH data
+        floatArray = rhFile.data;
+      }
+
+      if (!floatArray) {
+        return { floatArray: undefined, dbValues: undefined };
+      }
+
+      const dbValues = floatArray.map((i) =>
+        Math.round(10 * Math.log10(i * 1000)),
+      ) as FloatArray | number[];
+
+      return { floatArray, dbValues };
+    });
+  }, [rhFiles]);
+
+  const globalYAxisRange = useMemo(() => {
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+
+    processedData.forEach(({ dbValues }) => {
+      if (!dbValues) return;
+
+      const minValue = _.min(dbValues);
+      const maxValue = _.max(dbValues);
+
+      if (minValue !== undefined) globalMin = Math.min(globalMin, minValue);
+      if (maxValue !== undefined) globalMax = Math.max(globalMax, maxValue);
+    });
+
+    return {
+      min: globalMin !== Infinity ? globalMin : undefined,
+      max: globalMax !== -Infinity ? globalMax : undefined,
+    };
+  }, [processedData]);
+
   /**
    * Processes a single capture for the periodogram display
    */
@@ -251,6 +251,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const requested =
       rhFile.custom_fields?.requested ?? rhFile.requested ?? undefined;
 
+    // Multiple branches to handle both new and old RH data
     if (requested && requested.fmin && requested.fmax) {
       fMin = requested.fmin;
       fMax = requested.fmax;
@@ -270,6 +271,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let freqStep: number;
     let centerFreq: number;
 
+    // Multiple branches to handle both new and old RH data
     if (rhFile.center_frequency) {
       freqStep = rhFile.sample_rate / rhFile.metadata.nfft;
       centerFreq = rhFile.center_frequency;

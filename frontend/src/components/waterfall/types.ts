@@ -184,8 +184,7 @@ export interface ScanState {
   lastScanOptions: ScanOptionsType | undefined;
   receivedHeatmap: boolean;
   scansRequested: number;
-  // I inferred allData's type, but it doesn't seem correct
-  allData: (Data | RadioHoundFile | number[])[];
+  allData: number[][];
   yMin: number;
   yMax: number;
   xMin?: number;
