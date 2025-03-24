@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 
 import { WaterfallVisualization } from '../components/waterfall';
@@ -19,8 +18,11 @@ export interface WaterfallSettings {
   playbackSpeed: string;
 }
 
-export const WaterfallPage = () => {
-  const [searchParams] = useSearchParams();
+interface WaterfallPageProps {
+  captureIds: string[];
+}
+
+export const WaterfallPage = ({ captureIds }: WaterfallPageProps) => {
   const [waterfallData, setWaterfallData] = useState<WaterfallData[]>([]);
   const [settings, setSettings] = useState<WaterfallSettings>({
     captureIndex: 0,
@@ -37,14 +39,6 @@ export const WaterfallPage = () => {
       try {
         setIsLoading(true);
         setError(null);
-
-        // Get capture IDs from URL parameters
-        const captureParam = searchParams.get('captures');
-        if (!captureParam) {
-          throw new Error('No captures specified');
-        }
-
-        const captureIds = captureParam.split(',').map(Number);
 
         // Fetch all specified captures
         const captures = await getCaptures();
@@ -110,7 +104,7 @@ export const WaterfallPage = () => {
     return () => {
       abortController.abort();
     };
-  }, [searchParams]);
+  }, [captureIds]);
 
   if (isLoading) {
     return (
@@ -159,18 +153,19 @@ export const WaterfallPage = () => {
           </div>
         </Col>
         <Col>
-          <WaterfallVisualization
-            data={waterfallData.map((data) => data.fileData)}
-            settings={settings}
-            setSettings={setSettings}
-          />
+          <Row>
+            <WaterfallVisualization
+              data={waterfallData.map((data) => data.fileData)}
+              settings={settings}
+              setSettings={setSettings}
+            />
+          </Row>
+          <Row>
+            <ScanDetailsTable
+              capture={waterfallData[settings.captureIndex].fileData}
+            />
+          </Row>
         </Col>
-      </Row>
-      <br />
-      <Row>
-        <ScanDetailsTable
-          capture={waterfallData[settings.captureIndex].fileData}
-        />
       </Row>
     </div>
   );

@@ -26,7 +26,7 @@ const Navlinks = () => {
                 </>
               )}
               {username ? (
-                <Dropdown className="nav-item-dropdown">
+                <Dropdown className="nav-item-dropdown" align="end">
                   <Dropdown.Toggle id="dropdown-basic" className="nav-link">
                     {username}
                   </Dropdown.Toggle>

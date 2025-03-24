@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Link } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Row, Col, Card } from 'react-bootstrap';
 import _ from 'lodash';
 
@@ -11,52 +11,34 @@ import {
   CaptureType,
   CAPTURE_TYPES,
 } from '../apiClient/fileService';
+import {
+  createVisualization,
+  VisualizationType,
+  VISUALIZATION_TYPES,
+  VisualizationTypeInfo,
+} from '../apiClient/visualizationService';
 import CaptureSearch from '../components/CaptureSearch';
-
-interface VisualizationType {
-  name: 'spectrogram' | 'waterfall';
-  description: string;
-  icon: string;
-  supportedCaptureTypes: CaptureType[];
-  multipleSelection: boolean;
-}
-
-export const VISUALIZATION_TYPES: VisualizationType[] = [
-  {
-    name: 'spectrogram',
-    description: 'Visualize signal strength across frequency and time',
-    icon: 'bi-graph-up',
-    supportedCaptureTypes: ['sigmf'],
-    multipleSelection: false,
-  },
-  {
-    name: 'waterfall',
-    description:
-      'View signal data as a scrolling waterfall display with periodogram',
-    icon: 'bi-water',
-    supportedCaptureTypes: ['rh'],
-    multipleSelection: true,
-  },
-];
 
 /**
  * A wizard-style page for creating new visualizations
  * Guides users through selecting data source, visualization type, and configuration
  */
 const NewVisualizationPage = () => {
+  const navigate = useNavigate();
   const { captures } = useAppContext();
   const syncCaptures = useSyncCaptures();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedCaptureType, setSelectedCaptureType] =
     useState<CaptureType | null>(null);
-  const [selectedVizType, setSelectedVizType] = useState<
-    VisualizationType['name'] | null
-  >(null);
-  const [selectedCaptureIds, setSelectedCaptureIds] = useState<number[]>([]);
+  const [selectedVizType, setSelectedVizType] =
+    useState<VisualizationType | null>(null);
+  const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
     });
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Filter captures based on selected type
   const filteredCaptures = selectedCaptureType
@@ -65,7 +47,7 @@ const NewVisualizationPage = () => {
 
   // Check if a visualization type is supported for a given capture type
   const isSupported = (
-    visualizationType: VisualizationType,
+    visualizationType: VisualizationTypeInfo,
     captureType: CaptureType,
   ) => visualizationType.supportedCaptureTypes.includes(captureType);
 
@@ -92,7 +74,7 @@ const NewVisualizationPage = () => {
     return vizType?.multipleSelection ? 'multiple' : 'single';
   }, [selectedVizType]);
 
-  const handleCaptureSelect = useCallback((ids: number[]) => {
+  const handleCaptureSelect = useCallback((ids: string[]) => {
     setSelectedCaptureIds(ids);
     if (ids.length > 0) {
       setCurrentStep(4);
@@ -101,14 +83,44 @@ const NewVisualizationPage = () => {
     }
   }, []);
 
-  const handleVizTypeSelect = useCallback(
-    async (type: VisualizationType['name']) => {
-      setSelectedVizType(type);
-      setSelectedCaptureIds([]);
-      setCurrentStep(3);
-    },
-    [],
-  );
+  const handleVizTypeSelect = useCallback(async (type: VisualizationType) => {
+    setSelectedVizType(type);
+    setSelectedCaptureIds([]);
+    setCurrentStep(3);
+  }, []);
+
+  const handleCreateVisualization = async () => {
+    if (
+      !selectedVizType ||
+      !selectedCaptureType ||
+      selectedCaptureIds.length === 0
+    ) {
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+
+    try {
+      const visualization = await createVisualization({
+        type: selectedVizType,
+        capture_ids: selectedCaptureIds,
+        capture_type: selectedCaptureType,
+        capture_source:
+          captures.find((c) => c.id === selectedCaptureIds[0])?.source ||
+          'svi_user',
+        settings: selectedVizType === 'spectrogram' ? spectrogramSettings : {},
+      });
+
+      navigate(`/visualization/${visualization.id}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to create visualization',
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const renderCaptureTypeStep = () => (
     <Row className="g-4">
@@ -271,6 +283,11 @@ const NewVisualizationPage = () => {
           <p>No additional configuration needed</p>
         </div>
       )}
+      {error && (
+        <div className="alert alert-danger mt-3" role="alert">
+          {error}
+        </div>
+      )}
     </div>
   );
 
@@ -306,19 +323,6 @@ const NewVisualizationPage = () => {
         </h5>
       </div>
     );
-  };
-
-  const getVisualizationUrl = () => {
-    if (!selectedVizType) return '';
-
-    if (selectedVizType === 'waterfall') {
-      const captureIds = selectedCaptureIds.join(',');
-      return `/visualization/waterfall?captures=${captureIds}`;
-    } else if (selectedVizType === 'spectrogram') {
-      return `/visualization/spectrogram/${selectedCaptureIds[0]}`;
-    } else {
-      return '';
-    }
   };
 
   useEffect(() => {
@@ -406,16 +410,17 @@ const NewVisualizationPage = () => {
                 >
                   Back
                 </Button>
-                <Link to={getVisualizationUrl()}>
-                  <Button
-                    variant="primary"
-                    disabled={
-                      !selectedVizType || selectedCaptureIds.length === 0
-                    }
-                  >
-                    Create Visualization
-                  </Button>
-                </Link>
+                <Button
+                  variant="primary"
+                  onClick={handleCreateVisualization}
+                  disabled={
+                    !selectedVizType ||
+                    selectedCaptureIds.length === 0 ||
+                    isCreating
+                  }
+                >
+                  {isCreating ? 'Creating...' : 'Create Visualization'}
+                </Button>
               </div>
             </div>
           </div>

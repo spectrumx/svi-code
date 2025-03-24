@@ -2,60 +2,44 @@
  * Types for waterfall data and visualization.
  */
 
-export type DataPoint = {
-  x: number;
-  y?: number;
-  label?: string;
-};
+import {
+  ChartDataSeriesOptions,
+  ChartOptions,
+  ChartAxisXOptions,
+  ChartAxisYOptions,
+} from 'canvasjs';
 
-export type Data = {
+export interface Data extends ChartDataSeriesOptions {
+  // Custom prop
   _id?: string;
-  type?: string;
-  dataPoints?: DataPoint[];
-  name?: string;
-  showInLegend?: boolean;
-  visible?: boolean;
-  toolTipContent?: string;
-  raw?: number;
-  // location?: google.maps.LatLng;
-  location?: {
-    lat: number;
-    lng: number;
-  };
-  weight?: number;
-};
+}
 
-export interface Chart {
-  theme: string;
-  animationEnabled: boolean;
-  zoomEnabled: boolean;
-  zoomType: string;
-  title: {
-    text: string;
-  };
-  exportEnabled: boolean;
+interface AxisXOptions extends ChartAxisXOptions {
+  // Props in CanvasJS that are missing in the
+  // DefinitelyTyped type definition
+  titlePadding?: number;
+  labelPlacement?: 'inside' | 'outside';
+  labelPadding?: number;
+}
+
+// Omit title prop because title messes up the plot left alignment
+interface AxisYOptions extends Omit<ChartAxisYOptions, 'title'> {
+  // Props in CanvasJS that are missing in the
+  // DefinitelyTyped type definition
+  labelPlacement?: 'inside' | 'outside';
+  labelPadding?: number;
+  // Custom props
+  absoluteMaximum?: number;
+  absoluteMinimum?: number;
+}
+
+export interface Chart
+  extends Omit<ChartOptions, 'data' | 'axisX' | 'axisX2' | 'axisY' | 'axisY2'> {
   data: Data[];
-  axisX: {
-    title: string;
-    minimum?: number;
-    maximum?: number;
-    suffix?: string;
-    crosshair?: {
-      enabled: boolean;
-    };
-    interval?: number;
-  };
-  axisY: {
-    interval: number;
-    includeZero: boolean;
-    viewportMinimum?: number;
-    viewportMaximum?: number;
-    title: string;
-    absoluteMinimum: number | undefined;
-    absoluteMaximum: number | undefined;
-    minimum?: number;
-    maximum?: number;
-  };
+  axisX?: AxisXOptions;
+  axisX2?: AxisXOptions;
+  axisY?: AxisYOptions;
+  axisY2?: AxisYOptions;
   key: number;
 }
 
@@ -102,6 +86,12 @@ export interface ScanOptionsType extends ScanOptionsCore {
     [K in keyof ScanOptionsCore]?: unknown;
   };
 }
+
+export type DataPoint = {
+  x: number;
+  y?: number;
+  label?: string;
+};
 
 export interface Display {
   resetScale: boolean;

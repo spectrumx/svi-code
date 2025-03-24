@@ -5,18 +5,18 @@ import { useAppContext } from '../utils/AppContext';
 import { z as zod } from 'zod';
 
 const FileMetadataSchema = zod.object({
-  id: zod.number(),
+  id: zod.string(),
   name: zod.string(),
-  content_url: zod.string(),
-  media_type: zod.string(),
-  created_at: zod.string(),
-  updated_at: zod.string(),
+  content_url: zod.string().optional(),
+  media_type: zod.string().optional(),
+  created_at: zod.string().optional(),
+  updated_at: zod.string().optional(),
 });
 
 export type FileMetadata = zod.infer<typeof FileMetadataSchema>;
 
 export const getFileMetadata = async (
-  fileId: number,
+  fileId: string,
 ): Promise<FileMetadata> => {
   try {
     const response = await apiClient.get(`/api/files/${fileId}/`);
@@ -28,7 +28,7 @@ export const getFileMetadata = async (
 };
 
 export const getFileContent = async (
-  fileId: number,
+  fileId: string,
   signal?: AbortSignal,
 ): Promise<any> => {
   const response = await apiClient.get(`/api/files/${fileId}/content/`, {
@@ -55,7 +55,7 @@ export const CAPTURE_TYPES = {
   drf: { name: 'Digital RF' },
   sigmf: { name: 'SigMF' },
 } as const;
-const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
+export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
 export type CaptureType = keyof typeof CAPTURE_TYPES;
 
 export const CAPTURE_SOURCES = {
@@ -63,11 +63,11 @@ export const CAPTURE_SOURCES = {
   svi_public: { name: 'SVI Public' },
   svi_user: { name: 'SVI User' },
 } as const;
-const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
+export const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
 export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
 const CaptureSchema = zod.object({
-  id: zod.number(),
+  id: zod.string(),
   name: zod.string(),
   owner: zod.number(),
   created_at: zod.string(),
@@ -78,10 +78,33 @@ const CaptureSchema = zod.object({
 });
 export type Capture = zod.infer<typeof CaptureSchema>;
 
-export const getCaptures = async (): Promise<Capture[]> => {
+const CapturesResponseSchema = zod.array(CaptureSchema);
+
+export const getCaptures = async (filters?: {
+  min_frequency?: string;
+  max_frequency?: string;
+  start_time?: string;
+  end_time?: string;
+  source?: CaptureSource[];
+}): Promise<Capture[]> => {
   try {
-    const response = await apiClient.get('/api/captures/');
-    return zod.array(CaptureSchema).parse(response.data);
+    const params = new URLSearchParams();
+
+    if (filters?.min_frequency)
+      params.append('min_frequency', filters.min_frequency);
+    if (filters?.max_frequency)
+      params.append('max_frequency', filters.max_frequency);
+    if (filters?.start_time) params.append('start_time', filters.start_time);
+    if (filters?.end_time) params.append('end_time', filters.end_time);
+    if (filters?.source && filters.source.length > 0) {
+      params.append('source', filters.source.join(','));
+    }
+
+    const response = await apiClient.get(
+      `/api/captures/list/?${params.toString()}`,
+    );
+    const captures = CapturesResponseSchema.parse(response.data);
+    return captures;
   } catch (error) {
     console.error('Error fetching captures:', error);
     throw error;
@@ -90,9 +113,21 @@ export const getCaptures = async (): Promise<Capture[]> => {
 
 export const useSyncCaptures = () => {
   const { setCaptures } = useAppContext();
-  const syncCaptures = useCallback(async () => {
-    setCaptures(await getCaptures());
-  }, [setCaptures]);
+
+  const syncCaptures = useCallback(
+    async (filters?: {
+      min_frequency?: string;
+      max_frequency?: string;
+      start_time?: string;
+      end_time?: string;
+      source?: CaptureSource[];
+    }) => {
+      const captures = await getCaptures(filters);
+      setCaptures(captures);
+    },
+    [setCaptures],
+  );
+
   return syncCaptures;
 };
 
