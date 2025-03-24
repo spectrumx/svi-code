@@ -13,6 +13,7 @@ import {
   VISUALIZATION_TYPES,
   VisualizationType,
 } from '../apiClient/visualizationService';
+import './components.css';
 
 interface VisualizationCardProps {
   id: number;

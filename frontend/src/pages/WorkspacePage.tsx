@@ -6,7 +6,6 @@ import { useAppContext } from '../utils/AppContext';
 import Button from '../components/Button';
 import { VisualizationCard } from '../components/VisualizationCard';
 import { useSyncVisualizations } from '../apiClient/visualizationService';
-import '../styles/VisualizationCard.css';
 
 const WorkspacePage = () => {
   const { username, visualizations: vizRecords } = useAppContext();
