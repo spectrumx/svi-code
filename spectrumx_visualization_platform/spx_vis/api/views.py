@@ -204,7 +204,6 @@ class FileViewSet(viewsets.ModelViewSet):
 
         if source == "sds":
             try:
-                logging.info("Fetching user token")
                 token = request.user.fetch_sds_token()
                 logging.info(f"Fetching SDS file {pk}")
                 response = requests.get(
@@ -451,7 +450,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             # Return the ZIP file
             response = FileResponse(zip_buffer, content_type="application/zip")
             response["Content-Disposition"] = f'attachment; filename="{zip_filename}"'
-            logging.info(f"Returning ZIP file {zip_filename}")
             return response
 
         except ValueError as e:
