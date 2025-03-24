@@ -20,7 +20,7 @@ export interface WaterfallSettings {
 }
 
 export const WaterfallVizContainer = ({
-  visualizationState,
+  visualizationRecord,
   files,
 }: VizContainerProps) => {
   const [settings, setSettings] = useState<WaterfallSettings>({
@@ -29,7 +29,7 @@ export const WaterfallVizContainer = ({
     playbackSpeed: '1 fps',
   });
 
-  const waterfallData: WaterfallData[] = visualizationState.captures
+  const waterfallData: WaterfallData[] = visualizationRecord.captures
     .map((capture) => ({
       capture,
       fileContent: files[capture.files[0].id].fileContent as RadioHoundCapture,

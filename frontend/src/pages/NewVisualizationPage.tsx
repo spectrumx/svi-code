@@ -102,7 +102,7 @@ const NewVisualizationPage = () => {
     setError(null);
 
     try {
-      const visualization = await createVisualization({
+      const visualizationRecord = await createVisualization({
         type: selectedVizType,
         capture_ids: selectedCaptureIds,
         capture_type: selectedCaptureType,
@@ -112,7 +112,7 @@ const NewVisualizationPage = () => {
         settings: selectedVizType === 'spectrogram' ? spectrogramSettings : {},
       });
 
-      navigate(`/visualization/${visualization.id}`);
+      navigate(`/visualization/${visualizationRecord.id}`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to create visualization',

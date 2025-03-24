@@ -1,4 +1,4 @@
-import { VisualizationStateDetail } from '../apiClient/visualizationService';
+import { VisualizationRecordDetail } from '../apiClient/visualizationService';
 import { FileMetadata } from '../apiClient/fileService';
 
 export interface FileWithContent extends FileMetadata {
@@ -11,6 +11,6 @@ export type FilesWithContent = {
 };
 
 export interface VizContainerProps {
-  visualizationState: VisualizationStateDetail;
+  visualizationRecord: VisualizationRecordDetail;
   files: FilesWithContent;
 }

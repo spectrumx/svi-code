@@ -40,7 +40,7 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
   },
 ];
 
-const BaseVisualizationStateSchema = zod.object({
+const BaseVisualizationRecordSchema = zod.object({
   id: zod.number(),
   owner: zod.string(),
   type: VisualizationTypeSchema,
@@ -51,18 +51,18 @@ const BaseVisualizationStateSchema = zod.object({
   updated_at: zod.string(),
 });
 
-const VisualizationStateSchema = BaseVisualizationStateSchema.extend({
+const VisualizationRecordSchema = BaseVisualizationRecordSchema.extend({
   capture_ids: zod.array(zod.string()),
 });
 
-export type VisualizationState = zod.infer<typeof VisualizationStateSchema>;
+export type VisualizationRecord = zod.infer<typeof VisualizationRecordSchema>;
 
-const VisualizationStateDetailSchema = BaseVisualizationStateSchema.extend({
+const VisualizationRecordDetailSchema = BaseVisualizationRecordSchema.extend({
   captures: zod.array(CaptureSchema),
 });
 
-export type VisualizationStateDetail = zod.infer<
-  typeof VisualizationStateDetailSchema
+export type VisualizationRecordDetail = zod.infer<
+  typeof VisualizationRecordDetailSchema
 >;
 
 export interface CreateVisualizationRequest {
@@ -73,10 +73,10 @@ export interface CreateVisualizationRequest {
   settings?: Record<string, any>;
 }
 
-export const getVisualizations = async (): Promise<VisualizationState[]> => {
+export const getVisualizations = async (): Promise<VisualizationRecord[]> => {
   try {
     const response = await apiClient.get('/api/visualizations/');
-    return zod.array(VisualizationStateSchema).parse(response.data);
+    return zod.array(VisualizationRecordSchema).parse(response.data);
   } catch (error) {
     console.error('Error fetching visualizations:', error);
     throw error;
@@ -85,17 +85,17 @@ export const getVisualizations = async (): Promise<VisualizationState[]> => {
 
 export const getVisualization = async (
   id: string,
-): Promise<VisualizationStateDetail> => {
+): Promise<VisualizationRecordDetail> => {
   const response = await apiClient.get(`/api/visualizations/${id}/`);
-  return VisualizationStateDetailSchema.parse(response.data);
+  return VisualizationRecordDetailSchema.parse(response.data);
 };
 
 export const createVisualization = async (
   request: CreateVisualizationRequest,
-): Promise<VisualizationStateDetail> => {
+): Promise<VisualizationRecordDetail> => {
   try {
     const response = await apiClient.post('/api/visualizations/', request);
-    return VisualizationStateDetailSchema.parse(response.data);
+    return VisualizationRecordDetailSchema.parse(response.data);
   } catch (error) {
     console.error('Error creating visualization:', error);
     throw error;

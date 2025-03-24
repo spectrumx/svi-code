@@ -22,7 +22,9 @@ export interface JobInfo {
   results_id?: string;
 }
 
-const SpectrogramVizContainer = ({ visualizationState }: VizContainerProps) => {
+const SpectrogramVizContainer = ({
+  visualizationRecord,
+}: VizContainerProps) => {
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
@@ -35,8 +37,8 @@ const SpectrogramVizContainer = ({ visualizationState }: VizContainerProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const captureId =
-    visualizationState.captures.length > 0
-      ? Number(visualizationState.captures[0].id)
+    visualizationRecord.captures.length > 0
+      ? Number(visualizationRecord.captures[0].id)
       : null;
 
   const createSpectrogramJob = async () => {

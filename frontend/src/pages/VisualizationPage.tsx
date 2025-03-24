@@ -6,7 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import SpectrogramVizContainer from '../components/spectrogram/SpectrogramVizContainer';
 import WaterfallVizContainer from '../components/waterfall/WaterfallVizContainer';
 import {
-  VisualizationStateDetail,
+  VisualizationRecordDetail,
   getVisualization,
   downloadVizFiles,
 } from '../apiClient/visualizationService';
@@ -21,12 +21,12 @@ const VisualizationPage = () => {
   const { id: vizId } = useParams<{ id: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visualizationState, setVisualizationState] =
-    useState<VisualizationStateDetail | null>(null);
+  const [visualizationRecord, setVisualizationRecord] =
+    useState<VisualizationRecordDetail | null>(null);
   const [files, setFiles] = useState<FilesWithContent>({});
 
   useEffect(() => {
-    const fetchVisualization = async () => {
+    const fetchVisualizationRecord = async () => {
       if (!vizId) {
         setError('No visualization ID provided');
         setIsLoading(false);
@@ -34,7 +34,7 @@ const VisualizationPage = () => {
       }
 
       try {
-        const vizState = await getVisualization(vizId);
+        const vizRecord = await getVisualization(vizId);
 
         // Download the ZIP file containing all files
         const zipBlob = await downloadVizFiles(vizId);
@@ -47,7 +47,7 @@ const VisualizationPage = () => {
         const files: FilesWithContent = {};
 
         // Process each capture in the visualization state
-        for (const capture of vizState.captures) {
+        for (const capture of vizRecord.captures) {
           const captureDir = zipContent.folder(capture.id.toString());
           if (!captureDir) {
             console.warn(
@@ -69,7 +69,7 @@ const VisualizationPage = () => {
             let isValid: boolean | undefined;
 
             // Validate RadioHound files
-            if (vizState.capture_type === 'rh') {
+            if (vizRecord.capture_type === 'rh') {
               parsedContent = JSON.parse(await content.text());
               const validationResult =
                 RadioHoundCaptureSchema.safeParse(parsedContent);
@@ -92,7 +92,7 @@ const VisualizationPage = () => {
           }
         }
 
-        setVisualizationState(vizState);
+        setVisualizationRecord(vizRecord);
         setFiles(files);
       } catch (err) {
         setError(
@@ -103,7 +103,7 @@ const VisualizationPage = () => {
       }
     };
 
-    fetchVisualization();
+    fetchVisualizationRecord();
   }, [vizId]);
 
   if (isLoading) {
@@ -122,7 +122,7 @@ const VisualizationPage = () => {
     );
   }
 
-  if (!visualizationState) {
+  if (!visualizationRecord) {
     return (
       <div className="alert alert-danger" role="alert">
         No visualization found!
@@ -131,17 +131,17 @@ const VisualizationPage = () => {
   }
 
   const VizContainer =
-    visualizationState.type === 'spectrogram'
+    visualizationRecord.type === 'spectrogram'
       ? SpectrogramVizContainer
-      : visualizationState.type === 'waterfall'
+      : visualizationRecord.type === 'waterfall'
         ? WaterfallVizContainer
         : null;
 
   return VizContainer ? (
-    <VizContainer visualizationState={visualizationState} files={files} />
+    <VizContainer visualizationRecord={visualizationRecord} files={files} />
   ) : (
     <div className="alert alert-danger" role="alert">
-      Unsupported visualization type: {visualizationState.type}
+      Unsupported visualization type: {visualizationRecord.type}
     </div>
   );
 };
