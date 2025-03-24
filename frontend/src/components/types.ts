@@ -6,8 +6,11 @@ export interface FileWithContent extends FileMetadata {
   isValid?: boolean;
 }
 
+/**
+ * A dictionary of files with content, indexed by file ID.
+ */
 export type FilesWithContent = {
-  [key: string]: FileWithContent;
+  [id: string]: FileWithContent;
 };
 
 /**
