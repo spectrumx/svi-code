@@ -145,8 +145,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   setSettings,
 }: WaterfallVisualizationProps) => {
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as ApplicationType[];
-  const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
-    settings.captureIndex,
+  const [displayedFileIndex, setDisplayedFileIndex] = useState(
+    settings.fileIndex,
   );
   const [waterfallRange, setWaterfallRange] = useState({
     startIndex: 0,
@@ -239,7 +239,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   }, [processedData]);
 
   /**
-   * Processes a single capture for the periodogram display
+   * Processes a single file for the periodogram display
    */
   const processPeriodogramData = (
     rhFile: RadioHoundFile,
@@ -540,12 +540,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     if (!_.isEqual(chart, tmpChart)) {
       tmpChart.key = Math.random();
       setChart(tmpChart);
-      setDisplayedCaptureIndex(settings.captureIndex);
+      setDisplayedFileIndex(settings.fileIndex);
     }
   };
 
   /**
-   * Processes multiple captures for the waterfall display
+   * Processes multiple files for the waterfall display
    */
   const processWaterfallData = (
     rhFiles: RadioHoundFile[],
@@ -558,8 +558,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let xMax = -Infinity;
 
     rhFiles.forEach((rhFile, index) => {
-      const processedCapture = processedValues[index];
-      const yValues = processedCapture.dbValues;
+      const processedFile = processedValues[index];
+      const yValues = processedFile.dbValues;
 
       if (!yValues) return;
 
@@ -613,25 +613,25 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   };
 
   useEffect(() => {
-    // Process single capture for periodogram
+    // Process single file for periodogram
     processPeriodogramData(
-      rhFiles[settings.captureIndex],
-      processedData[settings.captureIndex],
+      rhFiles[settings.fileIndex],
+      processedData[settings.fileIndex],
     );
-  }, [rhFiles, processedData, settings.captureIndex]);
+  }, [rhFiles, processedData, settings.fileIndex]);
 
   useEffect(() => {
     const pageSize = WATERFALL_MAX_ROWS;
 
     // Check if the requested index is outside current window
     const isOutsideCurrentWindow =
-      settings.captureIndex < waterfallRange.startIndex ||
-      settings.captureIndex >= waterfallRange.endIndex;
+      settings.fileIndex < waterfallRange.startIndex ||
+      settings.fileIndex >= waterfallRange.endIndex;
 
     if (isOutsideCurrentWindow) {
       // Calculate new start index only when moving outside current window
       const idealStartIndex =
-        Math.floor(settings.captureIndex / pageSize) * pageSize;
+        Math.floor(settings.fileIndex / pageSize) * pageSize;
       const lastPossibleStartIndex = Math.max(0, rhFiles.length - pageSize);
       const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
       const endIndex = Math.min(rhFiles.length, startIndex + pageSize);
@@ -641,35 +641,35 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         startIndex !== waterfallRange.startIndex ||
         endIndex !== waterfallRange.endIndex
       ) {
-        const relevantCaptures = rhFiles.slice(startIndex, endIndex);
+        const relevantFiles = rhFiles.slice(startIndex, endIndex);
         const relevantProcessedValues = processedData.slice(
           startIndex,
           endIndex,
         );
-        processWaterfallData(relevantCaptures, relevantProcessedValues);
+        processWaterfallData(relevantFiles, relevantProcessedValues);
         setWaterfallRange({ startIndex, endIndex });
       }
     }
-  }, [rhFiles, processedData, settings.captureIndex, waterfallRange]);
+  }, [rhFiles, processedData, settings.fileIndex, waterfallRange]);
 
   // Handle realtime playback
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
 
-    // Pre-compute timestamps for all captures
+    // Pre-compute timestamps for all files
     const timestamps = rhFiles.map((rhFile) =>
       rhFile.timestamp ? Date.parse(rhFile.timestamp) : 0,
     );
 
     // Store the start time and reference points
-    const startTimestamp = timestamps[settings.captureIndex];
+    const startTimestamp = timestamps[settings.fileIndex];
     const startTime = Date.now();
 
     const realtimeInterval = setInterval(() => {
       const elapsedRealTime = Date.now() - startTime;
 
       setSettings((prev) => {
-        let targetIndex = prev.captureIndex;
+        let targetIndex = prev.fileIndex;
         while (targetIndex < timestamps.length - 1) {
           const nextTimestamp = timestamps[targetIndex + 1];
           if (nextTimestamp - startTimestamp > elapsedRealTime) {
@@ -678,10 +678,10 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           targetIndex++;
         }
 
-        if (targetIndex !== prev.captureIndex) {
+        if (targetIndex !== prev.fileIndex) {
           return {
             ...prev,
-            captureIndex: targetIndex,
+            fileIndex: targetIndex,
             isPlaying: targetIndex < rhFiles.length - 1,
           };
         }
@@ -703,23 +703,23 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const intervalTime = 1000 / speed;
     const playbackInterval = setInterval(() => {
       setSettings((prev) => {
-        const nextIndex = prev.captureIndex + 1;
+        const nextIndex = prev.fileIndex + 1;
         // Stop playback at the end
         if (nextIndex >= rhFiles.length) {
           return { ...prev, isPlaying: false };
         }
-        return { ...prev, captureIndex: nextIndex };
+        return { ...prev, fileIndex: nextIndex };
       });
     }, intervalTime);
 
     return () => clearInterval(playbackInterval);
   }, [settings.isPlaying, settings.playbackSpeed, rhFiles.length, setSettings]);
 
-  const handleCaptureSelect = (index: number) => {
-    // Update the settings with the new capture index
+  const handleRowSelect = (index: number) => {
+    // Update the settings with the new file index
     setSettings((prev) => ({
       ...prev,
-      captureIndex: index,
+      fileIndex: index,
       isPlaying: false,
     }));
   };
@@ -727,8 +727,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   return (
     <div>
       <h5>
-        Capture {displayedCaptureIndex + 1} (
-        {rhFiles[displayedCaptureIndex].timestamp})
+        Scan {displayedFileIndex + 1} ({rhFiles[displayedFileIndex].timestamp})
       </h5>
       <Periodogram
         chartOptions={chart}
@@ -759,10 +758,10 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         setWaterfall={setWaterfall}
         setScaleChanged={setScaleChanged}
         setResetScale={setResetScale}
-        currentCaptureIndex={settings.captureIndex}
-        onCaptureSelect={handleCaptureSelect}
-        captureRange={waterfallRange}
-        totalCaptures={rhFiles.length}
+        currentFileIndex={settings.fileIndex}
+        onRowSelect={handleRowSelect}
+        fileRange={waterfallRange}
+        totalFiles={rhFiles.length}
         colorLegendWidth={PLOTS_LEFT_MARGIN}
         indexLegendWidth={PLOTS_RIGHT_MARGIN}
       />

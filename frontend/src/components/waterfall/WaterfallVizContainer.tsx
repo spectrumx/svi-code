@@ -4,17 +4,11 @@ import { Alert, Row, Col } from 'react-bootstrap';
 import { WaterfallVisualization } from '.';
 import { RadioHoundFile } from './types';
 import WaterfallControls from './WaterfallControls';
-import { Capture } from '../../apiClient/captureService';
 import ScanDetailsTable from './ScanDetailsTable';
 import { VizContainerProps } from '../types';
 
-interface WaterfallData {
-  capture: Capture;
-  fileContent: RadioHoundFile;
-}
-
 export interface WaterfallSettings {
-  captureIndex: number;
+  fileIndex: number;
   isPlaying: boolean;
   playbackSpeed: string;
 }
@@ -24,27 +18,22 @@ export const WaterfallVizContainer = ({
   files,
 }: VizContainerProps) => {
   const [settings, setSettings] = useState<WaterfallSettings>({
-    captureIndex: 0,
+    fileIndex: 0,
     isPlaying: false,
     playbackSpeed: '1 fps',
   });
 
-  const waterfallData: WaterfallData[] = visualizationRecord.captures
-    .map((capture) => ({
-      capture,
-      fileContent: files[capture.files[0].id].fileContent as RadioHoundFile,
-    }))
-    .sort(
-      (a, b) =>
-        new Date(a.fileContent.timestamp).getTime() -
-        new Date(b.fileContent.timestamp).getTime(),
-    );
+  // We currently only support one capture per visualization, so grab the first
+  // capture and use its files
+  const rhFiles = visualizationRecord.captures[0].files.map(
+    (file) => files[file.id].fileContent as RadioHoundFile,
+  );
 
-  if (waterfallData.length === 0) {
+  if (rhFiles.length === 0) {
     return (
       <Alert variant="warning">
         <Alert.Heading>No RadioHound Data Found</Alert.Heading>
-        <p>No RadioHound captures are currently available</p>
+        <p>No files found for this visualization</p>
       </Alert>
     );
   }
@@ -59,22 +48,20 @@ export const WaterfallVizContainer = ({
             <WaterfallControls
               settings={settings}
               setSettings={setSettings}
-              numCaptures={waterfallData.length}
+              numFiles={rhFiles.length}
             />
           </div>
         </Col>
         <Col>
           <Row>
             <WaterfallVisualization
-              rhFiles={waterfallData.map((data) => data.fileContent)}
+              rhFiles={rhFiles}
               settings={settings}
               setSettings={setSettings}
             />
           </Row>
           <Row>
-            <ScanDetailsTable
-              rhFile={waterfallData[settings.captureIndex].fileContent}
-            />
+            <ScanDetailsTable rhFile={rhFiles[settings.fileIndex]} />
           </Row>
         </Col>
       </Row>

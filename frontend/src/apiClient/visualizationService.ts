@@ -36,7 +36,7 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
       'View signal data as a scrolling waterfall display with periodogram',
     icon: 'bi-water',
     supportedCaptureTypes: ['rh'],
-    multipleSelection: true,
+    multipleSelection: false,
   },
 ];
 
@@ -90,7 +90,7 @@ export const getVisualization = async (
   return VisualizationRecordDetailSchema.parse(response.data);
 };
 
-export const createVisualization = async (
+export const postVisualization = async (
   request: CreateVisualizationRequest,
 ): Promise<VisualizationRecordDetail> => {
   try {

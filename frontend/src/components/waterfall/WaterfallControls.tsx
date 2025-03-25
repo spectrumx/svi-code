@@ -10,31 +10,31 @@ import './waterfall.css';
 interface WaterfallControlsProps {
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
-  numCaptures: number;
+  numFiles: number;
 }
 
 export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   settings,
   setSettings,
-  numCaptures,
+  numFiles: numCaptures,
 }: WaterfallControlsProps) => {
   const captureIndexTextInputRef = React.useRef<HTMLInputElement>(null);
   // Local state for immediate UI updates
   const [localCaptureIndex, setLocalCaptureIndex] = useState(
-    settings.captureIndex,
+    settings.fileIndex,
   );
 
   // Update local state when props change
   useEffect(() => {
-    setLocalCaptureIndex(settings.captureIndex);
-  }, [settings.captureIndex]);
+    setLocalCaptureIndex(settings.fileIndex);
+  }, [settings.fileIndex]);
 
   // Debounced function to update parent state
   const debouncedSetCaptureIndex = useCallback(
     debounce((newValue: number) => {
       setSettings({
         ...settings,
-        captureIndex: newValue,
+        fileIndex: newValue,
       });
       setLocalCaptureIndex(newValue);
     }, 150),

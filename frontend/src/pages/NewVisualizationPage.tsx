@@ -12,12 +12,13 @@ import {
   CAPTURE_TYPES,
 } from '../apiClient/captureService';
 import {
-  createVisualization,
+  postVisualization,
   VisualizationType,
   VISUALIZATION_TYPES,
   VisualizationTypeInfo,
 } from '../apiClient/visualizationService';
 import CaptureSearch from '../components/CaptureSearch';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
  * A wizard-style page for creating new visualizations
@@ -27,6 +28,7 @@ const NewVisualizationPage = () => {
   const navigate = useNavigate();
   const { captures } = useAppContext();
   const syncCaptures = useSyncCaptures();
+  const [isFetchingCaptures, setIsFetchingCaptures] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedCaptureType, setSelectedCaptureType] =
     useState<CaptureType | null>(null);
@@ -102,13 +104,17 @@ const NewVisualizationPage = () => {
     setError(null);
 
     try {
-      const visualizationRecord = await createVisualization({
+      const source = captures.find(
+        (c) => c.id === selectedCaptureIds[0],
+      )?.source;
+      if (!source) {
+        throw new Error('No source found for selected captures');
+      }
+      const visualizationRecord = await postVisualization({
         type: selectedVizType,
         capture_ids: selectedCaptureIds,
         capture_type: selectedCaptureType,
-        capture_source:
-          captures.find((c) => c.id === selectedCaptureIds[0])?.source ||
-          'svi_user',
+        capture_source: source,
         settings: selectedVizType === 'spectrogram' ? spectrogramSettings : {},
       });
 
@@ -326,104 +332,118 @@ const NewVisualizationPage = () => {
   };
 
   useEffect(() => {
-    syncCaptures();
+    setIsFetchingCaptures(true);
+    syncCaptures().finally(() => setIsFetchingCaptures(false));
   }, [syncCaptures]);
 
   return (
     <div className="page-container">
       <h5>Create a New Visualization</h5>
       <div className="mt-4">
-        {/* Step 1 */}
-        <div className="mb-4">
-          {renderStepHeader(1, 'Select Capture Type')}
-          {currentStep >= 1 && (
-            <div className={currentStep > 1 ? 'opacity-75' : ''}>
-              {renderCaptureTypeStep()}
+        {captures.length === 0 && isFetchingCaptures ? (
+          <div className="d-flex flex-column align-items-center">
+            <div className="me-2">
+              <LoadingSpinner />
             </div>
-          )}
-        </div>
-
-        {/* Step 2 */}
-        {currentStep >= 2 && (
-          <div className="mb-4">
-            {renderStepHeader(2, 'Select Visualization Type')}
-            <div className={currentStep > 2 ? 'opacity-75' : ''}>
-              {renderVizTypeStep()}
-              {currentStep === 2 && (
-                <div className="d-flex gap-2 mt-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setCurrentStep((prev) => prev - 1);
-                      setSelectedCaptureType(null);
-                    }}
-                  >
-                    Back
-                  </Button>
+            <div>Syncing captures...</div>
+          </div>
+        ) : (
+          <>
+            {/* Step 1 */}
+            <div className="mb-4">
+              {renderStepHeader(1, 'Select Capture Type')}
+              {currentStep >= 1 && (
+                <div className={currentStep > 1 ? 'opacity-75' : ''}>
+                  {renderCaptureTypeStep()}
                 </div>
               )}
             </div>
-          </div>
-        )}
 
-        {/* Step 3 */}
-        {currentStep >= 3 && (
-          <div className="mb-4">
-            {renderStepHeader(
-              3,
-              `Choose ${
-                selectionMode === 'multiple' ? 'one or more' : 'a'
-              } Capture${selectionMode === 'multiple' ? 's' : ''} to Visualize`,
-            )}
-            <div className={currentStep > 3 ? 'opacity-75' : ''}>
-              {renderDataSourceStep()}
-              {currentStep === 3 && (
-                <div className="d-flex gap-2 mt-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setCurrentStep((prev) => prev - 1);
-                      setSelectedVizType(null);
-                    }}
-                  >
-                    Back
-                  </Button>
+            {/* Step 2 */}
+            {currentStep >= 2 && (
+              <div className="mb-4">
+                {renderStepHeader(2, 'Select Visualization Type')}
+                <div className={currentStep > 2 ? 'opacity-75' : ''}>
+                  {renderVizTypeStep()}
+                  {currentStep === 2 && (
+                    <div className="d-flex gap-2 mt-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setCurrentStep((prev) => prev - 1);
+                          setSelectedCaptureType(null);
+                        }}
+                      >
+                        Back
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Step 4 */}
-        {currentStep >= 4 && (
-          <div className="mb-4">
-            {renderStepHeader(4, 'Configure Settings')}
-            <div>
-              {renderExtraConfigStep()}
-              <div className="d-flex gap-2 mt-3">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setCurrentStep((prev) => prev - 1);
-                    setSelectedCaptureIds([]);
-                  }}
-                >
-                  Back
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={handleCreateVisualization}
-                  disabled={
-                    !selectedVizType ||
-                    selectedCaptureIds.length === 0 ||
-                    isCreating
-                  }
-                >
-                  {isCreating ? 'Creating...' : 'Create Visualization'}
-                </Button>
               </div>
-            </div>
-          </div>
+            )}
+
+            {/* Step 3 */}
+            {currentStep >= 3 && (
+              <div className="mb-4">
+                {renderStepHeader(
+                  3,
+                  `Choose ${
+                    selectionMode === 'multiple' ? 'one or more' : 'a'
+                  } Capture${
+                    selectionMode === 'multiple' ? 's' : ''
+                  } to Visualize`,
+                )}
+                <div className={currentStep > 3 ? 'opacity-75' : ''}>
+                  {renderDataSourceStep()}
+                  {currentStep === 3 && (
+                    <div className="d-flex gap-2 mt-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setCurrentStep((prev) => prev - 1);
+                          setSelectedVizType(null);
+                        }}
+                      >
+                        Back
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Step 4 */}
+            {currentStep >= 4 && (
+              <div className="mb-4">
+                {renderStepHeader(4, 'Configure Settings')}
+                <div>
+                  {renderExtraConfigStep()}
+                  <div className="d-flex gap-2 mt-3">
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setCurrentStep((prev) => prev - 1);
+                        setSelectedCaptureIds([]);
+                      }}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={handleCreateVisualization}
+                      disabled={
+                        !selectedVizType ||
+                        selectedCaptureIds.length === 0 ||
+                        isCreating
+                      }
+                    >
+                      {isCreating ? 'Creating...' : 'Create Visualization'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

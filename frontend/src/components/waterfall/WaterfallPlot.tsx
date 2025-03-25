@@ -34,22 +34,22 @@ interface WaterfallPlotProps {
   setWaterfall: (waterfall: WaterfallType) => void;
   setScaleChanged: (scaleChanged: boolean) => void;
   setResetScale: (resetScale: boolean) => void;
-  currentCaptureIndex: number;
-  onCaptureSelect: (index: number) => void;
+  currentFileIndex: number;
+  onRowSelect: (index: number) => void;
   /**
-   * The indices of the captures currently being displayed in the waterfall plot.
-   * Note that the WaterfallPlot component simply displays whatever captures are
+   * The indices of the files currently being displayed in the waterfall plot.
+   * Note that the WaterfallPlot component simply displays whatever files are
    * in scan.allData; this prop just tells the component the indices of those
-   * captures within the full dataset.
+   * files within the full dataset.
    */
-  captureRange: {
+  fileRange: {
     startIndex: number;
     endIndex: number;
   };
   /**
-   * The total number of captures in the full dataset.
+   * The total number of files in the full dataset.
    */
-  totalCaptures: number;
+  totalFiles: number;
   /**
    * The width of the legend in pixels, including labels.
    */
@@ -63,10 +63,10 @@ export function WaterfallPlot({
   setWaterfall,
   setScaleChanged,
   setResetScale,
-  currentCaptureIndex,
-  onCaptureSelect,
-  captureRange,
-  totalCaptures,
+  currentFileIndex,
+  onRowSelect,
+  fileRange,
+  totalFiles,
   colorLegendWidth,
   indexLegendWidth,
 }: WaterfallPlotProps) {
@@ -172,7 +172,7 @@ export function WaterfallPlot({
     context.restore();
 
     // Calculate the relative position within the current page
-    const relativeIndex = currentIndex - captureRange.startIndex;
+    const relativeIndex = currentIndex - fileRange.startIndex;
 
     // Only draw if the current index is within the displayed range
     if (relativeIndex >= 0 && relativeIndex < allData.length) {
@@ -187,7 +187,7 @@ export function WaterfallPlot({
     }
 
     if (hoverIndex !== null) {
-      const relativeHoverIndex = hoverIndex - captureRange.startIndex;
+      const relativeHoverIndex = hoverIndex - fileRange.startIndex;
 
       if (relativeHoverIndex >= 0 && relativeHoverIndex < allData.length) {
         drawHighlightBox(
@@ -202,7 +202,7 @@ export function WaterfallPlot({
     }
   }
 
-  function drawCaptureIndices(
+  function drawFileIndices(
     context: CanvasRenderingContext2D,
     allData: number[][],
     rectHeight: number,
@@ -223,15 +223,15 @@ export function WaterfallPlot({
       allData.length * rectHeight + margin.top + margin.bottom,
     );
 
-    // Only draw indices if we have 5 or more captures
+    // Only draw indices if we have 5 or more rows
     if (allData.length >= 5) {
       context.font = '12px Arial';
       context.textAlign = 'left';
 
       // Show every 5th index
-      for (let i = captureRange.endIndex; i >= captureRange.startIndex; i--) {
+      for (let i = fileRange.endIndex; i >= fileRange.startIndex; i--) {
         const displayedIndex = i + 1;
-        const row = captureRange.endIndex - i;
+        const row = fileRange.endIndex - i;
         const y = margin.top + row * rectHeight;
         const x = canvasWidth / pixelRatio - indexLegendWidth + 5;
 
@@ -446,8 +446,8 @@ export function WaterfallPlot({
           console.error('Color scale is undefined');
         }
 
-        // Draw capture indices after drawing the waterfall
-        drawCaptureIndices(
+        // Draw file indices after drawing the waterfall
+        drawFileIndices(
           context,
           allData,
           rectHeight,
@@ -480,7 +480,7 @@ export function WaterfallPlot({
 
     // Validate the index is within bounds
     if (clickedIndex >= 0 && clickedIndex < allData.length) {
-      onCaptureSelect(captureRange.startIndex + clickedIndex);
+      onRowSelect(fileRange.startIndex + clickedIndex);
     }
   };
 
@@ -496,12 +496,12 @@ export function WaterfallPlot({
 
     // Calculate hovered row
     const hoveredRow = Math.floor((y - margin.top) / rectHeight);
-    const hoveredIndex = captureRange.endIndex - 1 - hoveredRow;
+    const hoveredIndex = fileRange.endIndex - 1 - hoveredRow;
 
     // Update hover state if within bounds
     if (
-      hoveredIndex >= captureRange.startIndex &&
-      hoveredIndex < captureRange.endIndex
+      hoveredIndex >= fileRange.startIndex &&
+      hoveredIndex < fileRange.endIndex
     ) {
       setHoveredIndex(hoveredIndex);
     } else {
@@ -513,7 +513,7 @@ export function WaterfallPlot({
     setHoveredIndex(null);
   };
 
-  // Draw highlight boxes and capture indices
+  // Draw highlight boxes and file indices
   useEffect(() => {
     const dimensions = plotDimensionsRef.current;
     const allData = scan.allData;
@@ -522,7 +522,7 @@ export function WaterfallPlot({
       // Draw selection highlight
       drawHighlightBoxes(
         allData,
-        currentCaptureIndex,
+        currentFileIndex,
         dimensions.rectWidth,
         dimensions.rectHeight,
         hoveredIndex,
@@ -532,7 +532,7 @@ export function WaterfallPlot({
       if (canvas) {
         const context = canvas.getContext('2d');
         if (context) {
-          drawCaptureIndices(
+          drawFileIndices(
             context,
             allData,
             dimensions.rectHeight,
@@ -543,7 +543,7 @@ export function WaterfallPlot({
         }
       }
     }
-  }, [hoveredIndex, currentCaptureIndex, scan.allData, captureRange]);
+  }, [hoveredIndex, currentFileIndex, scan.allData, fileRange]);
 
   const indicatorContainerStyle: React.CSSProperties = {
     display: 'flex',
@@ -558,16 +558,13 @@ export function WaterfallPlot({
   return (
     <div style={{ width: '100%' }}>
       <div style={indicatorContainerStyle}>
-        {captureRange.endIndex < totalCaptures && (
+        {fileRange.endIndex < totalFiles && (
           <div
             style={upIndicatorStyle}
-            title="More recent captures above"
+            title="More recent scans above"
             onClick={() => {
-              const newIndex = Math.min(
-                totalCaptures - 1,
-                captureRange.endIndex,
-              );
-              onCaptureSelect(newIndex);
+              const newIndex = Math.min(totalFiles - 1, fileRange.endIndex);
+              onRowSelect(newIndex);
             }}
           />
         )}
@@ -583,13 +580,13 @@ export function WaterfallPlot({
         />
       </div>
       <div style={indicatorContainerStyle}>
-        {captureRange.startIndex > 0 && (
+        {fileRange.startIndex > 0 && (
           <div
             style={downIndicatorStyle}
-            title="Older captures below"
+            title="Older scans below"
             onClick={() => {
-              const newIndex = Math.max(0, captureRange.startIndex - 1);
-              onCaptureSelect(newIndex);
+              const newIndex = Math.max(0, fileRange.startIndex - 1);
+              onRowSelect(newIndex);
             }}
           />
         )}

@@ -20,7 +20,7 @@ interface VisualizationCardProps {
   type: VisualizationType;
   captureType: CaptureType;
   captureSource: CaptureSource;
-  captureCount: number;
+  fileCount: number;
 }
 
 /**
@@ -32,7 +32,7 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
   type,
   captureType,
   captureSource,
-  captureCount,
+  fileCount,
 }) => {
   const navigate = useNavigate();
   const visualizationType = VISUALIZATION_TYPES.find((v) => v.name === type);
@@ -62,7 +62,7 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
           <br />
           <strong>Source:</strong> {CAPTURE_SOURCES[captureSource].name}
           <br />
-          <strong>Number of Captures:</strong> {captureCount}
+          <strong>Number of Files:</strong> {fileCount}
         </Card.Text>
       </Card.Body>
     </Card>

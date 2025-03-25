@@ -40,7 +40,7 @@ const WorkspacePage = () => {
                 type={vizRecord.type}
                 captureType={vizRecord.capture_type}
                 captureSource={vizRecord.capture_source}
-                captureCount={vizRecord.capture_ids.length}
+                fileCount={vizRecord.capture_ids.length}
               />
             </Col>
           ))}
