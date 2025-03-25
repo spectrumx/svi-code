@@ -27,11 +27,15 @@ export const getFileMetadata = async (
   }
 };
 
+type FileSource = CaptureSource | 'svi';
+
 export const getFileContent = async (
   fileId: string,
+  source: FileSource,
   signal?: AbortSignal,
 ): Promise<any> => {
   const response = await apiClient.get(`/api/files/${fileId}/content/`, {
+    params: { source },
     signal,
   });
   return response.data;
@@ -66,7 +70,7 @@ export const CAPTURE_SOURCES = {
 export const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
 export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
-const CaptureSchema = zod.object({
+export const CaptureSchema = zod.object({
   id: zod.string(),
   name: zod.string(),
   owner: zod.number(),
@@ -129,6 +133,11 @@ export const useSyncCaptures = () => {
   );
 
   return syncCaptures;
+};
+
+export const getCapture = async (captureId: string): Promise<Capture> => {
+  const response = await apiClient.get(`/api/captures/${captureId}/`);
+  return CaptureSchema.parse(response.data);
 };
 
 export const postCaptures = async (
