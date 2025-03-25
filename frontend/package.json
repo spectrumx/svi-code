@@ -4,7 +4,6 @@
   "private": true,
   "dependencies": {
     "@canvasjs/react-charts": "^1.0.2",
-    "@tanstack/react-table": "^8.21.2",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -12,7 +11,6 @@
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
     "d3": "^7.9.0",
-    "jszip": "^3.10.1",
     "lodash": "^4.17.21",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.5",
@@ -33,7 +31,6 @@
     "@types/canvasjs": "^1.9.11",
     "@types/d3": "^7.4.3",
     "@types/jest": "^27.5.2",
-    "@types/jszip": "^3.4.0",
     "@types/lodash": "^4.17.13",
     "@types/node": "^16.18.113",
     "@types/react": "^18.3.11",

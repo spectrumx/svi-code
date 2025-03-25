@@ -13,14 +13,13 @@ import {
   VISUALIZATION_TYPES,
   VisualizationType,
 } from '../apiClient/visualizationService';
-import './components.css';
 
 interface VisualizationCardProps {
   id: number;
   type: VisualizationType;
   captureType: CaptureType;
   captureSource: CaptureSource;
-  captureCount: number;
+  captures: string[];
 }
 
 /**
@@ -32,7 +31,7 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
   type,
   captureType,
   captureSource,
-  captureCount,
+  captures,
 }) => {
   const navigate = useNavigate();
   const visualizationType = VISUALIZATION_TYPES.find((v) => v.name === type);
@@ -62,7 +61,7 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
           <br />
           <strong>Source:</strong> {CAPTURE_SOURCES[captureSource].name}
           <br />
-          <strong>Number of Captures:</strong> {captureCount}
+          <strong>Number of Captures:</strong> {captures.length}
         </Card.Text>
       </Card.Body>
     </Card>

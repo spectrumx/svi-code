@@ -6,9 +6,8 @@ import { useAppContext } from '../utils/AppContext';
 import {
   CaptureSource,
   CaptureType,
-  CaptureTypeSchema,
   CaptureSourceSchema,
-  CaptureSchema,
+  CaptureTypeSchema,
 } from './fileService';
 
 const VisualizationTypeSchema = zod.enum(['spectrogram', 'waterfall']);
@@ -40,10 +39,11 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
   },
 ];
 
-const BaseVisualizationRecordSchema = zod.object({
+const VisualizationSchema = zod.object({
   id: zod.number(),
   owner: zod.string(),
   type: VisualizationTypeSchema,
+  capture_ids: zod.array(zod.string()),
   capture_type: CaptureTypeSchema,
   capture_source: CaptureSourceSchema,
   settings: zod.record(zod.string(), zod.any()),
@@ -51,19 +51,7 @@ const BaseVisualizationRecordSchema = zod.object({
   updated_at: zod.string(),
 });
 
-const VisualizationRecordSchema = BaseVisualizationRecordSchema.extend({
-  capture_ids: zod.array(zod.string()),
-});
-
-export type VisualizationRecord = zod.infer<typeof VisualizationRecordSchema>;
-
-const VisualizationRecordDetailSchema = BaseVisualizationRecordSchema.extend({
-  captures: zod.array(CaptureSchema),
-});
-
-export type VisualizationRecordDetail = zod.infer<
-  typeof VisualizationRecordDetailSchema
->;
+export type Visualization = zod.infer<typeof VisualizationSchema>;
 
 export interface CreateVisualizationRequest {
   type: VisualizationType;
@@ -73,29 +61,27 @@ export interface CreateVisualizationRequest {
   settings?: Record<string, any>;
 }
 
-export const getVisualizations = async (): Promise<VisualizationRecord[]> => {
+export const getVisualizations = async (): Promise<Visualization[]> => {
   try {
     const response = await apiClient.get('/api/visualizations/');
-    return zod.array(VisualizationRecordSchema).parse(response.data);
+    return zod.array(VisualizationSchema).parse(response.data);
   } catch (error) {
     console.error('Error fetching visualizations:', error);
     throw error;
   }
 };
 
-export const getVisualization = async (
-  id: string,
-): Promise<VisualizationRecordDetail> => {
-  const response = await apiClient.get(`/api/visualizations/${id}/`);
-  return VisualizationRecordDetailSchema.parse(response.data);
+export const getVisualization = async (id: string): Promise<Visualization> => {
+  const response = await apiClient.get(`/api/visualizations/${id}`);
+  return VisualizationSchema.parse(response.data);
 };
 
 export const createVisualization = async (
   request: CreateVisualizationRequest,
-): Promise<VisualizationRecordDetail> => {
+): Promise<Visualization> => {
   try {
     const response = await apiClient.post('/api/visualizations/', request);
-    return VisualizationRecordDetailSchema.parse(response.data);
+    return VisualizationSchema.parse(response.data);
   } catch (error) {
     console.error('Error creating visualization:', error);
     throw error;
@@ -111,19 +97,4 @@ export const useSyncVisualizations = () => {
   }, [setVisualizations]);
 
   return syncVisualizations;
-};
-
-/**
- * Downloads all files associated with a visualization as a ZIP file.
- * @param id - The ID of the visualization
- * @returns A blob containing the ZIP file
- */
-export const downloadVizFiles = async (id: string): Promise<Blob> => {
-  const response = await apiClient.get(
-    `/api/visualizations/${id}/download_files/`,
-    {
-      responseType: 'blob',
-    },
-  );
-  return response.data;
 };

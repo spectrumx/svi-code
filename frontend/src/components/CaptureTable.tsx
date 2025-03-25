@@ -1,12 +1,3 @@
-import { useMemo } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-  ColumnDef,
-  getSortedRowModel,
-} from '@tanstack/react-table';
 import Table from 'react-bootstrap/Table';
 import { Link } from 'react-router';
 
@@ -19,8 +10,9 @@ import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 
 export interface CaptureTableProps {
   captures: Capture[];
-  selectedId?: string | null;
-  onSelect?: (id: string) => void;
+  selectedIds?: string[] | null;
+  onSelect?: (ids: string[]) => void;
+  selectionMode?: 'single' | 'multiple';
   totalCaptures?: number;
   numHiddenCaptures?: number;
 }
@@ -31,128 +23,40 @@ const textCellStyle = {
 };
 
 /**
- * Displays a table of captures with optional selection functionality and sorting
+ * Displays a table of captures with optional selection functionality
+ * Supports both single and multiple selection modes with "Select all" capability
  */
-export const CaptureTable = ({
+const CaptureTable = ({
   captures,
-  selectedId,
+  selectedIds = [],
   onSelect,
+  selectionMode = 'single',
   totalCaptures,
   numHiddenCaptures,
 }: CaptureTableProps) => {
-  const columnHelper = createColumnHelper<Capture>();
-
-  const columns = useMemo<ColumnDef<Capture, any>[]>(() => {
-    const baseColumns: ColumnDef<Capture, any>[] = [
-      columnHelper.accessor('id', {
-        header: 'ID',
-        size: 80,
-      }),
-      columnHelper.accessor('name', {
-        header: 'Name',
-        cell: (info) => <div style={textCellStyle}>{info.getValue()}</div>,
-      }),
-      columnHelper.accessor('timestamp', {
-        header: 'Timestamp',
-        cell: (info) =>
-          info.getValue()
-            ? new Date(info.getValue())
-                .toISOString()
-                .replace('Z', ' UTC')
-                .replace('T', ' ')
-            : 'None',
-        size: 200,
-      }),
-      columnHelper.accessor('type', {
-        header: 'Type',
-        cell: (info) =>
-          CAPTURE_TYPES[info.getValue() as keyof typeof CAPTURE_TYPES].name,
-        size: 120,
-      }),
-      columnHelper.accessor('files', {
-        header: 'Files',
-        cell: (info) => info.getValue().length,
-        size: 80,
-      }),
-      columnHelper.accessor('source', {
-        header: 'Source',
-        cell: (info) =>
-          CAPTURE_SOURCES[info.getValue() as keyof typeof CAPTURE_SOURCES].name,
-        size: 120,
-      }),
-    ];
-
-    // Add selection column if needed
-    if (onSelect) {
-      baseColumns.unshift(
-        columnHelper.display({
-          id: 'select',
-          header: '',
-          cell: ({ row }) => (
-            <input
-              type="radio"
-              checked={row.original.id === selectedId}
-              onChange={() => onSelect(row.original.id)}
-              aria-label={`Select capture ${row.original.id}`}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ),
-          size: 20,
-        }),
-      );
-    }
-
-    // Add visualization column if needed
-    if (!onSelect) {
-      baseColumns.push(
-        columnHelper.display({
-          id: 'actions',
-          cell: ({ row }) => {
-            const capture = row.original;
-            const visualizationType = VISUALIZATION_TYPES.find((visType) =>
-              visType.supportedCaptureTypes.includes(capture.type),
-            );
-
-            if (!visualizationType) return null;
-
-            const captureIdParam =
-              visualizationType.name === 'waterfall'
-                ? `?captures=${capture.id}`
-                : visualizationType.name === 'spectrogram'
-                  ? `/${capture.id}`
-                  : '';
-
-            return (
-              <Link
-                to={`/visualization/${visualizationType.name}${captureIdParam}`}
-                className="btn btn-primary btn-sm px-4"
-              >
-                Visualize
-              </Link>
-            );
-          },
-          size: 100,
-        }),
-      );
-    }
-
-    return baseColumns;
-  }, [columnHelper, onSelect, selectedId]);
-
-  const table = useReactTable({
-    data: captures,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    enableMultiRowSelection: false,
-    state: {
-      rowSelection: selectedId ? { [selectedId]: true } : {},
-    },
-  });
-
-  const handleRowClick = (capture: Capture) => {
+  const handleSelect = (id: string) => {
     if (!onSelect) return;
-    onSelect(capture.id);
+
+    if (selectionMode === 'single') {
+      onSelect([id]);
+    } else {
+      const newSelectedIds = selectedIds?.includes(id)
+        ? selectedIds.filter((selectedId) => selectedId !== id)
+        : [...(selectedIds || []), id];
+      onSelect(newSelectedIds);
+    }
+  };
+
+  // Helper function to handle "Select All"
+  const handleSelectAll = () => {
+    if (!onSelect) return;
+
+    const allSelected = captures.length === selectedIds?.length;
+    if (allSelected) {
+      onSelect([]);
+    } else {
+      onSelect(captures.map((capture) => capture.id));
+    }
   };
 
   return (
@@ -187,39 +91,52 @@ export const CaptureTable = ({
           ) : (
             `${captures.length} captures`
           )}
+          {selectedIds?.length ? ` • ${selectedIds.length} selected` : ''}
         </span>
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>
         <Table striped bordered hover responsive style={{ marginBottom: 0 }}>
           <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    style={{
-                      width: header.getSize(),
-                      cursor: header.column.getCanSort()
-                        ? 'pointer'
-                        : undefined,
-                    }}
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
+            <tr>
+              {onSelect && captures.length > 0 && (
+                <th className="text-center" style={{ width: '50px' }}>
+                  {selectionMode === 'multiple' && (
+                    <input
+                      type="checkbox"
+                      checked={
+                        captures.length > 0 &&
+                        captures.length === selectedIds?.length
+                      }
+                      ref={(input) => {
+                        if (input) {
+                          input.indeterminate =
+                            selectedIds!.length > 0 &&
+                            selectedIds!.length < captures.length;
+                        }
+                      }}
+                      onChange={handleSelectAll}
+                      aria-label="Select all captures"
+                    />
+                  )}
+                </th>
+              )}
+              <th style={textCellStyle}>ID</th>
+              <th style={textCellStyle}>Name</th>
+              <th style={{ maxWidth: '200px' }}>Timestamp</th>
+              <th style={{ maxWidth: '120px' }}>Type</th>
+              <th style={{ maxWidth: '80px' }}>Files</th>
+              <th style={{ maxWidth: '120px' }}>Source</th>
+              {!onSelect && captures.length > 0 && (
+                <th style={{ maxWidth: '100px' }}></th>
+              )}
+            </tr>
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {captures.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length}
+                  colSpan={onSelect ? 8 : 7}
                   style={{
                     padding: '2rem',
                     textAlign: 'center',
@@ -230,32 +147,84 @@ export const CaptureTable = ({
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={
-                    row.original.id === selectedId ? 'table-primary' : ''
-                  }
-                  onClick={() => handleRowClick(row.original)}
-                  style={onSelect ? { cursor: 'pointer' } : undefined}
-                  role={onSelect ? 'button' : undefined}
-                  tabIndex={onSelect ? 0 : undefined}
-                  onKeyPress={(e) => {
-                    if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
-                      handleRowClick(row.original);
-                    }
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="align-middle">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+              captures.map((capture) => {
+                const visualizationType = VISUALIZATION_TYPES.find((visType) =>
+                  visType.supportedCaptureTypes.includes(capture.type),
+                );
+                const captureIdParam =
+                  visualizationType?.name === 'waterfall'
+                    ? `?captures=${capture.id}`
+                    : visualizationType?.name === 'spectrogram'
+                      ? `/${capture.id}`
+                      : '';
+
+                const isSelected = selectedIds?.includes(capture.id);
+
+                return (
+                  <tr
+                    key={capture.id}
+                    className={isSelected ? 'table-primary' : ''}
+                    onClick={() => onSelect && handleSelect(capture.id)}
+                    style={onSelect ? { cursor: 'pointer' } : undefined}
+                    role={onSelect ? 'button' : undefined}
+                    tabIndex={onSelect ? 0 : undefined}
+                    onKeyPress={(e) => {
+                      if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+                        handleSelect(capture.id);
+                      }
+                    }}
+                  >
+                    {onSelect && captures.length > 0 && (
+                      <td
+                        className="text-center align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type={
+                            selectionMode === 'multiple' ? 'checkbox' : 'radio'
+                          }
+                          checked={isSelected}
+                          onChange={() => handleSelect(capture.id)}
+                          aria-label={`Select capture ${capture.id}`}
+                        />
+                      </td>
+                    )}
+                    <td className="align-middle" style={textCellStyle}>
+                      {capture.id}
                     </td>
-                  ))}
-                </tr>
-              ))
+                    <td className="align-middle" style={textCellStyle}>
+                      {capture.name}
+                    </td>
+                    <td className="align-middle">
+                      {capture.timestamp
+                        ? new Date(capture.timestamp)
+                            .toISOString()
+                            .replace('Z', ' UTC')
+                            .replace('T', ' ')
+                        : 'None'}
+                    </td>
+                    <td className="align-middle">
+                      {CAPTURE_TYPES[capture.type].name}
+                    </td>
+                    <td className="align-middle">{capture.files.length}</td>
+                    <td className="align-middle">
+                      {CAPTURE_SOURCES[capture.source].name}
+                    </td>
+                    {!onSelect && captures.length > 0 && visualizationType ? (
+                      <td className="align-middle text-center">
+                        <Link
+                          to={`/visualization/${visualizationType.name}${captureIdParam}`}
+                          className="btn btn-primary btn-sm px-4"
+                        >
+                          Visualize
+                        </Link>
+                      </td>
+                    ) : !onSelect ? (
+                      <td></td>
+                    ) : null}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </Table>

@@ -6,9 +6,10 @@ import { useAppContext } from '../utils/AppContext';
 import Button from '../components/Button';
 import { VisualizationCard } from '../components/VisualizationCard';
 import { useSyncVisualizations } from '../apiClient/visualizationService';
+import '../styles/VisualizationCard.css';
 
 const WorkspacePage = () => {
-  const { username, visualizations: vizRecords } = useAppContext();
+  const { username, visualizations } = useAppContext();
   const syncVisualizations = useSyncVisualizations();
 
   useEffect(() => {
@@ -31,16 +32,16 @@ const WorkspacePage = () => {
         </Link>
       </div>
       <hr />
-      {vizRecords.length > 0 ? (
+      {visualizations.length > 0 ? (
         <Row>
-          {vizRecords.map((vizRecord) => (
-            <Col key={vizRecord.id} xs={12} md={6} lg={4} className="mb-3">
+          {visualizations.map((visualization) => (
+            <Col key={visualization.id} xs={12} md={6} lg={4} className="mb-3">
               <VisualizationCard
-                id={vizRecord.id}
-                type={vizRecord.type}
-                captureType={vizRecord.capture_type}
-                captureSource={vizRecord.capture_source}
-                captureCount={vizRecord.capture_ids.length}
+                id={visualization.id}
+                type={visualization.type}
+                captureType={visualization.capture_type}
+                captureSource={visualization.capture_source}
+                captures={visualization.capture_ids}
               />
             </Col>
           ))}

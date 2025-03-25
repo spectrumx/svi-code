@@ -8,7 +8,6 @@ import {
   ChartAxisXOptions,
   ChartAxisYOptions,
 } from 'canvasjs';
-import { z as zod } from 'zod';
 
 export interface Data extends ChartDataSeriesOptions {
   // Custom prop
@@ -110,72 +109,54 @@ export interface Display {
 }
 
 /**
- * RadioHound format (.rh/.rh.json) capture for periodograms
+ * RadioHound format (.rh) capture for periodograms
  *
  * Schema definition:
  * https://github.com/spectrumx/schema-definitions/tree/master/definitions/sds/metadata-formats/radiohound
+ *
+ * TODO: Update this type to match schema
  */
-const RequestedSchema = zod.object({
-  fmin: zod.number().optional(),
-  fmax: zod.number().optional(),
-  span: zod.number().optional(),
-  rbw: zod.number().optional(),
-  samples: zod.number().optional(),
-  gain: zod.number().optional(),
-});
-
-const RadioHoundMetadataSchema = zod.object({
-  data_type: zod.string(),
-  fmax: zod.number(),
-  fmin: zod.number(),
-  gps_lock: zod.boolean(),
-  nfft: zod.number(),
-  scan_time: zod.number(),
-  archive_result: zod.boolean().optional(),
-  // Deprecated fields
-  xcount: zod.number().optional(),
-  xstart: zod.number().optional(),
-  xstop: zod.number().optional(),
-  suggested_gain: zod.number().optional(),
-  uncertainty: zod.number().optional(),
-  archiveResult: zod.boolean().optional(),
-});
-
-const RadioHoundCustomFieldsSchema = zod
-  .object({
-    requested: RequestedSchema,
-  })
-  .catchall(zod.unknown());
-
-export const RadioHoundFileSchema = zod.object({
-  data: zod.string(),
-  gain: zod.number(),
-  latitude: zod.number(),
-  longitude: zod.number(),
-  mac_address: zod.string(),
-  metadata: RadioHoundMetadataSchema,
-  sample_rate: zod.number(),
-  short_name: zod.string(),
-  timestamp: zod.string(),
-  type: zod.string(),
-  version: zod.string(),
-  altitude: zod.number().optional(),
-  center_frequency: zod.number().optional(),
-  custom_fields: RadioHoundCustomFieldsSchema.optional(),
-  hardware_board_id: zod.string().optional(),
-  hardware_version: zod.string().optional(),
-  scan_group: zod.string().optional(),
-  software_version: zod.string().optional(),
-  // Deprecated fields
-  batch: zod.number().optional(),
-  m4s_min: zod.string().optional(),
-  m4s_max: zod.string().optional(),
-  m4s_mean: zod.string().optional(),
-  m4s_median: zod.string().optional(),
-  requested: RequestedSchema.optional(),
-});
-
-export type RadioHoundFile = zod.infer<typeof RadioHoundFileSchema>;
+export interface RadioHoundCapture {
+  short_name?: string;
+  mac_address: string;
+  metadata?: {
+    data_type?: string;
+    xstart?: number;
+    xstop?: number;
+    fmin?: number;
+    fmax?: number;
+    nfft?: number;
+    xcount?: number;
+    gps_lock?: boolean;
+    scan_time?: number;
+    archiveResult?: boolean;
+  };
+  data: number[] | FloatArray | string;
+  type?: string;
+  sample_rate?: number;
+  gain?: number;
+  timestamp?: string;
+  center_frequency?: number;
+  m4s_min?: string;
+  m4s_max?: string;
+  m4s_mean?: string;
+  m4s_median?: string;
+  requested?: {
+    rbw?: number;
+    span: number;
+    fmin?: number;
+    fmax?: number;
+    gain?: number;
+    samples?: number;
+  };
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
+  batch?: number;
+  hardware_version?: string;
+  hardware_board_id?: string;
+  software_version?: string;
+}
 
 export type FloatArray = Float32Array | Float64Array;
 
@@ -184,13 +165,14 @@ export interface ScanState {
   lastScanOptions: ScanOptionsType | undefined;
   receivedHeatmap: boolean;
   scansRequested: number;
-  allData: number[][];
+  // I inferred allData's type, but it doesn't seem correct
+  allData: (Data | RadioHoundCapture | number[])[];
   yMin: number;
   yMax: number;
   xMin?: number;
   xMax?: number;
   spinner: boolean;
-  periodogram?: RadioHoundFile | number[];
+  periodogram?: RadioHoundCapture | number[];
   heatmapData: Data[];
   scaleMin: number | undefined;
   scaleMax: number | undefined;
