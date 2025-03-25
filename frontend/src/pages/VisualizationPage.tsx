@@ -1,37 +1,99 @@
 import { useEffect, useState } from 'react';
-import { useParams, Navigate } from 'react-router';
+import { useParams } from 'react-router';
+import JSZip from 'jszip';
 
 import LoadingSpinner from '../components/LoadingSpinner';
-import SpectrogramPage from './SpectrogramPage';
-import WaterfallPage from './WaterfallPage';
+import SpectrogramVizContainer from '../components/spectrogram/SpectrogramVizContainer';
+import WaterfallVizContainer from '../components/waterfall/WaterfallVizContainer';
 import {
-  Visualization,
+  VisualizationRecordDetail,
   getVisualization,
+  downloadVizFiles,
 } from '../apiClient/visualizationService';
+import { FilesWithContent } from '../components/types';
+import { RadioHoundFileSchema } from '../components/waterfall/types';
 
 /**
  * Router component for visualization pages.
  * Fetches visualization data based on URL parameter and renders the appropriate visualization component.
  */
 const VisualizationPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: vizId } = useParams<{ id: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visualization, setVisualization] = useState<Visualization | null>(
-    null,
-  );
+  const [visualizationRecord, setVisualizationRecord] =
+    useState<VisualizationRecordDetail | null>(null);
+  const [files, setFiles] = useState<FilesWithContent>({});
 
   useEffect(() => {
-    const fetchVisualization = async () => {
-      if (!id) {
+    const fetchVisualizationRecord = async () => {
+      if (!vizId) {
         setError('No visualization ID provided');
         setIsLoading(false);
         return;
       }
 
       try {
-        const viz = await getVisualization(id);
-        setVisualization(viz);
+        const vizRecord = await getVisualization(vizId);
+
+        // Download the ZIP file containing all files
+        const zipBlob = await downloadVizFiles(vizId);
+
+        // Parse the ZIP file
+        const zip = new JSZip();
+        const zipContent = await zip.loadAsync(zipBlob);
+
+        // Process each file in the ZIP
+        const files: FilesWithContent = {};
+
+        // Process each capture in the visualization state
+        for (const capture of vizRecord.captures) {
+          const captureDir = zipContent.folder(capture.id.toString());
+          if (!captureDir) {
+            console.warn(
+              `Capture directory not found for capture ID ${capture.id}`,
+            );
+            continue;
+          }
+
+          // Process each file in the capture
+          for (const file of capture.files) {
+            const zipFile = captureDir.file(file.name);
+            if (!zipFile) {
+              console.warn(`File not found: ${file.name}`);
+              continue;
+            }
+
+            const content = await (zipFile as JSZip.JSZipObject).async('blob');
+            let parsedContent: unknown = content;
+            let isValid: boolean | undefined;
+
+            // Validate RadioHound files
+            if (vizRecord.capture_type === 'rh') {
+              parsedContent = JSON.parse(await content.text());
+              const validationResult =
+                RadioHoundFileSchema.safeParse(parsedContent);
+              isValid = validationResult.success;
+
+              if (!isValid) {
+                console.warn(
+                  `Invalid RadioHound file content for ${file.name}: ${validationResult.error}`,
+                );
+              }
+            }
+
+            // Add the file to our files object
+            files[file.id] = {
+              id: file.id,
+              name: file.name,
+              fileContent: parsedContent,
+              isValid,
+            };
+          }
+        }
+
+        setVisualizationRecord(vizRecord);
+        setFiles(files);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load visualization',
@@ -41,8 +103,8 @@ const VisualizationPage = () => {
       }
     };
 
-    fetchVisualization();
-  }, [id]);
+    fetchVisualizationRecord();
+  }, [vizId]);
 
   if (isLoading) {
     return (
@@ -60,31 +122,28 @@ const VisualizationPage = () => {
     );
   }
 
-  if (!visualization) {
-    return <Navigate to="/visualizations" replace />;
-  }
-
-  if (visualization.capture_source === 'sds') {
+  if (!visualizationRecord) {
     return (
       <div className="alert alert-danger" role="alert">
-        SDS visualizations are not yet supported
+        No visualization found!
       </div>
     );
   }
 
-  // Route to the appropriate visualization page based on type
-  switch (visualization.type) {
-    case 'spectrogram':
-      return <SpectrogramPage captureId={visualization.capture_ids[0]} />;
-    case 'waterfall':
-      return <WaterfallPage captureIds={visualization.capture_ids} />;
-    default:
-      return (
-        <div className="alert alert-danger" role="alert">
-          Unsupported visualization type: {visualization.type}
-        </div>
-      );
-  }
+  const VizContainer =
+    visualizationRecord.type === 'spectrogram'
+      ? SpectrogramVizContainer
+      : visualizationRecord.type === 'waterfall'
+        ? WaterfallVizContainer
+        : null;
+
+  return VizContainer ? (
+    <VizContainer visualizationRecord={visualizationRecord} files={files} />
+  ) : (
+    <div className="alert alert-danger" role="alert">
+      Unsupported visualization type: {visualizationRecord.type}
+    </div>
+  );
 };
 
 export default VisualizationPage;
