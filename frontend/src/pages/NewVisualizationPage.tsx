@@ -230,6 +230,9 @@ const NewVisualizationPage = () => {
         captures={filteredCaptures}
         selectedCaptureIds={selectedCaptureIds}
         setSelectedCaptureIds={handleCaptureSelect}
+        tableProps={{
+          selectionMode,
+        }}
         hideCaptureTypeFilter
       />
       {currentStep === 2 && (
