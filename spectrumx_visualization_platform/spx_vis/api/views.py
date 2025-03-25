@@ -1,12 +1,11 @@
-import io
-import logging
-import zipfile
-from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import requests
 from django.conf import settings
 from django.http import FileResponse
+from django.utils import timezone
 from rest_framework import filters
 from rest_framework import permissions
 from rest_framework import status
@@ -21,21 +20,15 @@ from rest_framework.response import Response
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import (
-    VisualizationDetailSerializer,
+    VisualizationSerializer,
 )
-from spectrumx_visualization_platform.spx_vis.api.serializers import (
-    VisualizationListSerializer,
-)
-from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
-from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
-from spectrumx_visualization_platform.spx_vis.source_utils.local import (
-    get_local_captures,
-)
-from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
+
+if TYPE_CHECKING:
+    from spectrumx_visualization_platform.users.models import User
 
 
 @api_view(["GET"])
@@ -76,6 +69,36 @@ def capture_list(request: Request) -> Response:
         )
 
     return Response(combined_capture_list)
+
+
+def calculate_end_time(start_time, scan_time):
+    start_time = datetime_check(start_time)
+    if start_time and isinstance(scan_time, (int, float)):
+        end_time = start_time + timedelta(seconds=scan_time)
+        return end_time.strftime("%Y-%m-%d %H:%M:%S.%f")  # Convert to string for JSON
+    return None
+
+
+def datetime_check(value):
+    if not value:
+        return None
+    try:
+        dt = datetime.strptime(value + "Z", "%Y-%m-%dT%H:%M%z")
+        return dt.astimezone(timezone.utc)
+    except ValueError:
+        try:
+            dt = datetime.strptime(value + "Z", "%Y-%m-%d %H:%M:%S.%f%z")
+            return dt.astimezone(timezone.utc)
+        except ValueError:
+            return None
+
+
+def float_check(value, default=0.0):
+    """Safely convert a value to float."""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
 
 
 class CaptureViewSet(viewsets.ModelViewSet):
@@ -196,39 +219,12 @@ class FileViewSet(viewsets.ModelViewSet):
 
         Returns:
             FileResponse: The file content with appropriate content type
-
-        Raises:
-            Response: 400 if source is invalid or file not found
         """
-        source = request.query_params.get("source", "svi")
-
-        if source == "sds":
-            try:
-                token = request.user.fetch_sds_token()
-                logging.info(f"Fetching SDS file {pk}")
-                response = requests.get(
-                    f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{pk}/download",
-                    headers={"Authorization": f"Api-Key: {token}"},
-                    timeout=10,
-                )
-                logging.info(f"Returning SDS file {pk}")
-                return FileResponse(response)
-            except Exception as e:
-                return Response(
-                    {"error": f"Failed to fetch SDS file: {e}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        elif source.startswith("svi"):
-            file_obj = self.get_object()
-            response = FileResponse(file_obj.file)
-            response["Content-Type"] = file_obj.media_type
-            response["Content-Disposition"] = f'attachment; filename="{file_obj.name}"'
-            return response
-        else:
-            return Response(
-                {"error": "Invalid source parameter. Must be 'svi*' or 'sds'"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        file_obj = self.get_object()
+        response = FileResponse(file_obj.file)
+        response["Content-Type"] = file_obj.media_type
+        response["Content-Disposition"] = f'attachment; filename="{file_obj.name}"'
+        return response
 
     def perform_create(self, serializer: FileSerializer) -> None:
         """Create a new file object.
@@ -239,6 +235,157 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
 
+def get_sds_captures(request: Request):
+    """Get SDS captures for the current user."""
+    user: User = request.user
+
+    try:
+        token = user.fetch_sds_token()
+        captures_response = requests.get(
+            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/",
+            headers={"Authorization": f"Api-Key: {token}"},
+            timeout=10,
+        )
+        captures = captures_response.json()
+        formatted_captures = []
+
+        for capture in captures:
+            if capture["files"]:
+                formatted_capture = format_sds_capture(capture, request.user.id)
+                formatted_captures.append(formatted_capture)
+
+    except Exception as e:
+        print(f"Error fetching SDS captures: {e}")
+        return []
+
+    return formatted_captures
+
+
+def format_sds_capture(sds_capture: dict, user_id: int):
+    """Format a single SDS capture.
+
+    Args:
+        sds_capture: Raw SDS capture data
+        user_id: ID of the current user
+
+    Returns:
+        dict: Formatted capture data
+    """
+    capture_props = sds_capture["capture_props"]
+    metadata = capture_props["metadata"]
+    custom_fields = capture_props["custom_fields"]
+
+    timestamp = capture_props["timestamp"]
+    scan_time = metadata["scan_time"]
+
+    files = [
+        {
+            "id": file["uuid"],
+            "name": file["name"],
+        }
+        for file in sds_capture["files"]
+    ]
+
+    return {
+        "id": sds_capture["uuid"],
+        "owner": user_id,
+        "name": sds_capture["scan_group"],
+        "files": files,
+        "created_at": sds_capture["created_at"],
+        "timestamp": timestamp,
+        "type": sds_capture["capture_type"],
+        "source": "sds",
+        "min_freq": custom_fields["requested"]["fmin"],
+        "max_freq": custom_fields["requested"]["fmax"],
+        "scan_time": scan_time,
+        "end_time": calculate_end_time(timestamp, scan_time),
+    }
+
+
+def get_local_captures(request) -> list:
+    """Get local captures for the current user.
+
+    Args:
+        request: The HTTP request object
+
+    Returns:
+        list: Formatted local captures
+    """
+    captures = Capture.objects.filter(owner=request.user)
+    captures_data = CaptureSerializer(captures, many=True).data
+    return [format_local_capture(capture) for capture in captures_data]
+
+
+def format_local_capture(capture: dict) -> dict:
+    """Format a single local capture and return as dict.
+
+    Args:
+        capture: Raw capture data
+
+    Returns:
+        dict: Formatted capture data
+    """
+    timestamp = capture.get("timestamp", "")
+    scan_time = capture.get("scan_time")
+
+    return {
+        "id": capture["id"],
+        "name": capture["name"],
+        "media_type": capture.get("metadata", {}).get("data_type", "unknown"),
+        "timestamp": timestamp,
+        "created_at": timestamp,
+        "source": "svi_user",
+        "files": capture["files"],
+        "owner": capture["owner"],
+        "type": capture["type"],
+        "min_freq": capture.get("metadata", {}).get("fmin", ""),
+        "max_freq": capture.get("metadata", {}).get("fmax", ""),
+        "scan_time": scan_time,
+        "end_time": calculate_end_time(timestamp, scan_time),
+    }
+
+
+def filter_capture(capture: dict, filters: dict) -> bool:
+    """Filter a single capture based on given criteria.
+
+    Args:
+        capture: The capture to check
+        filters: Dictionary containing filter parameters:
+                - min_freq: Minimum frequency filter
+                - max_freq: Maximum frequency filter
+                - start_time: Start time filter
+                - end_time: End time filter
+                - source_filter: Source type filter
+
+    Returns:
+        bool: True if capture matches all filters
+    """
+    capture_min_freq = float_check(capture.get("min_freq"))
+    capture_max_freq = float_check(capture.get("max_freq"))
+    capture_start_time = datetime_check(capture.get("timestamp"))
+    capture_end_time = datetime_check(capture.get("end_time"))
+
+    if filters.get("min_freq") and capture_max_freq < filters["min_freq"]:
+        return False
+    if filters.get("max_freq") and capture_min_freq > filters["max_freq"]:
+        return False
+    if filters.get("start_time") and (
+        capture_end_time is None or capture_end_time < filters["start_time"]
+    ):
+        return False
+    if filters.get("end_time") and (
+        capture_start_time is None or capture_start_time > filters["end_time"]
+    ):
+        return False
+
+    # Handle multiple sources from comma-separated string
+    if filters.get("source_filter"):
+        sources = filters["source_filter"].split(",")
+        return capture.get("source") in sources
+
+    return True
+
+
 class VisualizationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Visualization objects.
 
@@ -247,21 +394,12 @@ class VisualizationViewSet(viewsets.ModelViewSet):
     """
 
     queryset = Visualization.objects.all()
+    serializer_class = VisualizationSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["type", "capture_type", "capture_source"]
     ordering_fields = ["created_at", "updated_at", "type"]
     ordering = ["-created_at"]
-
-    def get_serializer_class(self):
-        """Get the appropriate serializer class based on the action.
-
-        Returns:
-            Serializer class to use for the current action.
-        """
-        if self.action == "list":
-            return VisualizationListSerializer
-        return VisualizationDetailSerializer
 
     def get_queryset(self):
         """Get the queryset of visualizations for the current user.
@@ -271,191 +409,10 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         return Visualization.objects.filter(owner=self.request.user)
 
-    def perform_create(self, serializer: VisualizationDetailSerializer) -> None:
+    def perform_create(self, serializer: VisualizationSerializer) -> None:
         """Create a new visualization object.
 
         Args:
-            serializer: The VisualizationDetailSerializer instance with validated data.
+            serializer: The VisualizationSerializer instance with validated data.
         """
         serializer.save(owner=self.request.user)
-
-    def _process_sds_file(
-        self,
-        file: dict,
-        capture_id: str,
-        token: str,
-        seen_filenames: set[str],
-        zip_file: zipfile.ZipFile,
-    ) -> None:
-        """Process a single SDS file and add it to the ZIP archive.
-
-        Args:
-            file: Dictionary containing file information from SDS
-            capture_id: ID of the capture this file belongs to
-            token: SDS API token
-            seen_filenames: Set of filenames already processed (to check duplicates)
-            zip_file: ZIP archive to add the file to
-
-        Raises:
-            ValueError: If duplicate filename is found or file download fails
-        """
-        file_id = file["id"]
-        logging.info(f"Downloading file with ID {file_id}")
-
-        response = requests.get(
-            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_id}/download",
-            headers={"Authorization": f"Api-Key: {token}"},
-            timeout=10,
-            stream=True,
-        )
-        response.raise_for_status()
-        logging.info(f"File with ID {file_id} downloaded")
-
-        # Get filename from Content-Disposition header or use file ID
-        content_disposition = response.headers.get("Content-Disposition", "")
-        filename = next(
-            (
-                part.split("=")[1].strip('"')
-                for part in content_disposition.split(";")
-                if part.strip().startswith("filename=")
-            ),
-            file["name"],
-        )
-
-        # Check for duplicate filename
-        if filename in seen_filenames:
-            raise ValueError(
-                f"Duplicate filename found for capture with ID {capture_id}. "
-                f"File name: {filename}"
-            )
-        seen_filenames.add(filename)
-
-        # Add file content directly to ZIP in capture-specific directory
-        zip_path = f"{capture_id}/{filename}"
-        zip_file.writestr(zip_path, response.content)
-
-    def _handle_sds_captures(
-        self,
-        visualization: Visualization,
-        request: Request,
-        zip_file: zipfile.ZipFile,
-    ) -> None:
-        """Handle downloading and processing of all SDS captures.
-
-        Args:
-            visualization: Visualization model instance
-            request: HTTP request object
-            zip_file: ZIP archive to add files to
-
-        Raises:
-            ValueError: If any capture processing fails
-        """
-        token = request.user.fetch_sds_token()
-        logging.info("Getting SDS captures")
-        sds_captures = get_sds_captures(request)
-        logging.info(f"Got {len(sds_captures)} SDS captures")
-
-        for capture_id in visualization.capture_ids:
-            capture = next((c for c in sds_captures if c["id"] == capture_id), None)
-            if capture is None:
-                raise ValueError(f"Capture with ID {capture_id} not found in SDS")
-
-            seen_filenames: set[str] = set()
-
-            for file in capture.get("files", []):
-                try:
-                    self._process_sds_file(
-                        file, capture_id, token, seen_filenames, zip_file
-                    )
-                except requests.RequestException as e:
-                    raise ValueError(
-                        f"Failed to download file with ID {file['id']} from capture with ID {capture_id}: {e}"
-                    )
-
-    def _handle_local_captures(
-        self,
-        visualization: Visualization,
-        request: Request,
-        zip_file: zipfile.ZipFile,
-    ) -> None:
-        """Handle processing of all local captures.
-
-        Args:
-            visualization: Visualization model instance
-            request: HTTP request object
-            zip_file: ZIP archive to add files to
-
-        Raises:
-            ValueError: If any capture processing fails
-        """
-        for capture_id in visualization.capture_ids:
-            try:
-                capture = Capture.objects.get(id=capture_id, owner=request.user)
-                seen_filenames: set[str] = set()
-
-                for file_obj in capture.files.all():
-                    if file_obj.name in seen_filenames:
-                        raise ValueError(
-                            f"Duplicate filename found for capture with ID {capture_id}. "
-                            f"File name: {file_obj.name}"
-                        )
-                    seen_filenames.add(file_obj.name)
-
-                    # Read file content and add to ZIP in capture-specific directory
-                    zip_path = f"{capture_id}/{file_obj.name}"
-                    with file_obj.file.open("rb") as f:
-                        zip_file.writestr(zip_path, f.read())
-            except Capture.DoesNotExist:
-                raise ValueError(f"Capture {capture_id} not found")
-
-    @action(detail=True, methods=["get"])
-    def download_files(self, request: Request, pk=None) -> Response:
-        """Download all files associated with the visualization as a ZIP file.
-
-        This endpoint retrieves all files from both local and SDS sources associated
-        with the visualization's captures and packages them into a ZIP file.
-
-        Files are organized in the ZIP by capture ID, with each capture's files
-        in its own directory.
-
-        Args:
-            request: The HTTP request
-            pk: The primary key of the visualization
-
-        Returns:
-            FileResponse: A ZIP file containing all associated files
-
-        Raises:
-            Response: 400 if there's an error fetching files
-        """
-        visualization: Visualization = self.get_object()
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-        zip_filename = f"visualization_{visualization.id}_{timestamp}.zip"
-
-        # Create a BytesIO object to store the ZIP file
-        zip_buffer = io.BytesIO()
-
-        try:
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                if visualization.capture_source == "sds":
-                    self._handle_sds_captures(visualization, request, zip_file)
-                else:
-                    self._handle_local_captures(visualization, request, zip_file)
-
-                logging.info("All files added to ZIP")
-
-            # Reset buffer position to start
-            zip_buffer.seek(0)
-
-            # Return the ZIP file
-            response = FileResponse(zip_buffer, content_type="application/zip")
-            response["Content-Disposition"] = f'attachment; filename="{zip_filename}"'
-            return response
-
-        except ValueError as e:
-            logging.error(str(e))
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            message = f"Failed to create ZIP file: {e!s}"
-            logging.error(message)
-            return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)

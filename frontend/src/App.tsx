@@ -36,11 +36,13 @@ function App() {
             <Route path="workspace" element={<WorkspacePage />} />
             <Route path="mydata" element={<MyDataPage />} />
             <Route path="search" element={<SearchPage />} />
+
             <Route
               path="tutorials"
               element={<div className="page-container">Tutorials</div>}
             />
             <Route path="tutorials/jupyter" element={<JupyterNotebookPage />} />
+
             <Route
               path="visualization/new"
               element={<NewVisualizationPage />}

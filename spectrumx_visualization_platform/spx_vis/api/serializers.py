@@ -13,7 +13,6 @@ from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
 from spectrumx_visualization_platform.spx_vis.models import VisualizationType
-from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
 from spectrumx_visualization_platform.users.models import User
 
 
@@ -207,45 +206,17 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         return capture
 
 
-class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
-    """Serializer for listing Visualization objects.
+class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
+    """Serializer for Visualization model.
 
-    Provides a lightweight serialization of Visualization objects without detailed capture information.
+    Handles validation and serialization of visualization configurations created through
+    the visualization wizard.
     """
 
     owner = serializers.ReadOnlyField(source="owner.username")
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization"
     )
-
-    class Meta:
-        model = Visualization
-        fields = [
-            "id",
-            "owner",
-            "type",
-            "capture_ids",
-            "capture_type",
-            "capture_source",
-            "settings",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["created_at", "updated_at"]
-
-
-class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
-    """Serializer for detailed Visualization view.
-
-    Provides full serialization of Visualization objects including detailed capture and file information.
-    """
-
-    owner = serializers.ReadOnlyField(source="owner.username")
-    capture_ids = serializers.JSONField(
-        help_text="List of capture IDs used in this visualization",
-        write_only=True,
-    )
-    captures = serializers.SerializerMethodField(read_only=True)
 
     # Define supported capture types for each visualization type
     SUPPORTED_CAPTURE_TYPES = {
@@ -265,49 +236,8 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "settings",
             "created_at",
             "updated_at",
-            "captures",
         ]
-        read_only_fields = ["created_at", "updated_at", "captures"]
-
-    def get_captures(self, obj: Visualization) -> list[dict]:
-        """Get the full capture information including files for each capture.
-
-        Args:
-            obj: The Visualization instance being serialized.
-
-        Returns:
-            list[dict]: List of capture data including files.
-        """
-        request = self.context.get("request")
-        if not request:
-            return []
-
-        captures = []
-
-        if obj.capture_source == "sds":
-            try:
-                sds_captures = get_sds_captures(request)
-                captures = [
-                    capture
-                    for capture in sds_captures
-                    if str(capture["id"]) in obj.capture_ids
-                ]
-            except Exception as e:
-                print(f"Error fetching SDS captures: {e}")
-                raise
-        else:
-            for capture_id in obj.capture_ids:
-                try:
-                    # Get local capture
-                    capture = Capture.objects.get(id=capture_id, owner=request.user)
-                    captures.append(
-                        CaptureSerializer(capture, context={"request": request}).data
-                    )
-                except (Capture.DoesNotExist, Exception) as e:
-                    print(f"Error fetching capture {capture_id}: {e}")
-                    continue
-
-        return captures
+        read_only_fields = ["created_at", "updated_at"]
 
     def validate_capture_ids(self, value) -> list[str]:
         """Validate that capture_ids is a non-empty list of strings.

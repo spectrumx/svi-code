@@ -3,7 +3,7 @@ import { Form, InputGroup, Button } from 'react-bootstrap';
 import _ from 'lodash';
 import debounce from 'lodash/debounce';
 
-import { WaterfallSettings } from './WaterfallVizContainer';
+import { WaterfallSettings } from '../../pages/WaterfallPage';
 import PlaybackControls from './PlaybackControls';
 import './waterfall.css';
 

@@ -254,7 +254,7 @@ export function WaterfallPlot({
   ) {
     const scanCopy = _.cloneDeep(scan);
     const displayCopy = _.cloneDeep(display);
-    const allData = scanCopy.allData;
+    const allData = scanCopy.allData as number[][];
     let redrawLegend = false;
 
     if (allData && allData.length > 0) {
@@ -474,7 +474,7 @@ export function WaterfallPlot({
     const { rectHeight } = plotDimensionsRef.current;
 
     // Calculate clicked row
-    const allData = scan.allData;
+    const allData = scan.allData as number[][];
     const clickedRow = Math.floor((y - margin.top) / rectHeight);
     const clickedIndex = allData.length - 1 - clickedRow;
 
@@ -516,7 +516,7 @@ export function WaterfallPlot({
   // Draw highlight boxes and capture indices
   useEffect(() => {
     const dimensions = plotDimensionsRef.current;
-    const allData = scan.allData;
+    const allData = scan.allData as number[][];
 
     if (dimensions && allData && allData.length > 0) {
       // Draw selection highlight
