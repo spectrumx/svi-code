@@ -9,7 +9,7 @@ import {
   CaptureTypeSchema,
   CaptureSourceSchema,
   CaptureSchema,
-} from './fileService';
+} from './captureService';
 
 const VisualizationTypeSchema = zod.enum(['spectrogram', 'waterfall']);
 export type VisualizationType = zod.infer<typeof VisualizationTypeSchema>;

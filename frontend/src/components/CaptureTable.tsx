@@ -5,7 +5,7 @@ import {
   Capture,
   CAPTURE_TYPES,
   CAPTURE_SOURCES,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 
 export interface CaptureTableProps {

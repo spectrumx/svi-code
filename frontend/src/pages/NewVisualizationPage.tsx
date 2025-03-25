@@ -10,7 +10,7 @@ import {
   useSyncCaptures,
   CaptureType,
   CAPTURE_TYPES,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 import {
   createVisualization,
   VisualizationType,

@@ -8,7 +8,7 @@ import {
   CAPTURE_SOURCES,
   CaptureType,
   CaptureSource,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 import {
   VISUALIZATION_TYPES,
   VisualizationType,

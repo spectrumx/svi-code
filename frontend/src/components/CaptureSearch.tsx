@@ -9,7 +9,7 @@ import {
   Capture,
   CaptureType,
   CaptureSource,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 
 interface CaptureSearchProps {
   captures: Capture[];

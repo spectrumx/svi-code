@@ -6,7 +6,7 @@ import {
   SourceFilter,
 } from '../components/filters';
 import { useAppContext } from '../utils/AppContext';
-import { useSyncCaptures, CaptureSource } from '../apiClient/fileService';
+import { useSyncCaptures, CaptureSource } from '../apiClient/captureService';
 import CaptureTable from '../components/CaptureTable';
 import Button from '../components/Button';
 import FileUploadModal from '../components/FileUploadModal';

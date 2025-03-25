@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
-import { FileMetadata, Capture } from '../apiClient/fileService';
+import { FileMetadata } from '../apiClient/fileService';
+import { Capture } from '../apiClient/captureService';
 import { VisualizationRecord } from '../apiClient/visualizationService';
 
 interface AppContextModel {

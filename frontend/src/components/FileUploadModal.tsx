@@ -6,7 +6,7 @@ import {
   postCaptures,
   CaptureType,
   inferCaptureName,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 import { Alert } from 'react-bootstrap';
 
 interface FileUploadModalProps {

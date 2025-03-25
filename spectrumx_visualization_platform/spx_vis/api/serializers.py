@@ -85,7 +85,6 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     """Serializer for Capture model with automatic field handling.
 
     Handles creation of associated File objects and automatic field population.
-    For RadioHound captures, each uploaded file creates a separate capture.
     """
 
     id = serializers.CharField(read_only=True)

@@ -4,7 +4,7 @@ import { Alert, Row, Col } from 'react-bootstrap';
 import { WaterfallVisualization } from '.';
 import { RadioHoundFile } from './types';
 import WaterfallControls from './WaterfallControls';
-import { Capture } from '../../apiClient/fileService';
+import { Capture } from '../../apiClient/captureService';
 import ScanDetailsTable from './ScanDetailsTable';
 import { VizContainerProps } from '../types';
 
