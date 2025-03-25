@@ -4,6 +4,7 @@ from enum import StrEnum
 
 from django.db import models
 from django.db.models.constraints import UniqueConstraint
+from django.core.exceptions import ValidationError
 
 
 class CaptureType(StrEnum):
@@ -118,6 +119,7 @@ class Visualization(models.Model):
         owner: The user who created the visualization
         type: The type of visualization (spectrogram, waterfall)
         capture_ids: List of capture IDs used in this visualization
+        file_ids: List of file IDs used by this visualization's captures
         capture_type: The type of captures used (DigitalRF, RadioHound, SigMF)
         capture_source: The source of the captures (SDS, SVI Public, SVI User)
         settings: JSON field for type-specific visualization settings
@@ -129,6 +131,9 @@ class Visualization(models.Model):
     type = models.CharField(max_length=255, choices=VISUALIZATION_TYPE_CHOICES)
     capture_ids = models.JSONField(
         help_text="List of capture IDs used in this visualization"
+    )
+    file_ids = models.JSONField(
+        help_text="List of file IDs used by this visualization's captures"
     )
     capture_type = models.CharField(max_length=255, choices=CAPTURE_TYPE_CHOICES)
     capture_source = models.CharField(max_length=255, choices=CAPTURE_SOURCE_CHOICES)

@@ -16,7 +16,13 @@ from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
 from spectrumx_visualization_platform.spx_vis.models import VisualizationType
-from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
+from spectrumx_visualization_platform.spx_vis.source_utils.local import (
+    format_local_capture,
+)
+from spectrumx_visualization_platform.spx_vis.source_utils.sds import (
+    format_sds_capture,
+    get_sds_captures,
+)
 from spectrumx_visualization_platform.users.models import User
 
 logger = logging.getLogger(__name__)
@@ -179,6 +185,10 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization"
     )
+    file_ids = serializers.JSONField(
+        help_text="List of file IDs used by this visualization's captures",
+        read_only=True,
+    )
 
     class Meta:
         model = Visualization
@@ -187,13 +197,14 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
             "owner",
             "type",
             "capture_ids",
+            "file_ids",
             "capture_type",
             "capture_source",
             "settings",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "file_ids"]
 
 
 class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
@@ -286,11 +297,12 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         if not isinstance(value, list):
             error_message = "capture_ids must be a list"
             raise serializers.ValidationError(error_message)
-
         if not value:
             error_message = "capture_ids cannot be empty"
             raise serializers.ValidationError(error_message)
-
+        if len(value) > 1:
+            error_message = "Visualizing multiple captures is not yet supported"
+            raise serializers.ValidationError(error_message)
         if not all(isinstance(capture_id, str) for capture_id in value):
             error_message = "All capture IDs must be strings"
             raise serializers.ValidationError(error_message)
@@ -303,7 +315,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         capture_source: str,
         capture_type: str,
         user: User,
-    ):
+    ) -> list[Capture]:
         """Check if the given capture IDs are valid and accessible to the user.
 
         Queries either local database or SDS based on the capture source.
@@ -315,13 +327,14 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             capture_type: Type of the captures
             user: The user making the request
 
+        Returns:
+            list[Capture]: List of found captures
+
         Raises:
             serializers.ValidationError: If captures have inconsistent types or can't be found
         """
         if capture_source == "sds":
             sds_client = user.sds_client()
-
-            # Get SDS captures
             sds_captures = sds_client.captures.listing(capture_type=capture_type)
             sds_capture_ids = [str(capture.uuid) for capture in sds_captures]
 
@@ -331,19 +344,26 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
                 error_message = f"SDS captures of type {capture_type} not found: {', '.join(missing_ids)}"
                 raise serializers.ValidationError(error_message)
 
+            return [format_sds_capture(capture) for capture in sds_captures]
+
         elif capture_source == "svi_user":
             # Get local captures
             int_ids = [int(capture_id) for capture_id in capture_ids]
             local_captures = Capture.objects.filter(
                 id__in=int_ids, owner=user, type=capture_type
-            ).values_list("id", flat=True)
-            local_capture_ids = [str(capture_id) for capture_id in local_captures]
+            )
+            local_capture_ids = [
+                str(capture_id)
+                for capture_id in local_captures.values_list("id", flat=True)
+            ]
 
             # Verify all requested captures were found
             missing_ids = set(capture_ids) - set(local_capture_ids)
             if missing_ids:
                 error_message = f"Local captures of type {capture_type} not found: {', '.join(missing_ids)}"
                 raise serializers.ValidationError(error_message)
+
+            return [format_local_capture(capture) for capture in local_captures]
 
         elif capture_source == "svi_public":
             # Not yet implemented
@@ -381,12 +401,18 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             raise serializers.ValidationError(error_message)
 
         # Check if the given capture IDs are valid and accessible to the user
-        self._check_captures(
+        captures = self._check_captures(
             data["capture_ids"],
             data["capture_source"],
             data["capture_type"],
             self.context["request"].user,
         )
+
+        # Compute file_ids from captures
+        file_ids: list[str] = [
+            file for capture in captures for file in capture["files"]
+        ]
+        data["file_ids"] = sorted(list(set(file_ids)))  # Remove duplicates and sort
 
         # Validate that the capture type is supported for this visualization type
         supported_types = self.SUPPORTED_CAPTURE_TYPES.get(data["type"], [])

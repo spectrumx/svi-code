@@ -1,4 +1,3 @@
-from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.utils import calculate_end_time
 from spectrumx_visualization_platform.spx_vis.models import Capture
 
@@ -13,8 +12,8 @@ def get_local_captures(request) -> list:
         list: Formatted local captures
     """
     captures = Capture.objects.filter(owner=request.user)
-    captures_data = CaptureSerializer(captures, many=True).data
-    return [format_local_capture(capture) for capture in captures_data]
+    captures_dict = [capture.to_dict() for capture in captures]
+    return [format_local_capture(capture) for capture in captures_dict]
 
 
 def format_local_capture(capture: dict) -> dict:
