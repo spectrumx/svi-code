@@ -15,7 +15,7 @@ import {
   CAPTURE_TYPES,
   CAPTURE_SOURCES,
 } from '../apiClient/fileService';
-import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
+import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 
 export interface CaptureTableProps {
   captures: Capture[];
