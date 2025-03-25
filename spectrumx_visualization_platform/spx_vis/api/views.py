@@ -42,8 +42,15 @@ from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_ca
 def capture_list(request: Request) -> Response:
     """Get the list of captures for the current user."""
     # Get captures from the two sources
-    sds_captures = get_sds_captures(request)
-    local_captures = get_local_captures(request)
+    source_filter = request.query_params.get("source", "")
+    if not source_filter or "sds" in source_filter:
+        sds_captures = get_sds_captures(request)
+    else:
+        sds_captures = []
+    if not source_filter or "svi" in source_filter:
+        local_captures = get_local_captures(request)
+    else:
+        local_captures = []
 
     # Combine captures
     combined_capture_list = sds_captures + local_captures

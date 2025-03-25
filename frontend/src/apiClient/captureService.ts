@@ -6,9 +6,27 @@ import { z as zod } from 'zod';
 import { getBaseFilename, FileMetadataSchema } from './fileService';
 
 export const CAPTURE_TYPES = {
-  rh: { name: 'RadioHound' },
-  drf: { name: 'Digital RF' },
-  sigmf: { name: 'SigMF' },
+  rh: {
+    name: 'RadioHound',
+    fileExtensions: ['.json', '.rh'],
+    minFiles: 1,
+    maxFiles: 100,
+    uploadInstructions: 'Upload one or more RadioHound files (max of 100).',
+  },
+  drf: {
+    name: 'Digital RF',
+    fileExtensions: ['.drf'],
+    minFiles: 1,
+    maxFiles: 1,
+    uploadInstructions: 'Upload a single Digital RF file.',
+  },
+  sigmf: {
+    name: 'SigMF',
+    fileExtensions: ['.sigmf-data', '.sigmf-meta'],
+    minFiles: 2,
+    maxFiles: 2,
+    uploadInstructions: 'Upload one .sigmf-data and one .sigmf-meta file.',
+  },
 } as const;
 export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
 export type CaptureType = keyof typeof CAPTURE_TYPES;
@@ -35,7 +53,7 @@ export type Capture = zod.infer<typeof CaptureSchema>;
 
 const CapturesResponseSchema = zod.array(CaptureSchema);
 
-export const getCaptures = async (filters?: {
+export const getCapturesWithFilters = async (filters?: {
   min_frequency?: string;
   max_frequency?: string;
   start_time?: string;
@@ -77,7 +95,7 @@ export const useSyncCaptures = () => {
       end_time?: string;
       source?: CaptureSource[];
     }) => {
-      const captures = await getCaptures(filters);
+      const captures = await getCapturesWithFilters(filters);
       setCaptures(captures);
     },
     [setCaptures],
@@ -91,17 +109,15 @@ export const getCapture = async (captureId: string): Promise<Capture> => {
   return CaptureSchema.parse(response.data);
 };
 
-export const postCaptures = async (
+export const postCapture = async (
   type: CaptureType,
   files: File[],
   name?: string,
 ): Promise<void> => {
   const formData = new FormData();
-  const finalName = name ?? inferCaptureName(files, type);
 
-  if (finalName) {
-    formData.append('name', finalName);
-  }
+  const finalName = name ?? inferCaptureName(files);
+  formData.append('name', finalName);
 
   files.forEach((file) => {
     formData.append('uploaded_files', file);
@@ -116,12 +132,6 @@ export const postCaptures = async (
   });
 };
 
-export const inferCaptureName = (
-  files: File[],
-  type: CaptureType,
-): string | undefined => {
-  if (type !== 'rh' || files.length === 1) {
-    return getBaseFilename(files[0].name);
-  }
-  return undefined;
+export const inferCaptureName = (files: File[]): string => {
+  return getBaseFilename(files[0].name);
 };
