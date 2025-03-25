@@ -80,23 +80,21 @@ class RadioHoundUtility(CaptureUtility):
         return "application/json"
 
     @staticmethod
-    def get_capture_names(
-        files: list[UploadedFile], name: str | None = None
-    ) -> list[str]:
+    def get_capture_name(files: list[UploadedFile], name: str | None = None) -> str:
         """Generate a name for the RadioHound capture.
 
         If a name is provided, uses that. Otherwise, generates a name based on the first file.
         Returns a single-item list since we create one capture per set of files.
 
         Args:
-            files: List of uploaded RadioHound JSON files
+            files: The uploaded RadioHound JSON files
             name: Optional name to use for the capture
 
         Returns:
-            list[str]: List containing a single capture name
+            str: The inferred capture name
 
         Raises:
-            ValueError: If files list is empty or no valid RadioHound files are found
+            ValueError: If no valid RadioHound files are found
         """
         if not files:
             error_message = "Cannot generate capture name: no files provided"
@@ -104,18 +102,7 @@ class RadioHoundUtility(CaptureUtility):
             raise ValueError(error_message)
 
         if name:
-            return [name]
-
-        # Find the first valid RadioHound file to use as base for the name
-        first_file = next(
-            (f for f in files if f.name.endswith(RadioHoundUtility.file_extensions)),
-            None,
-        )
-
-        if not first_file:
-            error_message = "No valid RadioHound JSON files found"
-            logger.error(error_message)
-            raise ValueError(error_message)
+            return name
 
         # Use the file name (without extension) as the capture name
-        return [".".join(first_file.name.split(".")[:-1])]
+        return ".".join(files[0].name.split(".")[:-1])

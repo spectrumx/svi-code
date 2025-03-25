@@ -1,3 +1,5 @@
+import logging
+
 from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
@@ -9,12 +11,15 @@ from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUt
 from spectrumx_visualization_platform.spx_vis.models import CAPTURE_TYPE_CHOICES
 from spectrumx_visualization_platform.spx_vis.models import VISUALIZATION_TYPE_CHOICES
 from spectrumx_visualization_platform.spx_vis.models import Capture
+from spectrumx_visualization_platform.spx_vis.models import CaptureSource
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
 from spectrumx_visualization_platform.spx_vis.models import VisualizationType
 from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
 from spectrumx_visualization_platform.users.models import User
+
+logger = logging.getLogger(__name__)
 
 
 class FileSerializer(serializers.ModelSerializer[File]):
@@ -126,18 +131,21 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             capture_utility = SigMFUtility
         else:
             error_message = f"Unsupported capture type: {capture_type}"
+            logger.error(error_message)
             raise ValueError(error_message)
 
         # Set defaults for required fields
         validated_data["owner"] = self.context["request"].user
-        validated_data["source"] = "svi_user"  # Default source for user uploads
+        validated_data["source"] = (
+            CaptureSource.SVI_User
+        )  # Default source for user uploads
 
         # Extract timestamp from files based on capture type
         validated_data["timestamp"] = capture_utility.extract_timestamp(uploaded_files)
 
-        validated_data["name"] = capture_utility.get_capture_names(
+        validated_data["name"] = capture_utility.get_capture_name(
             uploaded_files, validated_data.get("name")
-        )[0]
+        )
 
         # Create the capture instance
         capture = super().create(validated_data)
@@ -145,7 +153,10 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         # Create File objects for each uploaded file
         for uploaded_file in uploaded_files:
             if not isinstance(uploaded_file, UploadedFile):
-                continue
+                error_message = "Uploaded file is not an instance of UploadedFile"
+                logger.error(error_message)
+                raise TypeError(error_message)
+
             media_type = capture_utility.get_media_type(uploaded_file)
 
             File.objects.create(
