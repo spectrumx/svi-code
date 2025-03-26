@@ -4,9 +4,14 @@ import { FileMetadata } from '../apiClient/fileService';
 import { Capture } from '../apiClient/captureService';
 import { VisualizationRecord } from '../apiClient/visualizationService';
 
+// undefined means we're trying to fetch user data
+// null means not logged in
+// string means logged in
+type Username = undefined | null | string;
+
 interface AppContextModel {
-  username?: string;
-  setUsername: (value: string | undefined) => void;
+  username?: Username;
+  setUsername: (value: Username) => void;
   files: FileMetadata[];
   setFiles: (value: FileMetadata[]) => void;
   captures: Capture[];
@@ -20,7 +25,7 @@ const AppContext = createContext<AppContextModel | undefined>(undefined);
 export const AppContextProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [username, setUsername] = useState<string>();
+  const [username, setUsername] = useState<Username>(undefined);
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [visualizations, setVisualizations] = useState<VisualizationRecord[]>(

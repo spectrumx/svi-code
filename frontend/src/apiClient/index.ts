@@ -11,7 +11,7 @@ export const getLoginUrlWithRedirect = (redirectPath: string): string => {
 };
 
 export const useFetchSessionInfo = async () => {
-  const context = useAppContext();
+  const { setUsername } = useAppContext();
   // For now, we just want to run this on the first page load
   const hasRunRef = useRef(false);
 
@@ -20,6 +20,7 @@ export const useFetchSessionInfo = async () => {
 
     const fetchSessionInfo = async () => {
       try {
+        setUsername(undefined);
         const response = await fetch(API_HOST + '/api/session-info', {
           // Important for session-based authentication
           credentials: 'include',
@@ -32,7 +33,7 @@ export const useFetchSessionInfo = async () => {
           localStorage.setItem('csrfToken', data.csrf_token);
 
           const username = data.user.username;
-          context?.setUsername(username);
+          setUsername(username);
 
           return;
         }
@@ -40,12 +41,12 @@ export const useFetchSessionInfo = async () => {
 
       localStorage.removeItem('authToken');
       localStorage.removeItem('csrfToken');
-      context?.setUsername(undefined);
+      setUsername(null);
     };
 
     fetchSessionInfo();
     hasRunRef.current = true;
-  }, [context]);
+  }, [setUsername]);
 };
 
 const apiClient = axios.create({
