@@ -5,6 +5,8 @@ import { useAppContext } from '../utils/AppContext';
 import { z as zod } from 'zod';
 import { CaptureSource } from './captureService';
 
+export const DJANGO_MAX_FILES_UPLOAD = 1000;
+
 export const FileMetadataSchema = zod.object({
   id: zod.string(),
   name: zod.string(),

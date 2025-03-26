@@ -3,15 +3,19 @@ import { useCallback } from 'react';
 import apiClient from '.';
 import { useAppContext } from '../utils/AppContext';
 import { z as zod } from 'zod';
-import { getBaseFilename, FileMetadataSchema } from './fileService';
+import {
+  getBaseFilename,
+  FileMetadataSchema,
+  DJANGO_MAX_FILES_UPLOAD,
+} from './fileService';
 
 export const CAPTURE_TYPES = {
   rh: {
     name: 'RadioHound',
     fileExtensions: ['.json', '.rh'],
     minFiles: 1,
-    maxFiles: 100,
-    uploadInstructions: 'Upload one or more RadioHound files (max of 100).',
+    maxFiles: DJANGO_MAX_FILES_UPLOAD,
+    uploadInstructions: `Upload one or more RadioHound files (max of ${DJANGO_MAX_FILES_UPLOAD}).`,
   },
   drf: {
     name: 'Digital RF',

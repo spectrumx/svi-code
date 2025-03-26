@@ -31,6 +31,8 @@ const FileUploadModal = ({
   const [isFormValid, setIsFormValid] = useState(false);
 
   const captureTypeInfo = CAPTURE_TYPES[selectedType];
+  const allowMultipleFiles =
+    !('maxFiles' in captureTypeInfo) || captureTypeInfo.maxFiles > 1;
 
   // Reset state when modal is opened/closed
   useEffect(() => {
@@ -64,7 +66,7 @@ const FileUploadModal = ({
       return false;
     }
 
-    if (files.length > typeInfo.maxFiles) {
+    if ('maxFiles' in typeInfo && files.length > typeInfo.maxFiles) {
       setValidationError(
         `Too many files selected. Maximum allowed: ${typeInfo.maxFiles} files`,
       );
@@ -221,7 +223,7 @@ const FileUploadModal = ({
               type="file"
               name="files"
               required
-              multiple={captureTypeInfo.maxFiles > 1}
+              multiple={allowMultipleFiles}
               onChange={handleFileChange}
               accept={captureTypeInfo.fileExtensions.join(',')}
             />
