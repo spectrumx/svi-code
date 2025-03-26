@@ -83,6 +83,20 @@ export const getVisualizations = async (): Promise<VisualizationRecord[]> => {
   }
 };
 
+export const getDetailedVisualizations = async (): Promise<
+  VisualizationRecordDetail[]
+> => {
+  try {
+    const response = await apiClient.get('/api/visualizations/', {
+      params: { detailed: true },
+    });
+    return zod.array(VisualizationRecordDetailSchema).parse(response.data);
+  } catch (error) {
+    console.error('Error fetching detailed visualizations:', error);
+    throw error;
+  }
+};
+
 export const getVisualization = async (
   id: string,
 ): Promise<VisualizationRecordDetail> => {

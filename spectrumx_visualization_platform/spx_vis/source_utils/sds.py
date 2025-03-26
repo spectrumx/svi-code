@@ -25,9 +25,8 @@ def get_sds_captures(request: Request):
         formatted_captures = []
 
         for capture in captures:
-            if capture["files"]:
-                formatted_capture = format_sds_capture(capture, request.user.id)
-                formatted_captures.append(formatted_capture)
+            formatted_capture = format_sds_capture(capture, request.user.id)
+            formatted_captures.append(formatted_capture)
 
     except Exception as e:
         print(f"Error fetching SDS captures: {e}")

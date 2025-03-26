@@ -104,7 +104,7 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
           ) : error ? (
             <span className="text-danger">Error loading files</span>
           ) : (
-            (fileCount ?? 0)
+            (fileCount ?? 'Unknown')
           )}
         </Card.Text>
       </Card.Body>

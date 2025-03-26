@@ -261,12 +261,15 @@ class VisualizationViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_serializer_class(self):
-        """Get the appropriate serializer class based on the action.
+        """Get the appropriate serializer class based on the action and query parameters.
 
         Returns:
             Serializer class to use for the current action.
         """
-        if self.action == "list":
+        if (
+            self.action == "list"
+            and self.request.query_params.get("detailed", "").lower() != "true"
+        ):
             return VisualizationListSerializer
         return VisualizationDetailSerializer
 
