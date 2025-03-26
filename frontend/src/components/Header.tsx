@@ -12,15 +12,17 @@ const Header = () => {
       <Navbar expand="lg" className="site-header">
         <Container fluid className="px-3">
           <div className="header-content">
-            <div>
+            <div className="logo-container">
               <NavLink to="/" className="no-underline">
                 <Navbar.Brand className="logo">
                   <Image src={logo} alt="SpectrumX Logo" />
-                  <span>Spectrum Visualization Interface</span>
+                  <span className="logo-text">
+                    Spectrum Visualization Interface
+                  </span>
                 </Navbar.Brand>
               </NavLink>
             </div>
-            <div>
+            <div className="nav-container">
               <Navlinks />
             </div>
           </div>
