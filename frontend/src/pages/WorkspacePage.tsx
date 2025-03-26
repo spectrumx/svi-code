@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { Container, Row, Col } from 'react-bootstrap';
+import _ from 'lodash';
 
 import { useAppContext } from '../utils/AppContext';
 import Button from '../components/Button';
@@ -14,6 +15,8 @@ const WorkspacePage = () => {
   useEffect(() => {
     syncVisualizations();
   }, [syncVisualizations]);
+
+  const sortedVizRecords = _.sortBy(vizRecords, 'created_at').reverse();
 
   return (
     <Container className="py-4">
@@ -31,17 +34,11 @@ const WorkspacePage = () => {
         </Link>
       </div>
       <hr />
-      {vizRecords.length > 0 ? (
+      {sortedVizRecords.length > 0 ? (
         <Row>
-          {vizRecords.map((vizRecord) => (
+          {sortedVizRecords.map((vizRecord) => (
             <Col key={vizRecord.id} xs={12} md={6} lg={4} className="mb-3">
-              <VisualizationCard
-                id={vizRecord.id}
-                type={vizRecord.type}
-                captureType={vizRecord.capture_type}
-                captureSource={vizRecord.capture_source}
-                fileCount={vizRecord.capture_ids.length}
-              />
+              <VisualizationCard vizRecord={vizRecord} />
             </Col>
           ))}
         </Row>
