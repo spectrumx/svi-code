@@ -213,7 +213,7 @@ const CaptureTable = ({
                     {!onSelect && captures.length > 0 && visualizationType ? (
                       <td className="align-middle text-center">
                         <Link
-                          to={`/visualization/${visualizationType.name}${captureIdParam}`}
+                          to={`/visualization/new?captureType=${capture.type}&vizType=${visualizationType.name}&selectedCaptures=${capture.id}`}
                           className="btn btn-primary btn-sm px-4"
                         >
                           Visualize

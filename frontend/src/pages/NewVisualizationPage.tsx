@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Row, Col, Card } from 'react-bootstrap';
 import _ from 'lodash';
 
@@ -26,6 +26,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
  */
 const NewVisualizationPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { captures } = useAppContext();
   const syncCaptures = useSyncCaptures();
   const [isFetchingCaptures, setIsFetchingCaptures] = useState(false);
@@ -41,6 +42,34 @@ const NewVisualizationPage = () => {
     });
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle URL query parameters
+  useEffect(() => {
+    const captureType = searchParams.get('captureType') as CaptureType | null;
+    const vizType = searchParams.get('vizType') as VisualizationType | null;
+    const selectedCaptures =
+      searchParams.get('selectedCaptures')?.split(',') || [];
+
+    // Set the appropriate step based on provided parameters
+    if (selectedCaptures.length > 0 && vizType && captureType) {
+      setCurrentStep(4); // If captures are selected, go to the final step
+    } else if (vizType && captureType) {
+      setCurrentStep(3); // If visualization type is selected, go to capture selection
+    } else if (captureType) {
+      setCurrentStep(2); // If capture type is selected, go to visualization type selection
+    }
+
+    // Set parameters regardless of step
+    if (selectedCaptures.length > 0) {
+      setSelectedCaptureIds(selectedCaptures);
+    }
+    if (captureType) {
+      setSelectedCaptureType(captureType);
+    }
+    if (vizType) {
+      setSelectedVizType(vizType);
+    }
+  }, [searchParams]);
 
   // Filter captures based on selected type
   const filteredCaptures = selectedCaptureType
