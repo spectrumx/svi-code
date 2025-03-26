@@ -118,7 +118,6 @@ class Visualization(models.Model):
         owner: The user who created the visualization
         type: The type of visualization (spectrogram, waterfall)
         capture_ids: List of capture IDs used in this visualization
-        file_ids: List of file IDs used by this visualization's captures
         capture_type: The type of captures used (DigitalRF, RadioHound, SigMF)
         capture_source: The source of the captures (SDS, SVI Public, SVI User)
         settings: JSON field for type-specific visualization settings

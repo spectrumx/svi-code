@@ -3,7 +3,10 @@ import { Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router';
 import _ from 'lodash';
 
-import { CAPTURE_TYPES, CAPTURE_SOURCES } from '../apiClient/captureService';
+import {
+  CAPTURE_TYPE_INFO,
+  CAPTURE_SOURCES,
+} from '../apiClient/captureService';
 import {
   VISUALIZATION_TYPES,
   VisualizationRecord,
@@ -91,7 +94,7 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
           </span>
           <br />
           <strong>Capture Type:</strong>{' '}
-          {CAPTURE_TYPES[vizRecord.capture_type].name}
+          {CAPTURE_TYPE_INFO[vizRecord.capture_type].name}
           <br />
           <strong>Source:</strong>{' '}
           {CAPTURE_SOURCES[vizRecord.capture_source].name}

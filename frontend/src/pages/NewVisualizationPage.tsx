@@ -9,7 +9,7 @@ import { SpectrogramSettings } from '../components/spectrogram/SpectrogramVizCon
 import {
   useSyncCaptures,
   CaptureType,
-  CAPTURE_TYPES,
+  CAPTURE_TYPE_INFO,
 } from '../apiClient/captureService';
 import {
   postVisualization,
@@ -92,7 +92,7 @@ const NewVisualizationPage = () => {
   // Get unique capture types from available captures
   const availableCaptureTypes = useMemo(() => {
     const types = new Set(captures.map((capture) => capture.type));
-    return Object.entries(CAPTURE_TYPES)
+    return Object.entries(CAPTURE_TYPE_INFO)
       .filter(([type]) => types.has(type as CaptureType))
       .map(([type, details]) => ({ type: type as CaptureType, ...details }));
   }, [captures]);
@@ -242,7 +242,7 @@ const NewVisualizationPage = () => {
                   <span className="text-muted">
                     <span>Supported capture types: </span>
                     {visualizationType.supportedCaptureTypes.map(
-                      (type) => CAPTURE_TYPES[type].name,
+                      (type) => CAPTURE_TYPE_INFO[type].name,
                     )}
                   </span>
                 </Card.Text>
@@ -258,7 +258,7 @@ const NewVisualizationPage = () => {
     <div>
       <h6>
         Select {selectionMode === 'multiple' ? 'one or more' : 'a'}{' '}
-        {CAPTURE_TYPES[selectedCaptureType!].name}{' '}
+        {CAPTURE_TYPE_INFO[selectedCaptureType!].name}{' '}
         {selectionMode === 'multiple' ? 'captures' : 'capture'} to visualize:
       </h6>
       <CaptureSearch
@@ -454,6 +454,7 @@ const NewVisualizationPage = () => {
                         setCurrentStep((prev) => prev - 1);
                         setSelectedCaptureIds([]);
                       }}
+                      disabled={isCreating}
                     >
                       Back
                     </Button>

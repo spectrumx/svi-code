@@ -4,7 +4,7 @@ import _ from 'lodash';
 
 import CaptureTable, { CaptureTableProps } from '../components/CaptureTable';
 import {
-  CAPTURE_TYPES,
+  CAPTURE_TYPE_INFO,
   CAPTURE_SOURCES,
   Capture,
   CaptureType,
@@ -226,7 +226,7 @@ export const CaptureSearch = ({
             {!hideCaptureTypeFilter && (
               <Form.Group className="mb-3">
                 <h6>Capture Type</h6>
-                {Object.entries(CAPTURE_TYPES).map(([id, info]) => (
+                {Object.entries(CAPTURE_TYPE_INFO).map(([id, info]) => (
                   <Form.Check
                     key={id}
                     type="checkbox"

@@ -1,15 +1,26 @@
 import { useCallback } from 'react';
+import { z as zod } from 'zod';
 
 import apiClient from '.';
 import { useAppContext } from '../utils/AppContext';
-import { z as zod } from 'zod';
 import {
   getBaseFilename,
   FileMetadataSchema,
   DJANGO_MAX_FILES_UPLOAD,
 } from './fileService';
 
-export const CAPTURE_TYPES = {
+export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
+export type CaptureType = zod.infer<typeof CaptureTypeSchema>;
+
+export interface CaptureTypeInfo {
+  name: string;
+  fileExtensions: string[];
+  minFiles: number;
+  maxFiles: number;
+  uploadInstructions: string;
+}
+
+export const CAPTURE_TYPE_INFO: Record<CaptureType, CaptureTypeInfo> = {
   rh: {
     name: 'RadioHound',
     fileExtensions: ['.json', '.rh'],
@@ -31,9 +42,7 @@ export const CAPTURE_TYPES = {
     maxFiles: 2,
     uploadInstructions: 'Upload one .sigmf-data and one .sigmf-meta file.',
   },
-} as const;
-export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
-export type CaptureType = keyof typeof CAPTURE_TYPES;
+};
 
 export const CAPTURE_SOURCES = {
   sds: { name: 'SDS' },

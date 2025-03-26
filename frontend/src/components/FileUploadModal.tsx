@@ -6,7 +6,7 @@ import {
   postCapture,
   CaptureType,
   inferCaptureName,
-  CAPTURE_TYPES,
+  CAPTURE_TYPE_INFO,
 } from '../apiClient/captureService';
 import { Alert } from 'react-bootstrap';
 
@@ -30,7 +30,7 @@ const FileUploadModal = ({
   const [captureName, setCaptureName] = useState<string>('');
   const [isFormValid, setIsFormValid] = useState(false);
 
-  const captureTypeInfo = CAPTURE_TYPES[selectedType];
+  const captureTypeInfo = CAPTURE_TYPE_INFO[selectedType];
   const allowMultipleFiles =
     !('maxFiles' in captureTypeInfo) || captureTypeInfo.maxFiles > 1;
 
@@ -55,7 +55,7 @@ const FileUploadModal = ({
       return false;
     }
 
-    const typeInfo = CAPTURE_TYPES[type];
+    const typeInfo = CAPTURE_TYPE_INFO[type];
 
     if (files.length < typeInfo.minFiles) {
       setValidationError(
@@ -204,7 +204,7 @@ const FileUploadModal = ({
               value={selectedType || ''}
               onChange={handleTypeChange}
             >
-              {Object.entries(CAPTURE_TYPES).map(([value, info]) => (
+              {Object.entries(CAPTURE_TYPE_INFO).map(([value, info]) => (
                 <option key={value} value={value}>
                   {info.name}
                 </option>

@@ -13,8 +13,8 @@ def get_local_captures(request) -> list:
         list: Formatted local captures
     """
     captures = Capture.objects.filter(owner=request.user)
-    captures_dict = CaptureSerializer(captures, many=True).data
-    return [format_local_capture(capture) for capture in captures_dict]
+    captures_data = CaptureSerializer(captures, many=True).data
+    return [format_local_capture(capture) for capture in captures_data]
 
 
 def format_local_capture(capture: dict) -> dict:
