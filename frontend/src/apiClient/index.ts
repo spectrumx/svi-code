@@ -20,6 +20,7 @@ export const useFetchSessionInfo = async () => {
 
     const fetchSessionInfo = async () => {
       try {
+        // Undefined means we're attempting to fetch session info
         setUsername(undefined);
         const response = await fetch(API_HOST + '/api/session-info', {
           // Important for session-based authentication
@@ -41,6 +42,7 @@ export const useFetchSessionInfo = async () => {
 
       localStorage.removeItem('authToken');
       localStorage.removeItem('csrfToken');
+      // Null means the user isn't logged in
       setUsername(null);
     };
 
