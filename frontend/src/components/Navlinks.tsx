@@ -9,7 +9,7 @@ import { useAppContext } from '../utils/AppContext';
 import { API_HOST, getLoginUrlWithRedirect } from '../apiClient';
 
 const Navlinks = () => {
-  const { username } = useAppContext();
+  const { username, setUsername } = useAppContext();
 
   return (
     <Navbar expand="lg" className="main-nav">
@@ -44,6 +44,9 @@ const Navlinks = () => {
                   )}
                   <Nav.Link
                     href={getLoginUrlWithRedirect('/')}
+                    onClick={() => {
+                      setUsername(undefined);
+                    }}
                     disabled={username === undefined}
                   >
                     Login
