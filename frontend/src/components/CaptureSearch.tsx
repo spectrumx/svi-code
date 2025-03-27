@@ -168,93 +168,96 @@ export const CaptureSearch = ({
           alignItems: 'flex-start',
         }}
       >
-        <aside
-          style={{
-            width: '250px',
-            flexShrink: 0,
-            padding: '15px',
-            backgroundColor: '#ffffff',
-            borderRadius: '4px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <h5>Filters</h5>
-          <Form>
-            <Form.Group className="mb-3">
-              <h6>Time Range</h6>
-              <div className="mb-2">
-                <label htmlFor="start-time" className="d-block mb-1">
-                  Start Time
-                </label>
-                <input
-                  type="datetime-local"
-                  id="start-time"
-                  className="form-control"
-                  value={startDatetime.replace('Z', '')}
-                  onChange={(e) => setStartDatetime(e.target.value + 'Z')}
-                  max={endDatetime || undefined}
-                  aria-label="Select start date and time"
-                />
-              </div>
-              <div className="mb-2">
-                <label htmlFor="end-time" className="d-block mb-1">
-                  End Time
-                </label>
-                <input
-                  type="datetime-local"
-                  id="end-time"
-                  className="form-control"
-                  value={endDatetime.replace('Z', '')}
-                  onChange={(e) => setEndDatetime(e.target.value + 'Z')}
-                  min={startDatetime || undefined}
-                  aria-label="Select end date and time"
-                />
-              </div>
-              <button
-                className="btn btn-link btn-sm p-0"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setStartDatetime('');
-                  setEndDatetime('');
-                }}
-                aria-label="Clear time range"
-              >
-                Clear time range
-              </button>
-            </Form.Group>
-
-            {!hideCaptureTypeFilter && (
+        <div>
+          <div className="capture-table-infobox-height" />
+          <aside
+            style={{
+              width: '250px',
+              flexShrink: 0,
+              padding: '15px',
+              backgroundColor: '#ffffff',
+              borderRadius: '4px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <h5>Filters</h5>
+            <Form>
               <Form.Group className="mb-3">
-                <h6>Capture Type</h6>
-                {Object.entries(CAPTURE_TYPE_INFO).map(([id, info]) => (
+                <h6>Time Range</h6>
+                <div className="mb-2">
+                  <label htmlFor="start-time" className="d-block mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="start-time"
+                    className="form-control"
+                    value={startDatetime.replace('Z', '')}
+                    onChange={(e) => setStartDatetime(e.target.value + 'Z')}
+                    max={endDatetime || undefined}
+                    aria-label="Select start date and time"
+                  />
+                </div>
+                <div className="mb-2">
+                  <label htmlFor="end-time" className="d-block mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="end-time"
+                    className="form-control"
+                    value={endDatetime.replace('Z', '')}
+                    onChange={(e) => setEndDatetime(e.target.value + 'Z')}
+                    min={startDatetime || undefined}
+                    aria-label="Select end date and time"
+                  />
+                </div>
+                <button
+                  className="btn btn-link btn-sm p-0"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setStartDatetime('');
+                    setEndDatetime('');
+                  }}
+                  aria-label="Clear time range"
+                >
+                  Clear time range
+                </button>
+              </Form.Group>
+
+              {!hideCaptureTypeFilter && (
+                <Form.Group className="mb-3">
+                  <h6>Capture Type</h6>
+                  {Object.entries(CAPTURE_TYPE_INFO).map(([id, info]) => (
+                    <Form.Check
+                      key={id}
+                      type="checkbox"
+                      id={`filter-type-${id}`}
+                      label={info.name}
+                      checked={selectedTypes.has(id as CaptureType)}
+                      onChange={() => handleTypeChange(id as CaptureType)}
+                      aria-label={`${info.name} filter checkbox`}
+                    />
+                  ))}
+                </Form.Group>
+              )}
+              <Form.Group className="mb-3">
+                <h6>Source</h6>
+                {Object.entries(CAPTURE_SOURCES).map(([id, info]) => (
                   <Form.Check
                     key={id}
                     type="checkbox"
-                    id={`filter-type-${id}`}
+                    id={`filter-source-${id}`}
                     label={info.name}
-                    checked={selectedTypes.has(id as CaptureType)}
-                    onChange={() => handleTypeChange(id as CaptureType)}
+                    checked={selectedSources.has(id as CaptureSource)}
+                    onChange={() => handleSourceChange(id as CaptureSource)}
                     aria-label={`${info.name} filter checkbox`}
                   />
                 ))}
               </Form.Group>
-            )}
-            <Form.Group className="mb-3">
-              <h6>Source</h6>
-              {Object.entries(CAPTURE_SOURCES).map(([id, info]) => (
-                <Form.Check
-                  key={id}
-                  type="checkbox"
-                  id={`filter-source-${id}`}
-                  label={info.name}
-                  checked={selectedSources.has(id as CaptureSource)}
-                  onChange={() => handleSourceChange(id as CaptureSource)}
-                  aria-label={`${info.name} filter checkbox`}
-                />
-              ))}
-            </Form.Group>
-          </Form>
-        </aside>
+            </Form>
+          </aside>
+        </div>
         <main
           style={{
             flex: 1,

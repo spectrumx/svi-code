@@ -50,7 +50,7 @@ const PaginationControls = ({
 
   return (
     <div
-      className={className}
+      className={`${className} capture-table-infobox-height`}
       style={{
         padding: isTop ? '0.25rem 1rem' : '1rem',
         display: 'flex',
@@ -113,7 +113,21 @@ export const CaptureTable = ({
         size: 80,
       }),
       columnHelper.accessor('name', {
-        header: 'Name',
+        header: () => (
+          <div className="d-flex align-items-center gap-1">
+            Name
+            <OverlayTrigger
+              placement="right"
+              overlay={
+                <Tooltip id="name-header-tooltip">
+                  For SDS captures, the capture name is the scan group
+                </Tooltip>
+              }
+            >
+              <i className="bi bi-info-circle text-muted" aria-hidden="true" />
+            </OverlayTrigger>
+          </div>
+        ),
         cell: (info) => <div style={textCellStyle}>{info.getValue()}</div>,
       }),
       columnHelper.accessor('created_at', {
@@ -265,11 +279,11 @@ export const CaptureTable = ({
         }}
       >
         <div
+          className="capture-table-infobox-height"
           style={{
             padding: '0.25rem 1rem',
             fontSize: '0.9rem',
             color: '#6c757d',
-            height: '25px',
           }}
           role="status"
           aria-live="polite"
