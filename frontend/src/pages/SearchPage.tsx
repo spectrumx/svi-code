@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import CaptureSearch from '../components/CaptureSearch';
-import { useSyncCaptures } from '../apiClient/fileService';
+import { useSyncCaptures } from '../apiClient/captureService';
 import { useAppContext } from '../utils/AppContext';
 
 /**

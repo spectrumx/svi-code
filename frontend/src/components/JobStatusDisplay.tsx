@@ -1,7 +1,7 @@
 import { Alert, Spinner } from 'react-bootstrap';
 import _ from 'lodash';
 
-import { JobInfo } from '../pages/SpectrogramPage';
+import { JobInfo } from './spectrogram/SpectrogramVizContainer';
 
 interface JobStatusDisplayProps {
   isSubmitting: boolean;

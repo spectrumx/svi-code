@@ -3,38 +3,38 @@ import { Form, InputGroup, Button } from 'react-bootstrap';
 import _ from 'lodash';
 import debounce from 'lodash/debounce';
 
-import { WaterfallSettings } from '../../pages/WaterfallPage';
+import { WaterfallSettings } from './WaterfallVizContainer';
 import PlaybackControls from './PlaybackControls';
 import './waterfall.css';
 
 interface WaterfallControlsProps {
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
-  numCaptures: number;
+  numFiles: number;
 }
 
 export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   settings,
   setSettings,
-  numCaptures,
+  numFiles,
 }: WaterfallControlsProps) => {
   const captureIndexTextInputRef = React.useRef<HTMLInputElement>(null);
   // Local state for immediate UI updates
   const [localCaptureIndex, setLocalCaptureIndex] = useState(
-    settings.captureIndex,
+    settings.fileIndex,
   );
 
   // Update local state when props change
   useEffect(() => {
-    setLocalCaptureIndex(settings.captureIndex);
-  }, [settings.captureIndex]);
+    setLocalCaptureIndex(settings.fileIndex);
+  }, [settings.fileIndex]);
 
   // Debounced function to update parent state
   const debouncedSetCaptureIndex = useCallback(
     debounce((newValue: number) => {
       setSettings({
         ...settings,
-        captureIndex: newValue,
+        fileIndex: newValue,
       });
       setLocalCaptureIndex(newValue);
     }, 150),
@@ -54,12 +54,12 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
       setLocalCaptureIndex(newValue);
 
       // Ensure the value stays within bounds
-      const boundedValue = _.clamp(newValue, 0, numCaptures - 1);
+      const boundedValue = _.clamp(newValue, 0, numFiles - 1);
 
       const focusedElement = document.activeElement;
       const isButtonDisabled =
         focusedElement?.tagName === 'BUTTON' &&
-        (boundedValue === 0 || boundedValue === numCaptures - 1);
+        (boundedValue === 0 || boundedValue === numFiles - 1);
 
       if (isButtonDisabled) {
         // If disabled button is focused, move focus to text input
@@ -69,7 +69,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
       // Debounce the update to parent
       debouncedSetCaptureIndex(boundedValue);
     },
-    [numCaptures, debouncedSetCaptureIndex],
+    [numFiles, debouncedSetCaptureIndex],
   );
 
   // Handle keyboard arrow keys for any control
@@ -117,7 +117,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
             name="captureIndex"
             value={localCaptureIndex + 1}
             min={1}
-            max={numCaptures}
+            max={numFiles}
             onChange={(e) =>
               handleCaptureIndexChange(Number(e.target.value) - 1)
             }
@@ -125,7 +125,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
             aria-label="Capture index slider"
             tabIndex={0}
           />
-          <span className="text-muted">{numCaptures}</span>
+          <span className="text-muted">{numFiles}</span>
         </div>
         <div className="d-flex align-items-center gap-2">
           <InputGroup className="justify-content-center">
@@ -148,7 +148,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
                 }
                 onKeyDown={handleCaptureIndexKeyDown}
                 min={1}
-                max={numCaptures}
+                max={numFiles}
                 className="capture-index-number-input"
                 aria-label="Capture index number input"
               />
@@ -157,7 +157,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
               variant="secondary"
               onClick={() => handleCaptureIndexChange(localCaptureIndex + 1)}
               onKeyDown={handleCaptureIndexKeyDown}
-              disabled={localCaptureIndex === numCaptures - 1}
+              disabled={localCaptureIndex === numFiles - 1}
               aria-label="Next capture"
             >
               <i className="bi bi-chevron-right" />

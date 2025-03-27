@@ -58,15 +58,49 @@ body {
 }
 
 .header-content {
+  position: relative;
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 0;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+/* logo container to take more space */
+.logo-container {
+  flex: 0 0 auto;
+  min-width: 200px;
+  padding-left: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.nav-container {
+  min-width: 200px;
+  padding-right: 1rem;
+}
+
+.logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* a gap between the logo image and the site name */
+  gap: 1rem;
+  width: 100%;
+}
+
+.logo-text {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  text-align: center;
+  flex: 1;
 }
 
 .logo img {
-  height: 40px;
+  height: 30px;
 }
 
 .main-nav {
@@ -133,7 +167,6 @@ body {
   margin-bottom: 1rem;
 }
 
-/* Add these styles for links in blue background sections */
 .hero a {
   color: var(--white);
   transition: opacity 0.3s;
@@ -143,7 +176,6 @@ body {
   opacity: 0.8;
 }
 
-/* Update hero box styles to ensure proper contrast */
 .hero-box a {
   color: var(--white);
   transition: opacity 0.3s;
@@ -235,11 +267,61 @@ body {
   .main-nav {
     display: none;
   }
+
+  .navbar-brand span {
+    font-size: 1rem;
+    margin-left: 2rem;
+  }
+
+  .logo-container,
+  .nav-container {
+    min-width: 150px;
+    width: 100%;
+    text-align: center;
+  }
 }
 
-/* White bar section */
-.white-bar {
-  background: var(--white);
-  padding: 2rem 0;
-  border-bottom: 1px solid #eee;
+/* Added to remove underline/hyperlink from website name */
+.no-underline,
+.no-underline:hover,
+.no-underline:focus,
+.no-underline:active {
+  text-decoration: none;
+}
+
+/* Center the brand section */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  min-width: 600px;
+  padding-left: 40px;
+}
+
+.navbar-brand span {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .navbar-brand {
+    min-width: unset;
+    /* Reset padding on mobile */
+    padding-left: 0;
+  }
+
+  .navbar-brand span {
+    font-size: 1rem;
+    position: static;
+    margin-left: 2rem;
+    transform: none;
+  }
+}
+
+.scan-details-table {
+  table-layout: fixed;
+  width: 100%;
 }

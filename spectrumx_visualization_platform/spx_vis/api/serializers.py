@@ -1,3 +1,5 @@
+import logging
+
 from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
@@ -9,11 +11,15 @@ from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUt
 from spectrumx_visualization_platform.spx_vis.models import CAPTURE_TYPE_CHOICES
 from spectrumx_visualization_platform.spx_vis.models import VISUALIZATION_TYPE_CHOICES
 from spectrumx_visualization_platform.spx_vis.models import Capture
+from spectrumx_visualization_platform.spx_vis.models import CaptureSource
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
 from spectrumx_visualization_platform.spx_vis.models import VisualizationType
+from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
 from spectrumx_visualization_platform.users.models import User
+
+logger = logging.getLogger(__name__)
 
 
 class FileSerializer(serializers.ModelSerializer[File]):
@@ -79,7 +85,6 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     """Serializer for Capture model with automatic field handling.
 
     Handles creation of associated File objects and automatic field population.
-    For RadioHound captures, each uploaded file creates a separate capture.
     """
 
     id = serializers.CharField(read_only=True)
@@ -110,15 +115,11 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     def create(self, validated_data: dict) -> Capture | list[Capture]:
         """Create one or more Captures with associated File objects.
 
-        For RadioHound captures, each uploaded file creates a separate capture.
-        For other capture types, creates a single capture with multiple files.
-
         Args:
             validated_data: Validated data including uploaded files
 
         Returns:
-            Either a single Capture instance or a list of Capture instances for
-            RadioHound
+            A single Capture instance
         """
         uploaded_files: list[UploadedFile] = validated_data.pop("uploaded_files")
         capture_type = validated_data["type"]
@@ -129,62 +130,21 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             capture_utility = SigMFUtility
         else:
             error_message = f"Unsupported capture type: {capture_type}"
+            logger.error(error_message)
             raise ValueError(error_message)
 
         # Set defaults for required fields
         validated_data["owner"] = self.context["request"].user
-        validated_data["source"] = "svi_user"  # Default source for user uploads
-
-        if capture_type == CaptureType.RadioHound:
-            # Create separate capture for each RadioHound file
-            capture_names = capture_utility.get_capture_names(
-                uploaded_files, validated_data.get("name")
-            )
-            captures = []
-
-            for i, uploaded_file in enumerate(uploaded_files):
-                if not isinstance(uploaded_file, UploadedFile):
-                    continue
-
-                # Create new validated data for each capture
-                file_validated_data = validated_data.copy()
-
-                # Extract timestamp for this specific file
-                file_validated_data["timestamp"] = RadioHoundUtility.extract_timestamp(
-                    [uploaded_file]
-                )
-
-                file_validated_data["name"] = capture_names[i]
-
-                # Create capture instance
-                capture = super().create(file_validated_data)
-
-                # Create associated File object
-                File.objects.create(
-                    owner=file_validated_data["owner"],
-                    file=uploaded_file,
-                    media_type=RadioHoundUtility.get_media_type(uploaded_file),
-                    name=uploaded_file.name,
-                    capture=capture,
-                )
-
-                captures.append(capture)
-
-            return captures
-
-        # For other capture types, proceed with existing logic
-        if capture_type == CaptureType.SigMF:
-            capture_utility = SigMFUtility
-        else:
-            error_message = f"Unsupported capture type: {capture_type}"
-            raise ValueError(error_message)
+        validated_data["source"] = (
+            CaptureSource.SVI_User
+        )  # Default source for user uploads
 
         # Extract timestamp from files based on capture type
         validated_data["timestamp"] = capture_utility.extract_timestamp(uploaded_files)
 
-        validated_data["name"] = capture_utility.get_capture_names(
+        validated_data["name"] = capture_utility.get_capture_name(
             uploaded_files, validated_data.get("name")
-        )[0]
+        )
 
         # Create the capture instance
         capture = super().create(validated_data)
@@ -192,7 +152,10 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         # Create File objects for each uploaded file
         for uploaded_file in uploaded_files:
             if not isinstance(uploaded_file, UploadedFile):
-                continue
+                error_message = "Uploaded file is not an instance of UploadedFile"
+                logger.error(error_message)
+                raise TypeError(error_message)
+
             media_type = capture_utility.get_media_type(uploaded_file)
 
             File.objects.create(
@@ -206,17 +169,45 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         return capture
 
 
-class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
-    """Serializer for Visualization model.
+class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
+    """Serializer for listing Visualization objects.
 
-    Handles validation and serialization of visualization configurations created through
-    the visualization wizard.
+    Provides a lightweight serialization of Visualization objects without detailed capture information.
     """
 
     owner = serializers.ReadOnlyField(source="owner.username")
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization"
     )
+
+    class Meta:
+        model = Visualization
+        fields = [
+            "id",
+            "owner",
+            "type",
+            "capture_ids",
+            "capture_type",
+            "capture_source",
+            "settings",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+
+class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
+    """Serializer for detailed Visualization view.
+
+    Provides full serialization of Visualization objects including detailed capture and file information.
+    """
+
+    owner = serializers.ReadOnlyField(source="owner.username")
+    capture_ids = serializers.JSONField(
+        help_text="List of capture IDs used in this visualization",
+        write_only=True,
+    )
+    captures = serializers.SerializerMethodField(read_only=True)
 
     # Define supported capture types for each visualization type
     SUPPORTED_CAPTURE_TYPES = {
@@ -236,8 +227,49 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
             "settings",
             "created_at",
             "updated_at",
+            "captures",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "captures"]
+
+    def get_captures(self, obj: Visualization) -> list[dict]:
+        """Get the full capture information including files for each capture.
+
+        Args:
+            obj: The Visualization instance being serialized.
+
+        Returns:
+            list[dict]: List of capture data including files.
+        """
+        request = self.context.get("request")
+        if not request:
+            return []
+
+        captures = []
+
+        if obj.capture_source == "sds":
+            try:
+                sds_captures = get_sds_captures(request)
+                captures = [
+                    capture
+                    for capture in sds_captures
+                    if str(capture["id"]) in obj.capture_ids
+                ]
+            except Exception as e:
+                logger.error(f"Error fetching SDS captures: {e}")
+                raise
+        else:
+            for capture_id in obj.capture_ids:
+                try:
+                    # Get local capture
+                    capture = Capture.objects.get(id=capture_id, owner=request.user)
+                    captures.append(
+                        CaptureSerializer(capture, context={"request": request}).data
+                    )
+                except (Capture.DoesNotExist, Exception) as e:
+                    logger.error(f"Error fetching capture {capture_id}: {e}")
+                    continue
+
+        return captures
 
     def validate_capture_ids(self, value) -> list[str]:
         """Validate that capture_ids is a non-empty list of strings.
@@ -253,14 +285,19 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
         """
         if not isinstance(value, list):
             error_message = "capture_ids must be a list"
+            logger.error(error_message)
             raise serializers.ValidationError(error_message)
-
         if not value:
             error_message = "capture_ids cannot be empty"
+            logger.error(error_message)
             raise serializers.ValidationError(error_message)
-
+        if len(value) > 1:
+            error_message = "Visualizing multiple captures is not yet supported"
+            logger.error(error_message)
+            raise serializers.ValidationError(error_message)
         if not all(isinstance(capture_id, str) for capture_id in value):
             error_message = "All capture IDs must be strings"
+            logger.error(error_message)
             raise serializers.ValidationError(error_message)
 
         return value
@@ -288,8 +325,6 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
         """
         if capture_source == "sds":
             sds_client = user.sds_client()
-
-            # Get SDS captures
             sds_captures = sds_client.captures.listing(capture_type=capture_type)
             sds_capture_ids = [str(capture.uuid) for capture in sds_captures]
 
@@ -297,30 +332,38 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
             missing_ids = set(capture_ids) - set(sds_capture_ids)
             if missing_ids:
                 error_message = f"SDS captures of type {capture_type} not found: {', '.join(missing_ids)}"
+                logger.error(error_message)
                 raise serializers.ValidationError(error_message)
+            return
 
-        elif capture_source == "svi_user":
+        if capture_source == "svi_user":
             # Get local captures
             int_ids = [int(capture_id) for capture_id in capture_ids]
             local_captures = Capture.objects.filter(
                 id__in=int_ids, owner=user, type=capture_type
-            ).values_list("id", flat=True)
-            local_capture_ids = [str(capture_id) for capture_id in local_captures]
+            )
+            local_capture_ids = [
+                str(capture_id)
+                for capture_id in local_captures.values_list("id", flat=True)
+            ]
 
             # Verify all requested captures were found
             missing_ids = set(capture_ids) - set(local_capture_ids)
             if missing_ids:
                 error_message = f"Local captures of type {capture_type} not found: {', '.join(missing_ids)}"
+                logger.error(error_message)
                 raise serializers.ValidationError(error_message)
+            return
 
-        elif capture_source == "svi_public":
+        if capture_source == "svi_public":
             # Not yet implemented
             error_message = "Public SVI captures are not yet implemented"
+            logger.error(error_message)
             raise serializers.ValidationError(error_message)
 
-        else:
-            error_message = f"Invalid capture source: {capture_source}"
-            raise serializers.ValidationError(error_message)
+        error_message = f"Invalid capture source: {capture_source}"
+        logger.error(error_message)
+        raise serializers.ValidationError(error_message)
 
     def validate(self, data: dict) -> dict:
         """Validate the visualization data.
@@ -398,7 +441,7 @@ class VisualizationSerializer(serializers.ModelSerializer[Visualization]):
         ).first()
 
         if existing_visualization:
-            print(
+            logger.info(
                 f"Returning existing visualization with same config: {existing_visualization.id}"
             )
             return existing_visualization

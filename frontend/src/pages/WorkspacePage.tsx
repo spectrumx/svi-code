@@ -1,20 +1,22 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { Container, Row, Col } from 'react-bootstrap';
+import _ from 'lodash';
 
 import { useAppContext } from '../utils/AppContext';
 import Button from '../components/Button';
 import { VisualizationCard } from '../components/VisualizationCard';
 import { useSyncVisualizations } from '../apiClient/visualizationService';
-import '../styles/VisualizationCard.css';
 
 const WorkspacePage = () => {
-  const { username, visualizations } = useAppContext();
+  const { username, visualizations: vizRecords } = useAppContext();
   const syncVisualizations = useSyncVisualizations();
 
   useEffect(() => {
     syncVisualizations();
   }, [syncVisualizations]);
+
+  const sortedVizRecords = _.sortBy(vizRecords, 'created_at').reverse();
 
   return (
     <Container className="py-4">
@@ -32,17 +34,11 @@ const WorkspacePage = () => {
         </Link>
       </div>
       <hr />
-      {visualizations.length > 0 ? (
+      {sortedVizRecords.length > 0 ? (
         <Row>
-          {visualizations.map((visualization) => (
-            <Col key={visualization.id} xs={12} md={6} lg={4} className="mb-3">
-              <VisualizationCard
-                id={visualization.id}
-                type={visualization.type}
-                captureType={visualization.capture_type}
-                captureSource={visualization.capture_source}
-                captures={visualization.capture_ids}
-              />
+          {sortedVizRecords.map((vizRecord) => (
+            <Col key={vizRecord.id} xs={12} md={6} lg={4} className="mb-3">
+              <VisualizationCard vizRecord={vizRecord} />
             </Col>
           ))}
         </Row>

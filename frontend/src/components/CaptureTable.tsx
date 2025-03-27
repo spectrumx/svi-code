@@ -12,9 +12,9 @@ import { Link } from 'react-router';
 
 import {
   Capture,
-  CAPTURE_TYPES,
+  CAPTURE_TYPE_INFO,
   CAPTURE_SOURCES,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 
 export interface CaptureTableProps {
@@ -66,7 +66,8 @@ export const CaptureTable = ({
       columnHelper.accessor('type', {
         header: 'Type',
         cell: (info) =>
-          CAPTURE_TYPES[info.getValue() as keyof typeof CAPTURE_TYPES].name,
+          CAPTURE_TYPE_INFO[info.getValue() as keyof typeof CAPTURE_TYPE_INFO]
+            .name,
         size: 120,
       }),
       columnHelper.accessor('files', {
@@ -115,16 +116,9 @@ export const CaptureTable = ({
 
             if (!visualizationType) return null;
 
-            const captureIdParam =
-              visualizationType.name === 'waterfall'
-                ? `?captures=${capture.id}`
-                : visualizationType.name === 'spectrogram'
-                  ? `/${capture.id}`
-                  : '';
-
             return (
               <Link
-                to={`/visualization/${visualizationType.name}${captureIdParam}`}
+                to={`/visualization/new?captureType=${capture.type}&vizType=${visualizationType.name}&selectedCaptures=${capture.id}`}
                 className="btn btn-primary btn-sm px-4"
               >
                 Visualize
