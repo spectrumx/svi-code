@@ -3,10 +3,11 @@ import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
 import {
-  postCaptures,
+  postCapture,
   CaptureType,
   inferCaptureName,
-} from '../apiClient/fileService';
+  CAPTURE_TYPE_INFO,
+} from '../apiClient/captureService';
 import { Alert } from 'react-bootstrap';
 
 interface FileUploadModalProps {
@@ -14,39 +15,6 @@ interface FileUploadModalProps {
   handleClose: () => void;
   handleSuccess: () => void;
 }
-
-interface CaptureTypeInfo {
-  label: string;
-  fileExtensions: string[];
-  description: string;
-  minFiles: number;
-  maxFiles: number;
-}
-
-const CAPTURE_TYPE_INFO: Record<CaptureType, CaptureTypeInfo> = {
-  rh: {
-    label: 'RadioHound',
-    fileExtensions: ['.json', '.rh'],
-    minFiles: 1,
-    maxFiles: 100,
-    description:
-      'Upload one or more RadioHound files (max of 100). Each file will create a separate capture.',
-  },
-  drf: {
-    label: 'Digital RF',
-    fileExtensions: ['.drf'],
-    minFiles: 1,
-    maxFiles: 1,
-    description: 'Upload a single Digital RF file.',
-  },
-  sigmf: {
-    label: 'SigMF',
-    fileExtensions: ['.sigmf-data', '.sigmf-meta'],
-    minFiles: 2,
-    maxFiles: 2,
-    description: 'Upload one .sigmf-data and one .sigmf-meta file.',
-  },
-};
 
 const FileUploadModal = ({
   show,
@@ -63,6 +31,8 @@ const FileUploadModal = ({
   const [isFormValid, setIsFormValid] = useState(false);
 
   const captureTypeInfo = CAPTURE_TYPE_INFO[selectedType];
+  const allowMultipleFiles =
+    !('maxFiles' in captureTypeInfo) || captureTypeInfo.maxFiles > 1;
 
   // Reset state when modal is opened/closed
   useEffect(() => {
@@ -89,25 +59,21 @@ const FileUploadModal = ({
 
     if (files.length < typeInfo.minFiles) {
       setValidationError(
-        `${typeInfo.label} captures require at least ${typeInfo.minFiles} file${
+        `${typeInfo.name} captures require at least ${typeInfo.minFiles} file${
           typeInfo.minFiles > 1 ? 's' : ''
         }`,
       );
       return false;
     }
 
-    if (files.length > typeInfo.maxFiles) {
+    if ('maxFiles' in typeInfo && files.length > typeInfo.maxFiles) {
       setValidationError(
-        `Too many files selected. Max files: ${typeInfo.maxFiles}`,
+        `Too many files selected. Maximum allowed: ${typeInfo.maxFiles} files`,
       );
       return false;
     }
 
     if (type === 'rh') {
-      if (files.length === 0) {
-        setValidationError('Please select at least one RadioHound file');
-        return false;
-      }
       // Verify all files have valid extensions
       const invalidFiles = Array.from(files).filter(
         (file) =>
@@ -115,7 +81,7 @@ const FileUploadModal = ({
       );
       if (invalidFiles.length > 0) {
         setValidationError(
-          `Allowed RadioHound file extensions: ${typeInfo.fileExtensions.join(
+          `Invalid file type. Allowed RadioHound file extensions: ${typeInfo.fileExtensions.join(
             ', ',
           )}`,
         );
@@ -162,10 +128,8 @@ const FileUploadModal = ({
       const nameInput =
         document.querySelector<HTMLInputElement>('input[name="name"]');
       if (nameInput && !nameInput.value) {
-        const newName = inferCaptureName(Array.from(files), selectedType);
-        if (newName) {
-          setCaptureName(newName);
-        }
+        const newName = inferCaptureName(Array.from(files));
+        setCaptureName(newName);
       }
     }
 
@@ -192,7 +156,7 @@ const FileUploadModal = ({
     }
 
     try {
-      await postCaptures(type, files, name);
+      await postCapture(type, files, name);
       handleSuccess();
       handleClose();
     } catch (error) {
@@ -209,9 +173,12 @@ const FileUploadModal = ({
   // Update validation when relevant fields change
   useEffect(() => {
     const isValid =
-      !!selectedType && !!selectedFiles?.length && !validationError;
+      !!selectedType &&
+      !!selectedFiles?.length &&
+      !validationError &&
+      !!captureName;
     setIsFormValid(isValid);
-  }, [selectedType, selectedFiles, validationError]);
+  }, [selectedType, selectedFiles, validationError, captureName]);
 
   return (
     <Modal show={show} onHide={handleClose}>
@@ -239,7 +206,7 @@ const FileUploadModal = ({
             >
               {Object.entries(CAPTURE_TYPE_INFO).map(([value, info]) => (
                 <option key={value} value={value}>
-                  {info.label}
+                  {info.name}
                 </option>
               ))}
             </Form.Select>
@@ -249,14 +216,14 @@ const FileUploadModal = ({
             <Form.Label>Files</Form.Label>
             <br />
             <Form.Text className="text-muted">
-              {captureTypeInfo.description}
+              {captureTypeInfo.uploadInstructions}
             </Form.Text>
             <br />
             <Form.Control
               type="file"
               name="files"
               required
-              multiple={captureTypeInfo.maxFiles > 1}
+              multiple={allowMultipleFiles}
               onChange={handleFileChange}
               accept={captureTypeInfo.fileExtensions.join(',')}
             />
@@ -268,10 +235,6 @@ const FileUploadModal = ({
           <Form.Group controlId="name">
             <Form.Label>Name</Form.Label>
             <br />
-            <Form.Text className="text-muted">
-              If left blank, the file's base name will be used.
-            </Form.Text>
-            <br />
             <Form.Control
               type="text"
               name="name"
@@ -282,7 +245,7 @@ const FileUploadModal = ({
           </Form.Group>
           <br />
           <Button
-            variant="primary"
+            variant={isFormValid ? 'primary' : 'secondary'}
             type="submit"
             disabled={isUploading || !!validationError || !isFormValid}
           >

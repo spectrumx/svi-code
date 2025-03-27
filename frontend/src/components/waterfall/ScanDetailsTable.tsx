@@ -46,10 +46,7 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
   // }, [downloadUrl]);
 
   // Helper function to safely get nested values
-  const getRhFileValue = <T,>(
-    path: string,
-    defaultValue?: T,
-  ): T | undefined => {
+  const getScanValue = <T,>(path: string, defaultValue?: T): T | undefined => {
     return _.get(rhFile, path, defaultValue) as T;
   };
 
@@ -60,75 +57,72 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
         <tbody>
           <DetailRow
             label="Node"
-            value={`${getRhFileValue('short_name')}${
-              getRhFileValue('mac_address')
-                ? ` (${getRhFileValue('mac_address')})`
+            value={`${getScanValue('short_name')}${
+              getScanValue('mac_address')
+                ? ` (${getScanValue('mac_address')})`
                 : ''
             }`}
           />
           <DetailRow
             label="Scan Time"
             value={
-              getRhFileValue('metadata.scan_time')
+              getScanValue('metadata.scan_time')
                 ? `${
                     Math.round(
-                      Number(getRhFileValue('metadata.scan_time')) * 1000,
+                      Number(getScanValue('metadata.scan_time')) * 1000,
                     ) / 1000
                   }s`
                 : undefined
             }
           />
-          <DetailRow
-            label="Sample Rate"
-            value={getRhFileValue('sample_rate')}
-          />
-          <DetailRow label="Gain" value={getRhFileValue('gain')} />
+          <DetailRow label="Sample Rate" value={getScanValue('sample_rate')} />
+          <DetailRow label="Gain" value={getScanValue('gain')} />
           <DetailRow
             label="Frequency Minimum"
             value={
-              getRhFileValue('metadata.fmin')
-                ? formatHertz(getRhFileValue('metadata.fmin') as number)
+              getScanValue('metadata.fmin')
+                ? formatHertz(getScanValue('metadata.fmin') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Frequency Maximum"
             value={
-              getRhFileValue('metadata.fmax')
-                ? formatHertz(getRhFileValue('metadata.fmax') as number)
+              getScanValue('metadata.fmax')
+                ? formatHertz(getScanValue('metadata.fmax') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Number of Samples"
             value={
-              typeof getRhFileValue('metadata.xcount') === 'number'
-                ? (getRhFileValue('metadata.xcount') as number).toLocaleString()
+              typeof getScanValue('metadata.xcount') === 'number'
+                ? (getScanValue('metadata.xcount') as number).toLocaleString()
                 : undefined
             }
           />
           <DetailRow
             label="Timestamp"
             value={
-              getRhFileValue('timestamp')
-                ? getRhFileValue<string>('timestamp')
+              getScanValue('timestamp')
+                ? getScanValue<string>('timestamp')
                 : undefined
             }
           />
           <DetailRow
             label="GPS Lock"
             value={
-              getRhFileValue('metadata.gps_lock') !== undefined
-                ? getRhFileValue('metadata.gps_lock')
+              getScanValue('metadata.gps_lock') !== undefined
+                ? getScanValue('metadata.gps_lock')
                   ? 'True'
                   : 'False'
                 : undefined
             }
           />
-          <DetailRow label="Job" value={getRhFileValue('metadata.name')} />
+          <DetailRow label="Job" value={getScanValue('metadata.name')} />
           <DetailRow
             label="Comments"
-            value={getRhFileValue('metadata.comments')}
+            value={getScanValue('metadata.comments')}
           />
         </tbody>
       </Table>

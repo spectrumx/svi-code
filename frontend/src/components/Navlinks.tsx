@@ -3,6 +3,7 @@ import Nav from 'react-bootstrap/Nav';
 import Container from 'react-bootstrap/Container';
 import Navbar from 'react-bootstrap/esm/Navbar';
 import Dropdown from 'react-bootstrap/Dropdown';
+import Spinner from 'react-bootstrap/Spinner';
 
 import { useAppContext } from '../utils/AppContext';
 import { API_HOST, getLoginUrlWithRedirect } from '../apiClient';
@@ -37,7 +38,17 @@ const Navlinks = () => {
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                <Nav.Link href={getLoginUrlWithRedirect('/')}>Login</Nav.Link>
+                <div className="d-flex align-items-center">
+                  {username === undefined && (
+                    <Spinner animation="border" size="sm" />
+                  )}
+                  <Nav.Link
+                    href={getLoginUrlWithRedirect('/')}
+                    disabled={username === undefined}
+                  >
+                    Login
+                  </Nav.Link>
+                </div>
               )}
             </ul>
           </Nav>

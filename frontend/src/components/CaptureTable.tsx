@@ -3,9 +3,9 @@ import { Link } from 'react-router';
 
 import {
   Capture,
-  CAPTURE_TYPES,
+  CAPTURE_TYPE_INFO,
   CAPTURE_SOURCES,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 
 export interface CaptureTableProps {
@@ -151,13 +151,6 @@ const CaptureTable = ({
                 const visualizationType = VISUALIZATION_TYPES.find((visType) =>
                   visType.supportedCaptureTypes.includes(capture.type),
                 );
-                const captureIdParam =
-                  visualizationType?.name === 'waterfall'
-                    ? `?captures=${capture.id}`
-                    : visualizationType?.name === 'spectrogram'
-                      ? `/${capture.id}`
-                      : '';
-
                 const isSelected = selectedIds?.includes(capture.id);
 
                 return (
@@ -204,7 +197,7 @@ const CaptureTable = ({
                         : 'None'}
                     </td>
                     <td className="align-middle">
-                      {CAPTURE_TYPES[capture.type].name}
+                      {CAPTURE_TYPE_INFO[capture.type].name}
                     </td>
                     <td className="align-middle">{capture.files.length}</td>
                     <td className="align-middle">
@@ -213,7 +206,7 @@ const CaptureTable = ({
                     {!onSelect && captures.length > 0 && visualizationType ? (
                       <td className="align-middle text-center">
                         <Link
-                          to={`/visualization/${visualizationType.name}${captureIdParam}`}
+                          to={`/visualization/new?captureType=${capture.type}&vizType=${visualizationType.name}&selectedCaptures=${capture.id}`}
                           className="btn btn-primary btn-sm px-4"
                         >
                           Visualize

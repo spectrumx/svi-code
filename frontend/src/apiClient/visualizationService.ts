@@ -9,7 +9,7 @@ import {
   CaptureTypeSchema,
   CaptureSourceSchema,
   CaptureSchema,
-} from './fileService';
+} from './captureService';
 
 const VisualizationTypeSchema = zod.enum(['spectrogram', 'waterfall']);
 export type VisualizationType = zod.infer<typeof VisualizationTypeSchema>;
@@ -36,7 +36,7 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
       'View signal data as a scrolling waterfall display with periodogram',
     icon: 'bi-water',
     supportedCaptureTypes: ['rh'],
-    multipleSelection: true,
+    multipleSelection: false,
   },
 ];
 
@@ -83,6 +83,20 @@ export const getVisualizations = async (): Promise<VisualizationRecord[]> => {
   }
 };
 
+export const getDetailedVisualizations = async (): Promise<
+  VisualizationRecordDetail[]
+> => {
+  try {
+    const response = await apiClient.get('/api/visualizations/', {
+      params: { detailed: true },
+    });
+    return zod.array(VisualizationRecordDetailSchema).parse(response.data);
+  } catch (error) {
+    console.error('Error fetching detailed visualizations:', error);
+    throw error;
+  }
+};
+
 export const getVisualization = async (
   id: string,
 ): Promise<VisualizationRecordDetail> => {
@@ -90,7 +104,7 @@ export const getVisualization = async (
   return VisualizationRecordDetailSchema.parse(response.data);
 };
 
-export const createVisualization = async (
+export const postVisualization = async (
   request: CreateVisualizationRequest,
 ): Promise<VisualizationRecordDetail> => {
   try {
