@@ -15,8 +15,8 @@ const Navlinks = () => {
     <Navbar expand="lg" className="main-nav">
       <Container className="primary-menu">
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
-        <Navbar.Collapse id="basic-navbar-nav">
-          <Nav className="me-auto">
+        <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
+          <Nav>
             <ul>
               {username && (
                 <>

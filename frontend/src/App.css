@@ -73,7 +73,6 @@ body {
   flex: 0 0 auto;
   min-width: 200px;
   padding-left: 0.5rem;
-  /* flex-grow: 1;*/
   display: flex;
   align-items: center;
 }
@@ -87,9 +86,9 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  /* a gap between the logo image and the site name */
   gap: 1rem;
   width: 100%;
-  /* a gap between the logo image and the site name */
 }
 
 .logo-text {
@@ -168,7 +167,6 @@ body {
   margin-bottom: 1rem;
 }
 
-/* Add these styles for links in blue background sections */
 .hero a {
   color: var(--white);
   transition: opacity 0.3s;
@@ -178,7 +176,6 @@ body {
   opacity: 0.8;
 }
 
-/* Update hero box styles to ensure proper contrast */
 .hero-box a {
   color: var(--white);
   transition: opacity 0.3s;
@@ -284,18 +281,8 @@ body {
   }
 }
 
-/* White bar section */
-.white-bar {
-  background: var(--white);
-  padding: 2rem 0;
-  border-bottom: 1px solid #eee;
-}
-
-/* Added to remove underline/hyperlink from website name*/
-.no-underline {
-  text-decoration: none;
-}
-
+/* Added to remove underline/hyperlink from website name */
+.no-underline,
 .no-underline:hover,
 .no-underline:focus,
 .no-underline:active {
@@ -312,17 +299,6 @@ body {
   padding-left: 40px;
 }
 
-/* Style the logo text */
-/*.navbar-brand span {
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: var(--primary-color);
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  margin-left: 40px;
-}*/
 .navbar-brand span {
   font-size: 1.25rem;
   font-weight: 500;
@@ -333,8 +309,8 @@ body {
 @media (max-width: 768px) {
   .navbar-brand {
     min-width: unset;
-    padding-left: 0;
     /* Reset padding on mobile */
+    padding-left: 0;
   }
 
   .navbar-brand span {
