@@ -52,7 +52,7 @@ const MyDataPage = () => {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container-wide">
       <h5>Captures</h5>
       <br />
       <Button

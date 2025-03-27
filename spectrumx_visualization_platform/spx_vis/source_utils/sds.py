@@ -50,7 +50,7 @@ def format_sds_capture(sds_capture: dict, user_id: int):
     custom_fields = capture_props["custom_fields"]
 
     timestamp = capture_props["timestamp"]
-    scan_time = metadata["scan_time"]
+    scan_time = metadata["scan_time"] or None
 
     files = [
         {

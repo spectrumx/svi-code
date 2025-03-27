@@ -18,7 +18,7 @@ export const SearchPage = () => {
   }, [syncCaptures]);
 
   return (
-    <div className="page-container">
+    <div className="page-container-wide">
       <h5>Search</h5>
       <div
         style={{

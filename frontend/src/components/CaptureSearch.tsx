@@ -259,7 +259,6 @@ export const CaptureSearch = ({
           style={{
             flex: 1,
             minWidth: 0,
-            maxHeight: '600px',
             backgroundColor: '#ffffff',
             borderRadius: '4px',
             display: 'flex',

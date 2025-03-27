@@ -61,6 +61,10 @@ export const CaptureSchema = zod.object({
   type: CaptureTypeSchema,
   source: CaptureSourceSchema,
   files: zod.array(FileMetadataSchema),
+  min_freq: zod.number().optional().nullable(),
+  max_freq: zod.number().optional().nullable(),
+  scan_time: zod.number().optional().nullable(),
+  end_time: zod.string().optional().nullable(),
 });
 export type Capture = zod.infer<typeof CaptureSchema>;
 

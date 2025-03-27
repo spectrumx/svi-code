@@ -15,6 +15,7 @@ import {
   Display,
   ApplicationType,
 } from './types';
+import { formatHertz } from '../../utils/utils';
 
 // const initialOptions: ScanOptionsType = {
 //   selectedNodes: [],
@@ -793,17 +794,5 @@ export const binaryStringToFloatArray = (
   }
   return dataValues;
 };
-
-export function formatHertz(bytes: number, decimals = 2) {
-  if (bytes === 0) return 'MHz';
-
-  const k = 1000;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Hz', 'KHz', 'MHz', 'GHz'];
-
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
 
 export { WaterfallVisualization };
