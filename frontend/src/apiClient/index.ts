@@ -21,7 +21,7 @@ export const useFetchSessionInfo = async () => {
     const fetchSessionInfo = async () => {
       try {
         // Undefined means we're attempting to fetch session info
-        setUsername(undefined);
+        setUsername(null);
         const response = await fetch(API_HOST + '/api/session-info', {
           // Important for session-based authentication
           credentials: 'include',
