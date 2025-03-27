@@ -20,6 +20,14 @@ class CaptureAdmin(admin.ModelAdmin):
 
 @admin.register(Visualization)
 class VisualizationAdmin(admin.ModelAdmin):
-    list_display = ("id", "owner", "created_at", "updated_at", "type", "capture_ids")
+    list_display = (
+        "id",
+        "owner",
+        "created_at",
+        "updated_at",
+        "type",
+        "capture_type",
+        "capture_source",
+    )
     search_fields = ("id", "owner")
     list_filter = ("created_at", "updated_at", "owner")

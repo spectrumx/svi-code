@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form } from 'react-bootstrap';
-import { CaptureSource, CAPTURE_SOURCES } from '../../apiClient/fileService';
+import { CaptureSource, CAPTURE_SOURCES } from '../../apiClient/captureService';
 
 // currently used in myDataPage
 
