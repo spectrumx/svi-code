@@ -53,7 +53,7 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
   return (
     <div>
       <h5>Details</h5>
-      <Table striped bordered size="sm">
+      <Table striped bordered size="sm" className="scan-details-table">
         <tbody>
           <DetailRow
             label="Node"
