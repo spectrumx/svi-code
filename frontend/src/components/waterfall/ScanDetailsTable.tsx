@@ -1,7 +1,7 @@
 import { Table } from 'react-bootstrap';
 import _ from 'lodash';
 
-import { formatHertz } from './index';
+import { formatHertz } from '../../utils/utils';
 import { RadioHoundFile } from './types';
 
 interface DetailRowProps {

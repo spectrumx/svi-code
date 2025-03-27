@@ -28,7 +28,7 @@ def format_local_capture(capture: dict) -> dict:
     """
     # TODO: Fix this function, as the Capture model doesn't have some of these fields
     # it's trying to access
-    timestamp = capture.get("timestamp", "")
+    timestamp = capture.get("timestamp")
     scan_time = capture.get("scan_time")
 
     return {
@@ -41,8 +41,8 @@ def format_local_capture(capture: dict) -> dict:
         "files": capture["files"],
         "owner": capture["owner"],
         "type": capture["type"],
-        "min_freq": capture.get("metadata", {}).get("fmin", ""),
-        "max_freq": capture.get("metadata", {}).get("fmax", ""),
+        "min_freq": capture.get("metadata", {}).get("fmin", None),
+        "max_freq": capture.get("metadata", {}).get("fmax", None),
         "scan_time": scan_time,
         "end_time": calculate_end_time(timestamp, scan_time),
     }

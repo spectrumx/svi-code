@@ -31,19 +31,18 @@ body {
   padding: 0 20px;
 }
 
-/* Rainbow Bar */
 .rainbow-bar {
   height: 4px;
   width: 100%;
   background: linear-gradient(
     to right,
-    #ff0000,
-    /* Red */ #ff7f00,
-    /* Orange */ #ffff00,
-    /* Yellow */ #00ff00,
-    /* Green */ #0000ff,
-    /* Blue */ #4b0082,
-    /* Indigo */ #8f00ff /* Violet */
+    /* Red */ #ff0000,
+    /* Orange */ #ff7f00,
+    /* Yellow */ #ffff00,
+    /* Green */ #00ff00,
+    /* Blue */ #0000ff,
+    /* Indigo */ #4b0082,
+    /* Violet */ #8f00ff
   );
   z-index: 1001;
 }
@@ -324,4 +323,8 @@ body {
 .scan-details-table {
   table-layout: fixed;
   width: 100%;
+}
+
+.capture-table-infobox-height {
+  height: 32px;
 }
