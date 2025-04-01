@@ -47,7 +47,6 @@ def format_sds_capture(sds_capture: dict, user_id: int):
     """
     capture_props = sds_capture["capture_props"]
     metadata = capture_props["metadata"]
-    custom_fields = capture_props["custom_fields"]
 
     timestamp = capture_props["timestamp"]
     scan_time = metadata["scan_time"] or None
@@ -69,8 +68,8 @@ def format_sds_capture(sds_capture: dict, user_id: int):
         "timestamp": timestamp,
         "type": sds_capture["capture_type"],
         "source": "sds",
-        "min_freq": custom_fields["requested"]["fmin"],
-        "max_freq": custom_fields["requested"]["fmax"],
+        "min_freq": metadata["fmin"],
+        "max_freq": metadata["fmax"],
         "scan_time": scan_time,
         "end_time": calculate_end_time(timestamp, scan_time),
     }

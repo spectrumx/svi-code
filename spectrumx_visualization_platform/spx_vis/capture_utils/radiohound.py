@@ -68,6 +68,36 @@ class RadioHoundUtility(CaptureUtility):
         return oldest_timestamp
 
     @staticmethod
+    def get_frequency_range(file: UploadedFile) -> tuple[float, float]:
+        """Get the frequency range for a RadioHound file.
+
+        Args:
+            file: The uploaded RadioHound file
+
+        Returns:
+            tuple[float, float]: The frequency range for the file
+
+        Raises:
+            ValueError: If the file is not a RadioHound file
+        """
+        if not file.name.endswith(RadioHoundUtility.file_extensions):
+            error_message = f"File {file.name} is not a RadioHound file"
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+        data = json.load(file)
+        metadata = data["metadata"]
+        min_freq = metadata["fmin"]
+        max_freq = metadata["fmax"]
+
+        if min_freq is None or max_freq is None:
+            error_message = f"File {file.name} does not contain frequency range"
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+        return (min_freq, max_freq)
+
+    @staticmethod
     def get_media_type(file: UploadedFile) -> str:
         """Get the media type for a RadioHound file.
 
