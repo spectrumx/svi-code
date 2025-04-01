@@ -21,15 +21,6 @@ import {
 import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 import { formatHertz } from '../utils/utils';
 
-export interface CaptureTableProps {
-  captures: Capture[];
-  selectedId?: string | null;
-  onSelect?: (id: string) => void;
-  totalCaptures?: number;
-  numHiddenCaptures?: number;
-  pageSize?: number;
-}
-
 // Style object for table cells that might contain long text
 const textCellStyle = {
   maxWidth: '200px',
@@ -87,6 +78,15 @@ const PaginationControls = ({
     </div>
   );
 };
+
+export interface CaptureTableProps {
+  captures: Capture[];
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+  totalCaptures?: number;
+  numHiddenCaptures?: number;
+  pageSize?: number;
+}
 
 /**
  * Displays a table of captures with optional selection functionality and sorting
@@ -299,6 +299,7 @@ export const CaptureTable = ({
             ) : (
               `${captures.length} captures`
             )}
+            {selectedId ? ' • 1 selected' : ''}
           </span>
         </div>
         <PaginationControls table={table} position="top" />
