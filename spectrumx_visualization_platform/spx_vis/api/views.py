@@ -360,10 +360,10 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         Raises:
             ValueError: If any capture processing fails
         """
-        token = request.user.fetch_sds_token()
         logging.info("Getting SDS captures")
         sds_captures = get_sds_captures(request)
         logging.info(f"Got {len(sds_captures)} SDS captures")
+        token = request.user.fetch_sds_token()
 
         for capture_id in visualization.capture_ids:
             capture = next((c for c in sds_captures if c["id"] == capture_id), None)

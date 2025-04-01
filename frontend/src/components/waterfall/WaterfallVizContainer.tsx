@@ -25,9 +25,12 @@ export const WaterfallVizContainer = ({
 
   // We currently only support one capture per visualization, so grab the first
   // capture and use its files
-  const rhFiles = visualizationRecord.captures[0].files.map(
-    (file) => files[file.id].fileContent as RadioHoundFile,
-  );
+  const rhFiles = visualizationRecord.captures[0].files
+    .map((file) => files[file.id].fileContent as RadioHoundFile)
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
 
   if (rhFiles.length === 0) {
     return (
