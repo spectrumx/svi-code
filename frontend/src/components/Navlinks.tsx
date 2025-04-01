@@ -3,19 +3,20 @@ import Nav from 'react-bootstrap/Nav';
 import Container from 'react-bootstrap/Container';
 import Navbar from 'react-bootstrap/esm/Navbar';
 import Dropdown from 'react-bootstrap/Dropdown';
+import Spinner from 'react-bootstrap/Spinner';
 
 import { useAppContext } from '../utils/AppContext';
 import { API_HOST, getLoginUrlWithRedirect } from '../apiClient';
 
 const Navlinks = () => {
-  const { username } = useAppContext();
+  const { username, setUsername } = useAppContext();
 
   return (
     <Navbar expand="lg" className="main-nav">
       <Container className="primary-menu">
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
-        <Navbar.Collapse id="basic-navbar-nav">
-          <Nav className="me-auto">
+        <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
+          <Nav>
             <ul>
               {username && (
                 <>
@@ -26,7 +27,7 @@ const Navlinks = () => {
                 </>
               )}
               {username ? (
-                <Dropdown className="nav-item-dropdown">
+                <Dropdown className="nav-item-dropdown" align="end">
                   <Dropdown.Toggle id="dropdown-basic" className="nav-link">
                     {username}
                   </Dropdown.Toggle>
@@ -37,7 +38,20 @@ const Navlinks = () => {
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                <Nav.Link href={getLoginUrlWithRedirect('/')}>Login</Nav.Link>
+                <div className="d-flex align-items-center">
+                  {username === undefined && (
+                    <Spinner animation="border" size="sm" />
+                  )}
+                  <Nav.Link
+                    href={getLoginUrlWithRedirect('/')}
+                    onClick={() => {
+                      setUsername(undefined);
+                    }}
+                    disabled={username === undefined}
+                  >
+                    Login
+                  </Nav.Link>
+                </div>
               )}
             </ul>
           </Nav>

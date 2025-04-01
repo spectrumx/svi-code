@@ -1,9 +1,8 @@
-import { useMemo, useEffect } from 'react';
-import { Button, Table } from 'react-bootstrap';
+import { Table } from 'react-bootstrap';
 import _ from 'lodash';
 
 import { formatHertz } from './index';
-import { RadioHoundCapture } from './types';
+import { RadioHoundFile } from './types';
 
 interface DetailRowProps {
   label: string;
@@ -20,125 +19,116 @@ function DetailRow({ label, value }: DetailRowProps): JSX.Element {
 }
 
 interface ScanDetailsProps {
-  capture: RadioHoundCapture;
+  rhFile: RadioHoundFile;
 }
 
-export function ScanDetails({ capture }: ScanDetailsProps): JSX.Element {
-  const downloadUrl = useMemo(() => {
-    const blob = new Blob([JSON.stringify(capture, null, 4)], {
-      type: 'application/json',
-    });
-    return URL.createObjectURL(blob);
-  }, [capture]);
-  const fileName = useMemo(() => {
-    return `${capture.short_name} ${formatHertz(
-      capture.metadata?.fmin ?? 0,
-    )}-${formatHertz(capture.metadata?.fmax ?? 0)}.json`;
-  }, [capture]);
+export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
+  // const downloadUrl = useMemo(() => {
+  //   const blob = new Blob([JSON.stringify(capture, null, 4)], {
+  //     type: 'application/json',
+  //   });
+  //   return URL.createObjectURL(blob);
+  // }, [capture]);
+
+  // const fileName = useMemo(() => {
+  //   return `${capture.short_name} ${formatHertz(
+  //     capture.metadata?.fmin ?? 0,
+  //   )}-${formatHertz(capture.metadata?.fmax ?? 0)}.json`;
+  // }, [capture]);
 
   // Clean up the URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (downloadUrl) {
-        URL.revokeObjectURL(downloadUrl);
-      }
-    };
-  }, [downloadUrl]);
+  // useEffect(() => {
+  //   return () => {
+  //     if (downloadUrl) {
+  //       URL.revokeObjectURL(downloadUrl);
+  //     }
+  //   };
+  // }, [downloadUrl]);
 
   // Helper function to safely get nested values
-  const getCaptureValue = <T,>(
-    path: string,
-    defaultValue?: T,
-  ): T | undefined => {
-    return _.get(capture, path, defaultValue) as T;
+  const getScanValue = <T,>(path: string, defaultValue?: T): T | undefined => {
+    return _.get(rhFile, path, defaultValue) as T;
   };
 
   return (
-    <div className="px-5">
+    <div>
       <h5>Details</h5>
-      <Table striped bordered size="sm">
+      <Table striped bordered size="sm" className="scan-details-table">
         <tbody>
           <DetailRow
             label="Node"
-            value={`${getCaptureValue('short_name')}${
-              getCaptureValue('mac_address')
-                ? ` (${getCaptureValue('mac_address')})`
+            value={`${getScanValue('short_name')}${
+              getScanValue('mac_address')
+                ? ` (${getScanValue('mac_address')})`
                 : ''
             }`}
           />
           <DetailRow
             label="Scan Time"
             value={
-              getCaptureValue('metadata.scan_time')
+              getScanValue('metadata.scan_time')
                 ? `${
                     Math.round(
-                      Number(getCaptureValue('metadata.scan_time')) * 1000,
+                      Number(getScanValue('metadata.scan_time')) * 1000,
                     ) / 1000
                   }s`
                 : undefined
             }
           />
-          <DetailRow
-            label="Sample Rate"
-            value={getCaptureValue('sample_rate')}
-          />
-          <DetailRow label="Gain" value={getCaptureValue('gain')} />
+          <DetailRow label="Sample Rate" value={getScanValue('sample_rate')} />
+          <DetailRow label="Gain" value={getScanValue('gain')} />
           <DetailRow
             label="Frequency Minimum"
             value={
-              getCaptureValue('metadata.fmin')
-                ? formatHertz(getCaptureValue('metadata.fmin') as number)
+              getScanValue('metadata.fmin')
+                ? formatHertz(getScanValue('metadata.fmin') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Frequency Maximum"
             value={
-              getCaptureValue('metadata.fmax')
-                ? formatHertz(getCaptureValue('metadata.fmax') as number)
+              getScanValue('metadata.fmax')
+                ? formatHertz(getScanValue('metadata.fmax') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Number of Samples"
             value={
-              typeof getCaptureValue('metadata.xcount') === 'number'
-                ? (
-                    getCaptureValue('metadata.xcount') as number
-                  ).toLocaleString()
+              typeof getScanValue('metadata.xcount') === 'number'
+                ? (getScanValue('metadata.xcount') as number).toLocaleString()
                 : undefined
             }
           />
           <DetailRow
             label="Timestamp"
             value={
-              getCaptureValue('timestamp')
-                ? `${getCaptureValue<string>('timestamp')
-                    ?.substring(0, 19)
-                    .replace('T', ' ')} (UTC)`
+              getScanValue('timestamp')
+                ? getScanValue<string>('timestamp')
                 : undefined
             }
           />
           <DetailRow
             label="GPS Lock"
             value={
-              getCaptureValue('metadata.gps_lock') !== undefined
-                ? getCaptureValue('metadata.gps_lock')
+              getScanValue('metadata.gps_lock') !== undefined
+                ? getScanValue('metadata.gps_lock')
                   ? 'True'
                   : 'False'
                 : undefined
             }
           />
-          <DetailRow label="Job" value={getCaptureValue('metadata.name')} />
+          <DetailRow label="Job" value={getScanValue('metadata.name')} />
           <DetailRow
             label="Comments"
-            value={getCaptureValue('metadata.comments')}
+            value={getScanValue('metadata.comments')}
           />
         </tbody>
       </Table>
-      <Button as="a" href={downloadUrl} download={fileName}>
+      {/* <Button as="a" href={downloadUrl} download={fileName}>
         Download Data
-      </Button>
+      </Button> */}
     </div>
   );
 }

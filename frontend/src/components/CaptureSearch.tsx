@@ -4,17 +4,17 @@ import _ from 'lodash';
 
 import CaptureTable, { CaptureTableProps } from '../components/CaptureTable';
 import {
-  CAPTURE_TYPES,
+  CAPTURE_TYPE_INFO,
   CAPTURE_SOURCES,
   Capture,
   CaptureType,
   CaptureSource,
-} from '../apiClient/fileService';
+} from '../apiClient/captureService';
 
 interface CaptureSearchProps {
   captures: Capture[];
-  selectedCaptureIds?: number[];
-  setSelectedCaptureIds?: (ids: number[]) => void;
+  selectedCaptureIds?: string[];
+  setSelectedCaptureIds?: (ids: string[]) => void;
   tableProps?: Omit<CaptureTableProps, 'captures' | 'selectedIds' | 'onSelect'>;
   hideCaptureTypeFilter?: boolean;
 }
@@ -226,7 +226,7 @@ export const CaptureSearch = ({
             {!hideCaptureTypeFilter && (
               <Form.Group className="mb-3">
                 <h6>Capture Type</h6>
-                {Object.entries(CAPTURE_TYPES).map(([id, info]) => (
+                {Object.entries(CAPTURE_TYPE_INFO).map(([id, info]) => (
                   <Form.Check
                     key={id}
                     type="checkbox"

@@ -47,7 +47,8 @@ def login_with_redirect(request):
         request.session["login_redirect_url"] = next_url
 
     # Redirect to the Auth0 login page
-    return HttpResponseRedirect("/accounts/auth0/login/")
+    prefix = settings.FORCE_SCRIPT_NAME or ""
+    return HttpResponseRedirect(f"{prefix}/accounts/auth0/login/")
 
 
 class UserRedirectView(LoginRequiredMixin, RedirectView):

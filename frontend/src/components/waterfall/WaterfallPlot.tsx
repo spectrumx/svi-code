@@ -5,53 +5,57 @@ import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 import { ScanState, WaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
+const SCROLL_INDICATOR_SIZE = 15;
+const WATERFALL_HEIGHT = 500;
+
+const scrollIndicatorStyle: React.CSSProperties = {
+  width: 0,
+  height: 0,
+  borderLeft: `${SCROLL_INDICATOR_SIZE}px solid transparent`,
+  borderRight: `${SCROLL_INDICATOR_SIZE}px solid transparent`,
+  cursor: 'pointer',
+  margin: '0 auto',
+  display: 'block',
+};
+
+const upIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  borderBottom: `${SCROLL_INDICATOR_SIZE}px solid #808080`,
+};
+
+const downIndicatorStyle: React.CSSProperties = {
+  ...scrollIndicatorStyle,
+  borderTop: `${SCROLL_INDICATOR_SIZE}px solid #808080`,
+};
+
 interface WaterfallPlotProps {
   scan: ScanState;
   display: Display;
   setWaterfall: (waterfall: WaterfallType) => void;
   setScaleChanged: (scaleChanged: boolean) => void;
   setResetScale: (resetScale: boolean) => void;
-  currentCaptureIndex: number;
-  onCaptureSelect: (index: number) => void;
+  currentFileIndex: number;
+  onRowSelect: (index: number) => void;
   /**
-   * The indices of the captures currently being displayed in the waterfall plot.
-   * Note that the WaterfallPlot component simply displays whatever captures are
+   * The indices of the files currently being displayed in the waterfall plot.
+   * Note that the WaterfallPlot component simply displays whatever files are
    * in scan.allData; this prop just tells the component the indices of those
-   * captures within the full dataset.
+   * files within the full dataset.
    */
-  captureRange: {
+  fileRange: {
     startIndex: number;
     endIndex: number;
   };
   /**
-   * The total number of captures in the full dataset.
+   * The total number of files in the full dataset.
    */
-  totalCaptures: number;
+  totalFiles: number;
+  /**
+   * The width of the legend in pixels, including labels.
+   */
+  colorLegendWidth: number;
+  indexLegendWidth: number;
 }
-
-const scrollIndicatorStyle: React.CSSProperties = {
-  position: 'absolute',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  width: 0,
-  height: 0,
-  borderLeft: '20px solid transparent',
-  borderRight: '20px solid transparent',
-  opacity: 0.7,
-  cursor: 'pointer',
-};
-
-const upIndicatorStyle: React.CSSProperties = {
-  ...scrollIndicatorStyle,
-  top: '-25px',
-  borderBottom: '20px solid #808080',
-};
-
-const downIndicatorStyle: React.CSSProperties = {
-  ...scrollIndicatorStyle,
-  bottom: '-25px',
-  borderTop: '20px solid #808080',
-};
 
 export function WaterfallPlot({
   scan,
@@ -59,10 +63,12 @@ export function WaterfallPlot({
   setWaterfall,
   setScaleChanged,
   setResetScale,
-  currentCaptureIndex,
-  onCaptureSelect,
-  captureRange,
-  totalCaptures,
+  currentFileIndex,
+  onRowSelect,
+  fileRange,
+  totalFiles,
+  colorLegendWidth,
+  indexLegendWidth,
 }: WaterfallPlotProps) {
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,13 +79,10 @@ export function WaterfallPlot({
   const pixelRatioRef = useRef(1);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const labelWidth = 75;
-  const margin = {
-    top: 5,
-    left: 5,
-    bottom: 5,
-    right: 75,
-  };
+  // Proportion of legend width that is used for the label vs the gradient bar
+  const colorbarProportion = 0.2;
+  const labelWidth = colorLegendWidth * (1 - colorbarProportion);
+  const margin = { top: 5, bottom: 5 };
 
   // Update canvas sizes on mount
   useEffect(() => {
@@ -97,14 +100,14 @@ export function WaterfallPlot({
     const pixelRatio = window.devicePixelRatio || 1;
     pixelRatioRef.current = pixelRatio;
     const canvasWidth = Math.floor(width * pixelRatio);
-    const canvasHeight = Math.floor(500 * pixelRatio);
+    const canvasHeight = Math.floor(WATERFALL_HEIGHT * pixelRatio);
 
     // Set dimensions for both canvases
     [plotCanvas, overlayCanvas].forEach((c) => {
       c.width = canvasWidth;
       c.height = canvasHeight;
       c.style.width = `${width}px`;
-      c.style.height = '500px';
+      c.style.height = `${WATERFALL_HEIGHT}px`;
 
       // Position the canvases
       c.style.position = 'absolute';
@@ -136,7 +139,7 @@ export function WaterfallPlot({
 
     context.save();
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.translate(labelWidth + margin.left, margin.top);
+    context.translate(colorLegendWidth, margin.top);
 
     const rowFromBottom = allData.length - 1 - boxIndex;
     const boxY = Math.floor(rowFromBottom * rectHeight);
@@ -169,7 +172,7 @@ export function WaterfallPlot({
     context.restore();
 
     // Calculate the relative position within the current page
-    const relativeIndex = currentIndex - captureRange.startIndex;
+    const relativeIndex = currentIndex - fileRange.startIndex;
 
     // Only draw if the current index is within the displayed range
     if (relativeIndex >= 0 && relativeIndex < allData.length) {
@@ -184,7 +187,7 @@ export function WaterfallPlot({
     }
 
     if (hoverIndex !== null) {
-      const relativeHoverIndex = hoverIndex - captureRange.startIndex;
+      const relativeHoverIndex = hoverIndex - fileRange.startIndex;
 
       if (relativeHoverIndex >= 0 && relativeHoverIndex < allData.length) {
         drawHighlightBox(
@@ -199,7 +202,7 @@ export function WaterfallPlot({
     }
   }
 
-  function drawCaptureIndices(
+  function drawFileIndices(
     context: CanvasRenderingContext2D,
     allData: number[][],
     rectHeight: number,
@@ -214,23 +217,23 @@ export function WaterfallPlot({
     // Create white background for indices
     context.fillStyle = 'white';
     context.fillRect(
-      canvasWidth / pixelRatio - margin.right,
+      canvasWidth / pixelRatio - indexLegendWidth,
       0,
-      margin.right,
+      indexLegendWidth,
       allData.length * rectHeight + margin.top + margin.bottom,
     );
 
-    // Only draw indices if we have 5 or more captures
+    // Only draw indices if we have 5 or more rows
     if (allData.length >= 5) {
       context.font = '12px Arial';
       context.textAlign = 'left';
 
       // Show every 5th index
-      for (let i = captureRange.endIndex; i >= captureRange.startIndex; i--) {
+      for (let i = fileRange.endIndex; i >= fileRange.startIndex; i--) {
         const displayedIndex = i + 1;
-        const row = captureRange.endIndex - i;
+        const row = fileRange.endIndex - i;
         const y = margin.top + row * rectHeight;
-        const x = canvasWidth / pixelRatio - margin.right + 5;
+        const x = canvasWidth / pixelRatio - indexLegendWidth + 5;
 
         // Determine if this index should be highlighted
         const isHovered = hoveredIndex !== null && i === hoveredIndex;
@@ -251,7 +254,7 @@ export function WaterfallPlot({
   ) {
     const scanCopy = _.cloneDeep(scan);
     const displayCopy = _.cloneDeep(display);
-    const allData = scanCopy.allData as number[][];
+    const allData = scanCopy.allData;
     let redrawLegend = false;
 
     if (allData && allData.length > 0) {
@@ -262,7 +265,7 @@ export function WaterfallPlot({
 
       // Calculate available space for plotting
       const plotWidth =
-        canvas.width / pixelRatio - labelWidth - margin.left - margin.right;
+        canvas.width / pixelRatio - colorLegendWidth - indexLegendWidth;
       const plotHeight =
         canvas.height / pixelRatio - margin.top - margin.bottom;
 
@@ -369,8 +372,8 @@ export function WaterfallPlot({
         context.fillRect(0, margin.top, labelWidth, plotHeight);
 
         const gradientHeight = plotHeight - margin.top - margin.bottom;
-        const barWidth = 15;
-        const barX = 5;
+        const barWidth = colorLegendWidth * colorbarProportion;
+        const barX = 0;
         const barY = margin.top;
         const labelX = barX + barWidth + 8;
         const totalRange =
@@ -418,7 +421,7 @@ export function WaterfallPlot({
 
           // Apply the correct transform for the main plot
           context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-          context.translate(labelWidth + margin.left, margin.top);
+          context.translate(colorLegendWidth, margin.top);
 
           // Draw all data points in reverse order
           allData.forEach((row, rowIndex) => {
@@ -443,8 +446,8 @@ export function WaterfallPlot({
           console.error('Color scale is undefined');
         }
 
-        // Draw capture indices after drawing the waterfall
-        drawCaptureIndices(
+        // Draw file indices after drawing the waterfall
+        drawFileIndices(
           context,
           allData,
           rectHeight,
@@ -471,13 +474,13 @@ export function WaterfallPlot({
     const { rectHeight } = plotDimensionsRef.current;
 
     // Calculate clicked row
-    const allData = scan.allData as number[][];
+    const allData = scan.allData;
     const clickedRow = Math.floor((y - margin.top) / rectHeight);
     const clickedIndex = allData.length - 1 - clickedRow;
 
     // Validate the index is within bounds
     if (clickedIndex >= 0 && clickedIndex < allData.length) {
-      onCaptureSelect(captureRange.startIndex + clickedIndex);
+      onRowSelect(fileRange.startIndex + clickedIndex);
     }
   };
 
@@ -493,12 +496,12 @@ export function WaterfallPlot({
 
     // Calculate hovered row
     const hoveredRow = Math.floor((y - margin.top) / rectHeight);
-    const hoveredIndex = captureRange.endIndex - 1 - hoveredRow;
+    const hoveredIndex = fileRange.endIndex - 1 - hoveredRow;
 
     // Update hover state if within bounds
     if (
-      hoveredIndex >= captureRange.startIndex &&
-      hoveredIndex < captureRange.endIndex
+      hoveredIndex >= fileRange.startIndex &&
+      hoveredIndex < fileRange.endIndex
     ) {
       setHoveredIndex(hoveredIndex);
     } else {
@@ -510,16 +513,16 @@ export function WaterfallPlot({
     setHoveredIndex(null);
   };
 
-  // Draw highlight boxes and capture indices
+  // Draw highlight boxes and file indices
   useEffect(() => {
     const dimensions = plotDimensionsRef.current;
-    const allData = scan.allData as number[][];
+    const allData = scan.allData;
 
     if (dimensions && allData && allData.length > 0) {
       // Draw selection highlight
       drawHighlightBoxes(
         allData,
-        currentCaptureIndex,
+        currentFileIndex,
         dimensions.rectWidth,
         dimensions.rectHeight,
         hoveredIndex,
@@ -529,7 +532,7 @@ export function WaterfallPlot({
       if (canvas) {
         const context = canvas.getContext('2d');
         if (context) {
-          drawCaptureIndices(
+          drawFileIndices(
             context,
             allData,
             dimensions.rectHeight,
@@ -540,38 +543,54 @@ export function WaterfallPlot({
         }
       }
     }
-  }, [hoveredIndex, currentCaptureIndex, scan.allData, captureRange]);
+  }, [hoveredIndex, currentFileIndex, scan.allData, fileRange]);
+
+  const indicatorContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: `${SCROLL_INDICATOR_SIZE + 5}px`,
+    marginLeft: colorLegendWidth,
+    marginRight: indexLegendWidth,
+  };
 
   return (
-    <div style={{ width: '100%', height: '500px', position: 'relative' }}>
-      {captureRange.endIndex < totalCaptures && (
-        <div
-          style={upIndicatorStyle}
-          title="More recent captures above"
-          onClick={() => {
-            const newIndex = Math.min(totalCaptures - 1, captureRange.endIndex);
-            onCaptureSelect(newIndex);
-          }}
+    <div style={{ width: '100%' }}>
+      <div style={indicatorContainerStyle}>
+        {fileRange.endIndex < totalFiles && (
+          <div
+            style={upIndicatorStyle}
+            title="More recent scans above"
+            onClick={() => {
+              const newIndex = Math.min(totalFiles - 1, fileRange.endIndex);
+              onRowSelect(newIndex);
+            }}
+          />
+        )}
+      </div>
+      <div style={{ position: 'relative', height: `${WATERFALL_HEIGHT}px` }}>
+        <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
+        <canvas
+          ref={overlayCanvasRef}
+          style={{ display: 'block', cursor: 'pointer' }}
+          onClick={handleCanvasClick}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseLeave={handleCanvasMouseLeave}
         />
-      )}
-      <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
-      <canvas
-        ref={overlayCanvasRef}
-        style={{ display: 'block', cursor: 'pointer' }}
-        onClick={handleCanvasClick}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseLeave={handleCanvasMouseLeave}
-      />
-      {captureRange.startIndex > 0 && (
-        <div
-          style={downIndicatorStyle}
-          title="Older captures below"
-          onClick={() => {
-            const newIndex = Math.max(0, captureRange.startIndex - 1);
-            onCaptureSelect(newIndex);
-          }}
-        />
-      )}
+      </div>
+      <div style={indicatorContainerStyle}>
+        {fileRange.startIndex > 0 && (
+          <div
+            style={downIndicatorStyle}
+            title="Older scans below"
+            onClick={() => {
+              const newIndex = Math.max(0, fileRange.startIndex - 1);
+              onRowSelect(newIndex);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

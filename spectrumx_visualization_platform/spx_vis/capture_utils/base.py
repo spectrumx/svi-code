@@ -37,14 +37,14 @@ class CaptureUtility(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_capture_names(files: list[UploadedFile], name: str | None) -> list[str]:
-        """Return name(s) for capture(s) being created. These may be inferred from the
+    def get_capture_name(files: list[UploadedFile], name: str | None) -> str:
+        """Return name for capture being created. This may be inferred from the
         files or provided by the user, with extra processing sometimes necessary.
 
         Args:
             files: The uploaded capture files
-            name: The requested name for the capture(s), if provided
+            name: The requested name for the capture, if provided
 
         Returns:
-            list[str]: The inferred capture name(s)
+            str: The inferred capture name
         """

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
 import { WaterfallPlot } from './WaterfallPlot';
-import { WaterfallSettings } from '../../pages/WaterfallPage';
+import { WaterfallSettings } from './WaterfallVizContainer';
 import {
   Chart,
   Data,
@@ -11,7 +11,7 @@ import {
   FloatArray,
   ScanState,
   WaterfallType,
-  RadioHoundCapture,
+  RadioHoundFile,
   Display,
   ApplicationType,
 } from './types';
@@ -57,35 +57,60 @@ const initialDisplay: Display = {
   maxHoldValues: {},
 };
 
+// Desired margins for both periodogram and waterfall plots
+const PLOTS_LEFT_MARGIN = 85;
+const PLOTS_RIGHT_MARGIN = 30;
+// Approximate CanvasJS built-in margins we need to adjust for
+const CANVASJS_LEFT_MARGIN = 5;
+const CANVASJS_RIGHT_MARGIN = 10;
+
 const initialChart: Chart = {
   theme: 'light2',
   animationEnabled: false,
-  zoomEnabled: true,
-  zoomType: 'xy',
-  title: {
-    text: '',
-  },
-  exportEnabled: true,
+  title: {},
   data: [
     {
+      // Dummy data series so we can manipulate axisX
       _id: undefined as string | undefined,
       type: 'line',
-      dataPoints: [{ x: 1, y: 0 }],
+      dataPoints: [{ x: undefined, y: undefined }],
       name: 'template',
       showInLegend: false,
     },
-  ] as Data[],
+  ],
+  // Hide axisX and remove margin
   axisX: {
+    tickLength: 0,
+    labelFontSize: 0,
+    labelPlacement: 'inside',
+    lineThickness: 0,
+    margin: 0,
+  },
+  axisX2: {
+    interval: 2,
     title: '-',
+    titlePadding: 15,
+    titleFontSize: 16,
+    titleFontWeight: 'bold',
+    labelFontWeight: 'bold',
+    labelAngle: 90,
   },
   axisY: {
-    interval: 10,
+    interval: 20,
     includeZero: false,
     viewportMinimum: -100,
     viewportMaximum: -40,
-    title: 'dBm per bin',
-    absoluteMinimum: undefined as number | undefined,
-    absoluteMaximum: undefined as number | undefined,
+    tickLength: 0,
+    labelPlacement: 'inside',
+    labelBackgroundColor: 'white',
+    labelFormatter: (e) => {
+      // Replace minus sign with longer dash symbol for better readability
+      return e.value.toString().replace('-', '\u{2012}');
+    },
+    labelFontWeight: 'bold',
+    labelPadding: 0,
+    gridColor: '#EEEEEE',
+    margin: PLOTS_LEFT_MARGIN - CANVASJS_LEFT_MARGIN,
   },
   key: 0,
 };
@@ -95,7 +120,7 @@ const initialScan: ScanState = {
   lastScanOptions: undefined,
   receivedHeatmap: false,
   scansRequested: 0,
-  allData: [] as Data[],
+  allData: [],
   yMin: 100000,
   yMax: -100000,
   xMin: 100000,
@@ -109,25 +134,24 @@ const initialScan: ScanState = {
 export const WATERFALL_MAX_ROWS = 80;
 
 interface WaterfallVisualizationProps {
-  data: RadioHoundCapture[];
+  rhFiles: RadioHoundFile[];
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
 }
 
 const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
-  data,
+  rhFiles,
   settings,
   setSettings,
 }: WaterfallVisualizationProps) => {
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as ApplicationType[];
-  const [displayedCaptureIndex, setDisplayedCaptureIndex] = useState(
-    settings.captureIndex,
+  const [displayedFileIndex, setDisplayedFileIndex] = useState(
+    settings.fileIndex,
   );
   const [waterfallRange, setWaterfallRange] = useState({
     startIndex: 0,
     endIndex: 0,
   });
-
   const [scan, setScan] = useState<ScanState>(initialScan);
   const [display, setDisplay] = useState<Display>(initialDisplay);
   const [chart, setChart] = useState<Chart>(initialChart);
@@ -167,122 +191,156 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
   };
 
+  // Process all RadioHound files once and store the results
+  const processedData = useMemo(() => {
+    return rhFiles.map((rhFile) => {
+      let floatArray: FloatArray | number[] | undefined;
+
+      if (typeof rhFile.data === 'string') {
+        if (rhFile.data.slice(0, 8) === 'AAAAAAAA') {
+          return { floatArray: undefined, dbValues: undefined };
+        }
+        floatArray = binaryStringToFloatArray(rhFile.data, rhFile.type);
+      } else {
+        // Old RH data
+        floatArray = rhFile.data;
+      }
+
+      if (!floatArray) {
+        return { floatArray: undefined, dbValues: undefined };
+      }
+
+      const dbValues = floatArray.map((i) =>
+        Math.round(10 * Math.log10(i * 1000)),
+      ) as FloatArray | number[];
+
+      return { floatArray, dbValues };
+    });
+  }, [rhFiles]);
+
+  const globalYAxisRange = useMemo(() => {
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+
+    processedData.forEach(({ dbValues }) => {
+      if (!dbValues) return;
+
+      const minValue = _.min(dbValues);
+      const maxValue = _.max(dbValues);
+
+      if (minValue !== undefined) globalMin = Math.min(globalMin, minValue);
+      if (maxValue !== undefined) globalMax = Math.max(globalMax, maxValue);
+    });
+
+    return {
+      min: globalMin !== Infinity ? globalMin : undefined,
+      max: globalMax !== -Infinity ? globalMax : undefined,
+    };
+  }, [processedData]);
+
   /**
-   * Processes a single capture for the periodogram display
+   * Processes a single file for the periodogram display
    */
-  const processPeriodogramData = (input: RadioHoundCapture) => {
-    let dataArray: FloatArray | number[] | undefined;
-    let arrayLength: number | undefined = Number(input.metadata?.xcount);
-    const pointArr: DataPoint[] = [];
-    let yValue: number | undefined,
-      xValue: number,
-      fMin: number,
-      fMax: number,
-      freqStep: number,
-      centerFreq: number | undefined;
-    let minValue: number | undefined = 1000000;
-    let maxValue: number | undefined = -1000000;
-    let nextIndex: number;
-    const minArray: DataPoint[] = [];
+  const processPeriodogramData = (
+    rhFile: RadioHoundFile,
+    processedValues: (typeof processedData)[number],
+  ) => {
+    let fMin: number;
+    let fMax: number;
+
+    const requested =
+      rhFile.custom_fields?.requested ?? rhFile.requested ?? undefined;
+
+    // Multiple branches to handle both new and old RH data
+    if (requested && requested.fmin && requested.fmax) {
+      fMin = requested.fmin;
+      fMax = requested.fmax;
+    } else if (rhFile.metadata.fmin && rhFile.metadata.fmax) {
+      fMin = rhFile.metadata.fmin;
+      fMax = rhFile.metadata.fmax;
+    } else if (rhFile.metadata.xstart && rhFile.metadata.xstop) {
+      fMin = rhFile.metadata.xstart;
+      fMax = rhFile.metadata.xstop;
+    } else if (rhFile.center_frequency) {
+      fMin = rhFile.center_frequency - rhFile.sample_rate / 2;
+      fMax = rhFile.center_frequency + rhFile.sample_rate / 2;
+    } else {
+      throw new Error('No frequency range found');
+    }
+
+    let freqStep: number;
+    let centerFreq: number;
+
+    // Multiple branches to handle both new and old RH data
+    if (rhFile.center_frequency) {
+      freqStep = rhFile.sample_rate / rhFile.metadata.nfft;
+      centerFreq = rhFile.center_frequency;
+    } else if (rhFile.metadata.xcount) {
+      freqStep = (fMax - fMin) / rhFile.metadata.xcount;
+      centerFreq = (fMax + fMin) / 2;
+    } else {
+      freqStep = rhFile.sample_rate / rhFile.metadata.nfft;
+      centerFreq = (fMax + fMin) / 2;
+    }
+
     let m4sMin: FloatArray | undefined;
-    const maxArray: DataPoint[] = [];
     let m4sMax: FloatArray | undefined;
-    const meanArray: DataPoint[] = [];
     let m4sMean: FloatArray | undefined;
-    const medianArray: DataPoint[] = [];
     let m4sMedian: FloatArray | undefined;
 
-    // Check for Base64 encoding and decode it
     if (
-      typeof input.data === 'string'
-      // && input.metadata?.data_type === 'periodogram'
+      rhFile.m4s_min &&
+      rhFile.m4s_max &&
+      rhFile.m4s_mean &&
+      rhFile.m4s_median
     ) {
-      // Null data can get base64 encoded and sent along which appears as all A's
-      // Check start of string for A's and skip processing.
-      if (input.data.slice(0, 8) === 'AAAAAAAA') {
-        console.error('Invalid data, not processing', input['data']);
-        return;
-      }
-      // console.log("data before decoding: ", input['data']);
-      // console.log("bytestring", String.fromCharCode.apply(input['data']))
-      dataArray = binaryStringToFloatArray(input['data'], input['type']);
-      arrayLength = dataArray?.length;
-      // console.log("Decoding B64 data to:",dataArray);
-    } else {
-      dataArray = input.data;
-    }
-
-    if (input.metadata?.xstart == null) {
-      // OLD
-      fMin = Number(input.center_frequency) - Number(input.sample_rate) / 2;
-      fMax = Number(input.center_frequency) + Number(input.sample_rate) / 2;
-      freqStep = Number(input.sample_rate) / Number(input.metadata?.nfft);
-      centerFreq = input.center_frequency;
-    } else {
-      // NEW Icarus
-      fMin = Number(input.metadata.xstart);
-      fMax = Number(input.metadata.xstop);
-      freqStep =
-        (Number(input.metadata.xstop) - Number(input.metadata.xstart)) /
-        Number(input.metadata.xcount);
-      centerFreq =
-        (Number(input.metadata.xstop) + Number(input.metadata.xstart)) / 2;
-    }
-
-    if (input.m4s_min && input.m4s_max && input.m4s_mean && input.m4s_median) {
-      m4sMin = binaryStringToFloatArray(input.m4s_min, input.type);
-      m4sMax = binaryStringToFloatArray(input.m4s_max, input.type);
-      m4sMean = binaryStringToFloatArray(input.m4s_mean, input.type);
-      m4sMedian = binaryStringToFloatArray(input.m4s_median, input.type);
+      m4sMin = binaryStringToFloatArray(rhFile.m4s_min, rhFile.type);
+      m4sMax = binaryStringToFloatArray(rhFile.m4s_max, rhFile.type);
+      m4sMean = binaryStringToFloatArray(rhFile.m4s_mean, rhFile.type);
+      m4sMedian = binaryStringToFloatArray(rhFile.m4s_median, rhFile.type);
     }
 
     const tmpDisplay = _.cloneDeep(display);
 
-    const yValues = dataArray?.map((i) =>
-      Math.round(10 * Math.log10(i * 1000)),
-    );
-    minValue = yValues ? _.min(yValues) : undefined;
-    maxValue = yValues ? _.max(yValues) : undefined;
+    // Use pre-processed data
+    const dataArray = processedValues.floatArray;
 
     if (
-      input.mac_address &&
-      (display.maxHoldValues[input.mac_address] === undefined ||
-        dataArray?.length !== display.maxHoldValues[input.mac_address].length)
+      display.maxHoldValues[rhFile.mac_address] === undefined ||
+      dataArray?.length !== display.maxHoldValues[rhFile.mac_address].length
     ) {
-      // console.log('resetting', dataArray.length, scan_display.maxHoldValues[input.mac_address].length)
-      tmpDisplay.maxHoldValues[input.mac_address] = [];
+      tmpDisplay.maxHoldValues[rhFile.mac_address] = [];
     }
 
-    if (dataArray && arrayLength) {
-      for (let i = 0; i < arrayLength; i++) {
-        if (dataArray[i] > 0) {
-          // yValue = Math.round(10 * ((Math.log(dataArray[i] * 1000)) / Math.log(10)));
-          yValue = yValues?.[i];
-        } else {
-          yValue = dataArray[i];
-        }
+    const yValues = processedValues.dbValues;
+    const arrayLength = dataArray?.length ?? rhFile.metadata.xcount;
+    const pointArr: DataPoint[] = [];
+    const minArray: DataPoint[] = [];
+    const maxArray: DataPoint[] = [];
+    const meanArray: DataPoint[] = [];
+    const medianArray: DataPoint[] = [];
+    let yValue: number | undefined;
+    let xValue: number;
 
-        if (yValue) {
+    if (dataArray && arrayLength && yValues) {
+      for (let i = 0; i < arrayLength; i++) {
+        yValue = yValues[i];
+        if (yValue !== undefined) {
           xValue = (fMin + i * freqStep) / 1000000;
-          //console.log("xvalue:",xValue,"yValue:",yValue);
           pointArr.push({ x: xValue, y: yValue });
-          // if (yValue < minValue) { minValue = yValue; }
-          // if (yValue > maxValue) { maxValue = yValue; }
 
           if (display.max_hold) {
-            // console.log("comparing", yValue,tmp_display.maxHoldValues[input.mac_address][i], tmp_display.maxHoldValues[input.mac_address].length)
-            if (tmpDisplay.maxHoldValues[input.mac_address].length <= i) {
-              tmpDisplay.maxHoldValues[input.mac_address].push({
+            if (tmpDisplay.maxHoldValues[rhFile.mac_address].length <= i) {
+              tmpDisplay.maxHoldValues[rhFile.mac_address].push({
                 x: xValue,
                 y: yValue,
               });
             } else {
               const maxHoldValuesY =
-                tmpDisplay.maxHoldValues[input.mac_address][i].y;
+                tmpDisplay.maxHoldValues[rhFile.mac_address][i].y;
 
               if (maxHoldValuesY && yValue > maxHoldValuesY) {
-                //compare y value
-                tmpDisplay.maxHoldValues[input.mac_address][i] = {
+                tmpDisplay.maxHoldValues[rhFile.mac_address][i] = {
                   x: xValue,
                   y: yValue,
                 };
@@ -290,7 +348,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             }
           }
 
-          if ('m4s_min' in input) {
+          if ('m4s_min' in rhFile) {
             minArray.push({ x: xValue, y: m4sMin?.[i] });
             maxArray.push({ x: xValue, y: m4sMax?.[i] });
             meanArray.push({ x: xValue, y: m4sMean?.[i] });
@@ -301,14 +359,16 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
 
     const tmpChart = _.cloneDeep(chart);
+    let nextIndex = 0;
 
-    if (tmpChart.data === undefined || tmpChart.data[0].name === 'template') {
+    if (tmpChart.data === undefined) {
       tmpChart.data = [];
-      nextIndex = 0;
+    } else if (tmpChart.data[0].name === 'template') {
+      nextIndex = 1;
     } else {
       //Find index for this node
       nextIndex = tmpChart.data.findIndex(
-        (element) => element._id === input.mac_address,
+        (element) => element._id === rhFile.mac_address,
       );
       if (nextIndex === -1) {
         nextIndex = tmpChart.data.length;
@@ -319,25 +379,35 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     tmpChart.data[nextIndex] = {
       dataPoints: pointArr,
       type: 'line',
+      axisXType: 'secondary',
       showInLegend: true,
       name:
-        input.short_name +
+        rhFile.short_name +
         ' (' +
-        input.mac_address?.substring(input.mac_address.length - 4) +
+        rhFile.mac_address.substring(rhFile.mac_address.length - 4) +
         ')',
-      toolTipContent: input.short_name + ': {x}, {y}',
-      _id: input.mac_address,
+      toolTipContent: rhFile.short_name + ': {x}, {y}',
+      _id: rhFile.mac_address,
     };
-    tmpChart.axisX.title =
+
+    // Ensure axisX exists and isn't an array.
+    // IMPORTANT: This is what allows us to assert that axisX exists in the
+    // following code with the ! operator.
+    if (!('axisX2' in tmpChart) || Array.isArray(tmpChart.axisX2)) {
+      tmpChart.axisX2 = {};
+    }
+
+    tmpChart.axisX2!.title =
       'Frequency ' + (centerFreq ? formatHertz(centerFreq) : '');
-    if (input.requested) {
-      tmpChart.axisX.title += input.requested.rbw
-        ? ', RBW ' + formatHertz(input.requested.rbw)
+    if (rhFile.requested) {
+      tmpChart.axisX2!.title += rhFile.requested.rbw
+        ? ', RBW ' + formatHertz(rhFile.requested.rbw)
         : '';
-      tmpChart.axisX.title += input.requested.span
-        ? ', Span ' + formatHertz(input.requested.span)
+      tmpChart.axisX2!.title += rhFile.requested.span
+        ? ', Span ' + formatHertz(rhFile.requested.span)
         : '';
     }
+
     // if (CurrentApplication === DEFS.APPLICATION_PERIODOGRAM_MULTI)
     // {
     // }
@@ -350,17 +420,17 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     // }
 
     if (_.isEqual(currentApplication, ['WATERFALL'])) {
-      tmpChart.axisX.title = '';
+      tmpChart.axisX2!.title = '';
       tmpChart.data[nextIndex].showInLegend = false;
-      tmpChart.data[nextIndex].name = input.short_name;
+      tmpChart.data[nextIndex].name = rhFile.short_name;
     }
 
     if (
       display.max_hold &&
-      display.maxHoldValues[input.mac_address].length > 0
+      display.maxHoldValues[rhFile.mac_address].length > 0
     ) {
       nextIndex = tmpChart.data.findIndex(
-        (element) => element._id === 'maxhold_' + input.mac_address,
+        (element) => element._id === 'maxhold_' + rhFile.mac_address,
       );
       if (nextIndex === -1) {
         nextIndex = tmpChart.data.length;
@@ -370,10 +440,10 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         ..._.cloneDeep(tmpChart.data[nextIndex - 1]),
         name:
           'Max Hold (' +
-          input.mac_address?.substring(input.mac_address.length - 4) +
+          rhFile.mac_address.substring(rhFile.mac_address.length - 4) +
           ')',
-        _id: 'maxhold_' + input.mac_address,
-        dataPoints: tmpDisplay.maxHoldValues[input.mac_address],
+        _id: 'maxhold_' + rhFile.mac_address,
+        dataPoints: tmpDisplay.maxHoldValues[rhFile.mac_address],
         toolTipContent: 'Max : {x}, {y}',
       };
 
@@ -382,7 +452,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       }
     }
 
-    if ('m4s_min' in input) {
+    if ('m4s_min' in rhFile) {
       nextIndex += 1;
       tmpChart.data[nextIndex] = _.cloneDeep(tmpChart.data[nextIndex - 1]);
       tmpChart.data[nextIndex].name = 'M4S Min';
@@ -408,108 +478,118 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpChart.data[nextIndex].toolTipContent = 'Median : {x}, {y}';
     }
 
-    // Determine viewing area based off min/max
-    if (
-      maxValue &&
-      (tmpChart.axisY.viewportMaximum === undefined ||
-        maxValue > tmpChart.axisY.viewportMaximum)
-    ) {
-      tmpChart.axisY.viewportMaximum = Number(maxValue) + 10;
-      //console.log("resetting maxValue", maxValue);
+    // Hide legend if there is only one data series to show in the legend
+    let seriesWithLegendIndex = -1;
+    let showLegend = false;
+    for (let i = 0; i < tmpChart.data.length; i++) {
+      if (tmpChart.data[i].showInLegend) {
+        if (seriesWithLegendIndex === -1) {
+          // We've found the first series to show in the legend
+          seriesWithLegendIndex = i;
+        } else {
+          // We've found a second series to show in the legend
+          showLegend = true;
+          break;
+        }
+      }
     }
-    if (
-      minValue &&
-      (tmpChart.axisY.viewportMinimum === undefined ||
-        minValue < tmpChart.axisY.viewportMinimum)
-      // || minValue * 1.1 < tmpChart.axisY.viewportMinimum
-    ) {
-      tmpChart.axisY.viewportMinimum = Number(minValue) - 10;
-      //console.log("resetting minValue", minValue);
+    if (seriesWithLegendIndex !== -1 && !showLegend) {
+      tmpChart.data[seriesWithLegendIndex].showInLegend = false;
+    }
+
+    // Ensure axisY exists and isn't an array.
+    // IMPORTANT: This is what allows us to assert that axisY exists in the
+    // following code with the ! operator.
+    if (!('axisY' in tmpChart) || Array.isArray(tmpChart.axisY)) {
+      tmpChart.axisY = {};
+    }
+
+    // Determine viewing area based off global min/max
+    if (globalYAxisRange.max !== undefined) {
+      tmpChart.axisY!.viewportMaximum = globalYAxisRange.max + 10;
+    }
+    if (globalYAxisRange.min !== undefined) {
+      tmpChart.axisY!.viewportMinimum = globalYAxisRange.min - 10;
     }
 
     if (display.ref_level !== undefined) {
-      tmpChart.axisY.viewportMaximum = display.ref_level;
+      tmpChart.axisY!.viewportMaximum = display.ref_level;
     }
     if (display.ref_range !== undefined) {
-      tmpChart.axisY.viewportMinimum =
+      tmpChart.axisY!.viewportMinimum =
         Number(display.ref_level) - display.ref_range;
     }
     if (display.ref_interval !== undefined) {
-      tmpChart.axisY.interval = display.ref_interval;
+      tmpChart.axisY!.interval = display.ref_interval;
     }
 
     if (currentApplication.includes('PERIODOGRAM')) {
-      tmpChart.axisX.minimum = fMin / 1e6;
-      tmpChart.axisX.maximum = fMax / 1e6;
+      tmpChart.axisX2!.minimum = fMin / 1e6;
+      tmpChart.axisX2!.maximum = fMax / 1e6;
     } else {
-      delete tmpChart.axisX.minimum;
-      delete tmpChart.axisX.maximum;
+      delete tmpChart.axisX2!.minimum;
+      delete tmpChart.axisX2!.maximum;
+    }
+
+    // Move dummy series to the end of the data array to maintain correct data
+    // series colors
+    if (tmpChart.data[0].name === 'template') {
+      tmpChart.data.push(tmpChart.data.shift()!);
     }
 
     if (!_.isEqual(chart, tmpChart)) {
       tmpChart.key = Math.random();
       setChart(tmpChart);
-      setDisplayedCaptureIndex(settings.captureIndex);
+      setDisplayedFileIndex(settings.fileIndex);
     }
   };
 
   /**
-   * Processes multiple captures for the waterfall display
+   * Processes multiple files for the waterfall display
    */
-  const processWaterfallData = (captures: RadioHoundCapture[]) => {
-    const processedData: number[][] = [];
+  const processWaterfallData = (
+    rhFiles: RadioHoundFile[],
+    processedValues: typeof processedData,
+  ) => {
+    const processedWaterfallData: number[][] = [];
     let globalMinValue = 100000;
     let globalMaxValue = -100000;
     let xMin = Infinity;
     let xMax = -Infinity;
 
-    captures.forEach((capture) => {
-      let dataArray: FloatArray | number[] | undefined;
-      // const arrayLength = Number(capture.metadata?.xcount);
+    rhFiles.forEach((rhFile, index) => {
+      const processedFile = processedValues[index];
+      const yValues = processedFile.dbValues;
 
-      if (typeof capture.data === 'string') {
-        if (capture.data.slice(0, 8) === 'AAAAAAAA') {
-          console.error('Invalid data, skipping capture');
-          return;
-        }
-        dataArray = binaryStringToFloatArray(capture.data, capture.type);
-      } else {
-        dataArray = capture.data;
-      }
-
-      if (!dataArray) return;
-
-      // Convert to dB values
-      // const intArray: number[] = [];
-      const yValues = dataArray.map((i) =>
-        Math.round(10 * Math.log10(i * 1000)),
-      );
+      if (!yValues) return;
 
       // Update global min/max
       const minValue = _.min(yValues);
       const maxValue = _.max(yValues);
-      globalMinValue = minValue
-        ? Math.min(globalMinValue, minValue)
-        : globalMinValue;
-      globalMaxValue = maxValue
-        ? Math.max(globalMaxValue, maxValue)
-        : globalMaxValue;
+      globalMinValue =
+        minValue !== undefined
+          ? Math.min(globalMinValue, minValue)
+          : globalMinValue;
+      globalMaxValue =
+        maxValue !== undefined
+          ? Math.max(globalMaxValue, maxValue)
+          : globalMaxValue;
 
       // Update x range
       let currentXMin = Infinity;
       let currentXMax = -Infinity;
-      if (capture.metadata?.xstart && capture.metadata?.xstop) {
-        currentXMin = capture.metadata.xstart;
-        currentXMax = capture.metadata.xstop;
-      } else if (capture.center_frequency && capture.sample_rate) {
-        currentXMin = capture.center_frequency - capture.sample_rate / 2;
-        currentXMax = capture.center_frequency + capture.sample_rate / 2;
+      if (rhFile.metadata.xstart && rhFile.metadata.xstop) {
+        currentXMin = rhFile.metadata.xstart;
+        currentXMax = rhFile.metadata.xstop;
+      } else if (rhFile.center_frequency && rhFile.sample_rate) {
+        currentXMin = rhFile.center_frequency - rhFile.sample_rate / 2;
+        currentXMax = rhFile.center_frequency + rhFile.sample_rate / 2;
       }
       xMin = Math.min(xMin, currentXMin);
       xMax = Math.max(xMax, currentXMax);
 
       // Store processed values
-      processedData.push(Array.from(yValues));
+      processedWaterfallData.push(Array.from(yValues));
     });
 
     setDisplay((prevDisplay) => ({
@@ -520,7 +600,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     // Update waterfall state
     const newWaterfall: WaterfallType = {
-      allData: processedData,
+      allData: processedWaterfallData,
       xMin: xMin / 1e6,
       xMax: xMax / 1e6,
       yMin: globalMinValue,
@@ -533,56 +613,63 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   };
 
   useEffect(() => {
-    // Process single capture for periodogram
-    processPeriodogramData(data[settings.captureIndex]);
-  }, [data, settings.captureIndex]);
+    // Process single file for periodogram
+    processPeriodogramData(
+      rhFiles[settings.fileIndex],
+      processedData[settings.fileIndex],
+    );
+  }, [rhFiles, processedData, settings.fileIndex]);
 
   useEffect(() => {
     const pageSize = WATERFALL_MAX_ROWS;
 
     // Check if the requested index is outside current window
     const isOutsideCurrentWindow =
-      settings.captureIndex < waterfallRange.startIndex ||
-      settings.captureIndex >= waterfallRange.endIndex;
+      settings.fileIndex < waterfallRange.startIndex ||
+      settings.fileIndex >= waterfallRange.endIndex;
 
     if (isOutsideCurrentWindow) {
       // Calculate new start index only when moving outside current window
       const idealStartIndex =
-        Math.floor(settings.captureIndex / pageSize) * pageSize;
-      const lastPossibleStartIndex = Math.max(0, data.length - pageSize);
+        Math.floor(settings.fileIndex / pageSize) * pageSize;
+      const lastPossibleStartIndex = Math.max(0, rhFiles.length - pageSize);
       const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
-      const endIndex = Math.min(data.length, startIndex + pageSize);
+      const endIndex = Math.min(rhFiles.length, startIndex + pageSize);
 
       // Only reprocess waterfall if the range has changed
       if (
         startIndex !== waterfallRange.startIndex ||
         endIndex !== waterfallRange.endIndex
       ) {
-        const relevantCaptures = data.slice(startIndex, endIndex);
-        processWaterfallData(relevantCaptures);
+        const relevantFiles = rhFiles.slice(startIndex, endIndex);
+        const relevantProcessedValues = processedData.slice(
+          startIndex,
+          endIndex,
+        );
+        processWaterfallData(relevantFiles, relevantProcessedValues);
         setWaterfallRange({ startIndex, endIndex });
       }
     }
-  }, [data, settings.captureIndex, waterfallRange]);
+  }, [rhFiles, processedData, settings.fileIndex, waterfallRange]);
 
   // Handle realtime playback
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
 
-    // Pre-compute timestamps for all captures
-    const timestamps = data.map((capture) =>
-      capture.timestamp ? Date.parse(capture.timestamp) : 0,
+    // Pre-compute timestamps for all files
+    const timestamps = rhFiles.map((rhFile) =>
+      rhFile.timestamp ? Date.parse(rhFile.timestamp) : 0,
     );
 
     // Store the start time and reference points
-    const startTimestamp = timestamps[settings.captureIndex];
+    const startTimestamp = timestamps[settings.fileIndex];
     const startTime = Date.now();
 
     const realtimeInterval = setInterval(() => {
       const elapsedRealTime = Date.now() - startTime;
 
       setSettings((prev) => {
-        let targetIndex = prev.captureIndex;
+        let targetIndex = prev.fileIndex;
         while (targetIndex < timestamps.length - 1) {
           const nextTimestamp = timestamps[targetIndex + 1];
           if (nextTimestamp - startTimestamp > elapsedRealTime) {
@@ -591,11 +678,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           targetIndex++;
         }
 
-        if (targetIndex !== prev.captureIndex) {
+        if (targetIndex !== prev.fileIndex) {
           return {
             ...prev,
-            captureIndex: targetIndex,
-            isPlaying: targetIndex < data.length - 1,
+            fileIndex: targetIndex,
+            isPlaying: targetIndex < rhFiles.length - 1,
           };
         }
         return prev;
@@ -603,7 +690,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }, 20);
 
     return () => clearInterval(realtimeInterval);
-  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
+  }, [settings.isPlaying, settings.playbackSpeed, rhFiles.length, setSettings]);
 
   // Handle constant FPS playback
   useEffect(() => {
@@ -616,48 +703,69 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const intervalTime = 1000 / speed;
     const playbackInterval = setInterval(() => {
       setSettings((prev) => {
-        const nextIndex = prev.captureIndex + 1;
+        const nextIndex = prev.fileIndex + 1;
         // Stop playback at the end
-        if (nextIndex >= data.length) {
+        if (nextIndex >= rhFiles.length) {
           return { ...prev, isPlaying: false };
         }
-        return { ...prev, captureIndex: nextIndex };
+        return { ...prev, fileIndex: nextIndex };
       });
     }, intervalTime);
 
     return () => clearInterval(playbackInterval);
-  }, [settings.isPlaying, settings.playbackSpeed, data.length, setSettings]);
+  }, [settings.isPlaying, settings.playbackSpeed, rhFiles.length, setSettings]);
 
-  const handleCaptureSelect = (index: number) => {
-    // Update the settings with the new capture index
+  const handleRowSelect = (index: number) => {
+    // Update the settings with the new file index
     setSettings((prev) => ({
       ...prev,
-      captureIndex: index,
+      fileIndex: index,
       isPlaying: false,
     }));
   };
 
   return (
-    <>
+    <div>
       <h5>
-        Capture {displayedCaptureIndex + 1} (
-        {data[displayedCaptureIndex].timestamp} UTC)
+        Scan {displayedFileIndex + 1} ({rhFiles[displayedFileIndex].timestamp})
       </h5>
-      <Periodogram chart={chart} />
-      <br />
-      <br />
+      <Periodogram
+        chartOptions={chart}
+        chartContainerStyle={{
+          height: 200,
+          paddingRight: PLOTS_RIGHT_MARGIN - CANVASJS_RIGHT_MARGIN,
+          paddingTop: 0,
+          paddingBottom: 0,
+        }}
+        yAxisTitle="dBm per bin"
+      />
+      {/* Div to test left plot margins */}
+      {/* <div
+        style={{ width: PLOTS_LEFT_MARGIN, height: 30, backgroundColor: 'red' }}
+      /> */}
+      {/* Div to test right plot margins */}
+      {/* <div
+        style={{
+          width: PLOTS_RIGHT_MARGIN,
+          height: 30,
+          backgroundColor: 'blue',
+          float: 'right',
+        }}
+      /> */}
       <WaterfallPlot
         scan={scan}
         display={display}
         setWaterfall={setWaterfall}
         setScaleChanged={setScaleChanged}
         setResetScale={setResetScale}
-        currentCaptureIndex={settings.captureIndex}
-        onCaptureSelect={handleCaptureSelect}
-        captureRange={waterfallRange}
-        totalCaptures={data.length}
+        currentFileIndex={settings.fileIndex}
+        onRowSelect={handleRowSelect}
+        fileRange={waterfallRange}
+        totalFiles={rhFiles.length}
+        colorLegendWidth={PLOTS_LEFT_MARGIN}
+        indexLegendWidth={PLOTS_RIGHT_MARGIN}
       />
-    </>
+    </div>
   );
 };
 

@@ -3,25 +3,23 @@ import { Link } from 'react-router';
 
 import {
   Capture,
-  CAPTURE_TYPES,
+  CAPTURE_TYPE_INFO,
   CAPTURE_SOURCES,
-} from '../apiClient/fileService';
-import { VISUALIZATION_TYPES } from '../pages/NewVisualizationPage';
+} from '../apiClient/captureService';
+import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 
 export interface CaptureTableProps {
   captures: Capture[];
-  selectedIds?: number[] | null;
-  onSelect?: (ids: number[]) => void;
+  selectedIds?: string[] | null;
+  onSelect?: (ids: string[]) => void;
   selectionMode?: 'single' | 'multiple';
   totalCaptures?: number;
   numHiddenCaptures?: number;
 }
 
-// Add a style object for table cells that might contain long text
+// Style object for table cells that might contain long text
 const textCellStyle = {
   maxWidth: '200px',
-  wordBreak: 'break-all' as const,
-  overflowWrap: 'break-word' as const,
 };
 
 /**
@@ -34,10 +32,9 @@ const CaptureTable = ({
   onSelect,
   selectionMode = 'single',
   totalCaptures,
-  numHiddenCaptures: hiddenCaptures,
+  numHiddenCaptures,
 }: CaptureTableProps) => {
-  // Helper function to handle selection
-  const handleSelect = (id: number) => {
+  const handleSelect = (id: string) => {
     if (!onSelect) return;
 
     if (selectionMode === 'single') {
@@ -75,9 +72,10 @@ const CaptureTable = ({
     >
       <div
         style={{
-          padding: '0.5rem 1rem',
+          padding: '0 1rem',
           fontSize: '0.9rem',
           color: '#6c757d',
+          height: '25px',
         }}
         role="status"
         aria-live="polite"
@@ -86,7 +84,9 @@ const CaptureTable = ({
           {totalCaptures !== undefined ? (
             <>
               Showing {captures.length} of {totalCaptures} captures
-              {hiddenCaptures ? ` (${hiddenCaptures} hidden by filters)` : ''}
+              {numHiddenCaptures
+                ? ` (${numHiddenCaptures} hidden by filters)`
+                : ''}
             </>
           ) : (
             `${captures.length} captures`
@@ -95,12 +95,7 @@ const CaptureTable = ({
         </span>
       </div>
 
-      <div
-        style={{
-          overflowY: 'auto',
-          flex: 1,
-        }}
-      >
+      <div style={{ overflowY: 'auto', flex: 1 }}>
         <Table striped bordered hover responsive style={{ marginBottom: 0 }}>
           <thead>
             <tr>
@@ -126,7 +121,7 @@ const CaptureTable = ({
                   )}
                 </th>
               )}
-              <th style={{ maxWidth: '80px' }}>ID</th>
+              <th style={textCellStyle}>ID</th>
               <th style={textCellStyle}>Name</th>
               <th style={{ maxWidth: '200px' }}>Timestamp</th>
               <th style={{ maxWidth: '120px' }}>Type</th>
@@ -156,13 +151,6 @@ const CaptureTable = ({
                 const visualizationType = VISUALIZATION_TYPES.find((visType) =>
                   visType.supportedCaptureTypes.includes(capture.type),
                 );
-                const captureIdParam =
-                  visualizationType?.name === 'waterfall'
-                    ? `?captures=${capture.id}`
-                    : visualizationType?.name === 'spectrogram'
-                      ? `/${capture.id}`
-                      : '';
-
                 const isSelected = selectedIds?.includes(capture.id);
 
                 return (
@@ -194,7 +182,9 @@ const CaptureTable = ({
                         />
                       </td>
                     )}
-                    <td className="align-middle">{capture.id}</td>
+                    <td className="align-middle" style={textCellStyle}>
+                      {capture.id}
+                    </td>
                     <td className="align-middle" style={textCellStyle}>
                       {capture.name}
                     </td>
@@ -207,7 +197,7 @@ const CaptureTable = ({
                         : 'None'}
                     </td>
                     <td className="align-middle">
-                      {CAPTURE_TYPES[capture.type].name}
+                      {CAPTURE_TYPE_INFO[capture.type].name}
                     </td>
                     <td className="align-middle">{capture.files.length}</td>
                     <td className="align-middle">
@@ -216,7 +206,7 @@ const CaptureTable = ({
                     {!onSelect && captures.length > 0 && visualizationType ? (
                       <td className="align-middle text-center">
                         <Link
-                          to={`/visualization/${visualizationType.name}${captureIdParam}`}
+                          to={`/visualization/new?captureType=${capture.type}&vizType=${visualizationType.name}&selectedCaptures=${capture.id}`}
                           className="btn btn-primary btn-sm px-4"
                         >
                           Visualize

@@ -1,0 +1,17 @@
+.visualization-card {
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.visualization-card:hover,
+.visualization-card:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.visualization-card:focus {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+}
