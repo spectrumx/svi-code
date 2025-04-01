@@ -46,10 +46,10 @@ export const CAPTURE_TYPE_INFO: Record<CaptureType, CaptureTypeInfo> = {
 
 export const CAPTURE_SOURCES = {
   sds: { name: 'SDS' },
-  svi_public: { name: 'SVI Public' },
   svi_user: { name: 'SVI User' },
+  svi_public: { name: 'SVI Public' },
 } as const;
-export const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
+export const CaptureSourceSchema = zod.enum(['sds', 'svi_user', 'svi_public']);
 export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
 export const CaptureSchema = zod.object({
