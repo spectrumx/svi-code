@@ -1,11 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Row, Col, Card } from 'react-bootstrap';
+import { Row, Col, Card, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import _ from 'lodash';
 
 import Button from '../components/Button';
 import { useAppContext } from '../utils/AppContext';
-import { SpectrogramSettings } from '../components/spectrogram/SpectrogramVizContainer';
 import {
   useSyncCaptures,
   CaptureType,
@@ -15,14 +14,13 @@ import {
   postVisualization,
   VisualizationType,
   VISUALIZATION_TYPES,
-  VisualizationTypeInfo,
 } from '../apiClient/visualizationService';
 import CaptureSearch from '../components/CaptureSearch';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
- * A wizard-style page for creating new visualizations
- * Guides users through selecting data source, visualization type, and configuration
+ * A simplified wizard-style page for creating new visualizations
+ * Guides users through selecting a capture and visualization type
  */
 const NewVisualizationPage = () => {
   const navigate = useNavigate();
@@ -31,101 +29,59 @@ const NewVisualizationPage = () => {
   const syncCaptures = useSyncCaptures();
   const [isFetchingCaptures, setIsFetchingCaptures] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedCaptureType, setSelectedCaptureType] =
-    useState<CaptureType | null>(null);
+  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(
+    null,
+  );
   const [selectedVizType, setSelectedVizType] =
     useState<VisualizationType | null>(null);
-  const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
-  const [spectrogramSettings, setSpectrogramSettings] =
-    useState<SpectrogramSettings>({
-      fftSize: 1024,
-    });
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Handle URL query parameters
   useEffect(() => {
-    const captureType = searchParams.get('captureType') as CaptureType | null;
+    const captureId = searchParams.get('captureId');
     const vizType = searchParams.get('vizType') as VisualizationType | null;
-    const selectedCaptures =
-      searchParams.get('selectedCaptures')?.split(',') || [];
 
-    // Set the appropriate step based on provided parameters
-    if (selectedCaptures.length > 0 && vizType && captureType) {
-      setCurrentStep(4); // If captures are selected, go to the final step
-    } else if (vizType && captureType) {
-      setCurrentStep(3); // If visualization type is selected, go to capture selection
-    } else if (captureType) {
-      setCurrentStep(2); // If capture type is selected, go to visualization type selection
-    }
-
-    // Set parameters regardless of step
-    if (selectedCaptures.length > 0) {
-      setSelectedCaptureIds(selectedCaptures);
-    }
-    if (captureType) {
-      setSelectedCaptureType(captureType);
-    }
-    if (vizType) {
+    if (captureId && vizType) {
+      setSelectedCaptureId(captureId);
       setSelectedVizType(vizType);
+      setCurrentStep(3);
+    } else if (captureId) {
+      setSelectedCaptureId(captureId);
+      setCurrentStep(2);
     }
   }, [searchParams]);
 
-  // Filter captures based on selected type
-  const filteredCaptures = selectedCaptureType
-    ? captures.filter((capture) => capture.type === selectedCaptureType)
-    : captures;
+  // Get selected capture and its type
+  const selectedCapture = useMemo(
+    () => captures.find((c) => c.id === selectedCaptureId),
+    [captures, selectedCaptureId],
+  );
 
-  // Check if a visualization type is supported for a given capture type
-  const isSupported = (
-    visualizationType: VisualizationTypeInfo,
-    captureType: CaptureType,
-  ) => visualizationType.supportedCaptureTypes.includes(captureType);
+  // Sort visualization types with compatible ones first
+  const sortedVisualizationTypes = useMemo(() => {
+    if (!selectedCapture) return VISUALIZATION_TYPES;
 
-  // List supported visualization types first
-  const sortedVisualizationTypes = selectedCaptureType
-    ? _.partition(VISUALIZATION_TYPES, (visualizationType) =>
-        isSupported(visualizationType, selectedCaptureType),
-      ).flat()
-    : VISUALIZATION_TYPES;
-
-  // Get unique capture types from available captures
-  const availableCaptureTypes = useMemo(() => {
-    const types = new Set(captures.map((capture) => capture.type));
-    return Object.entries(CAPTURE_TYPE_INFO)
-      .filter(([type]) => types.has(type as CaptureType))
-      .map(([type, details]) => ({ type: type as CaptureType, ...details }));
-  }, [captures]);
-
-  const selectionMode = useMemo(() => {
-    if (!selectedVizType) return 'single';
-    const vizType = VISUALIZATION_TYPES.find(
-      (type) => type.name === selectedVizType,
-    );
-    return vizType?.multipleSelection ? 'multiple' : 'single';
-  }, [selectedVizType]);
+    return _.partition(VISUALIZATION_TYPES, (vizType) =>
+      vizType.supportedCaptureTypes.includes(selectedCapture.type),
+    ).flat();
+  }, [selectedCapture]);
 
   const handleCaptureSelect = useCallback((ids: string[]) => {
-    setSelectedCaptureIds(ids);
+    setSelectedCaptureId(ids[0] || null);
     if (ids.length > 0) {
-      setCurrentStep(4);
-    } else {
-      setCurrentStep(3);
+      setSelectedVizType(null);
+      setCurrentStep(2);
     }
   }, []);
 
   const handleVizTypeSelect = useCallback(async (type: VisualizationType) => {
     setSelectedVizType(type);
-    setSelectedCaptureIds([]);
     setCurrentStep(3);
   }, []);
 
   const handleCreateVisualization = async () => {
-    if (
-      !selectedVizType ||
-      !selectedCaptureType ||
-      selectedCaptureIds.length === 0
-    ) {
+    if (!selectedVizType || !selectedCaptureId) {
       return;
     }
 
@@ -133,18 +89,16 @@ const NewVisualizationPage = () => {
     setError(null);
 
     try {
-      const source = captures.find(
-        (c) => c.id === selectedCaptureIds[0],
-      )?.source;
+      const source = selectedCapture?.source;
       if (!source) {
-        throw new Error('No source found for selected captures');
+        throw new Error('No source found for selected capture');
       }
       const visualizationRecord = await postVisualization({
         type: selectedVizType,
-        capture_ids: selectedCaptureIds,
-        capture_type: selectedCaptureType,
+        capture_ids: [selectedCaptureId],
+        capture_type: selectedCapture?.type as CaptureType,
         capture_source: source,
-        settings: selectedVizType === 'spectrogram' ? spectrogramSettings : {},
+        settings: {},
       });
 
       navigate(`/visualization/${visualizationRecord.id}`);
@@ -157,169 +111,94 @@ const NewVisualizationPage = () => {
     }
   };
 
-  const renderCaptureTypeStep = () => (
-    <Row className="g-4">
-      {availableCaptureTypes.length > 0 ? (
-        availableCaptureTypes.map(({ type, name }) => (
-          <Col key={type} md={4}>
-            <Card
-              role="button"
-              tabIndex={0}
-              className={`h-100 ${
-                selectedCaptureType === type ? 'border-primary' : ''
-              }`}
-              style={{ cursor: 'pointer' }}
-              onClick={() => {
-                setSelectedCaptureType(type);
-                setSelectedVizType(null);
-                setCurrentStep(2);
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setSelectedCaptureType(type);
-                  setSelectedVizType(null);
-                  setCurrentStep(2);
-                }
-              }}
-            >
-              <Card.Body>
-                <Card.Text>
-                  <b>{name}</b>
-                </Card.Text>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))
-      ) : (
-        <Col>
-          <div className="text-center text-muted">
-            <p>No captures available. Please upload some captures first.</p>
-          </div>
-        </Col>
-      )}
-    </Row>
+  const renderCaptureSelectionStep = () => (
+    <div>
+      <CaptureSearch
+        captures={captures}
+        selectedCaptureIds={selectedCaptureId ? [selectedCaptureId] : []}
+        setSelectedCaptureIds={handleCaptureSelect}
+        hideCaptureTypeFilter
+      />
+    </div>
   );
 
   const renderVizTypeStep = () => (
-    <Row className="g-4">
-      {sortedVisualizationTypes.map((visualizationType) => {
-        const typeIsSupported = selectedCaptureType
-          ? isSupported(visualizationType, selectedCaptureType)
-          : false;
+    <div>
+      <Row className="g-4">
+        {sortedVisualizationTypes.map((visualizationType) => {
+          const isCompatible =
+            selectedCapture &&
+            visualizationType.supportedCaptureTypes.includes(
+              selectedCapture.type,
+            );
 
-        return (
-          <Col key={visualizationType.name} md={6}>
+          const cardContent = (
+            <>
+              <Card.Title>
+                <i className={`bi ${visualizationType.icon} me-2`}></i>
+                {visualizationType.name.charAt(0).toUpperCase() +
+                  visualizationType.name.slice(1)}
+              </Card.Title>
+              <Card.Text>
+                {visualizationType.description}
+                <br />
+                <span className="text-muted">
+                  <span>Supported capture types: </span>
+                  {visualizationType.supportedCaptureTypes.map(
+                    (type) => CAPTURE_TYPE_INFO[type].name,
+                  )}
+                </span>
+              </Card.Text>
+            </>
+          );
+
+          const card = (
             <Card
-              role={typeIsSupported ? 'button' : 'presentation'}
-              tabIndex={typeIsSupported ? 0 : -1}
+              role={isCompatible ? 'button' : 'presentation'}
+              tabIndex={isCompatible ? 0 : -1}
               className={`h-100 ${
                 selectedVizType === visualizationType.name
                   ? 'border-primary'
                   : ''
               }`}
               style={{
-                opacity: typeIsSupported ? 1 : 0.5,
-                cursor: typeIsSupported ? 'pointer' : 'not-allowed',
+                opacity: isCompatible ? 1 : 0.5,
+                cursor: isCompatible ? 'pointer' : 'not-allowed',
               }}
               onClick={() =>
-                typeIsSupported && handleVizTypeSelect(visualizationType.name)
+                isCompatible && handleVizTypeSelect(visualizationType.name)
               }
               onKeyPress={(e) => {
-                if (typeIsSupported && (e.key === 'Enter' || e.key === ' ')) {
+                if (isCompatible && (e.key === 'Enter' || e.key === ' ')) {
                   handleVizTypeSelect(visualizationType.name);
                 }
               }}
             >
-              <Card.Body>
-                <Card.Title>
-                  <i className={`bi ${visualizationType.icon} me-2`}></i>
-                  {visualizationType.name.charAt(0).toUpperCase() +
-                    visualizationType.name.slice(1)}
-                </Card.Title>
-                <Card.Text>
-                  {visualizationType.description}
-                  <br />
-                  <span className="text-muted">
-                    <span>Supported capture types: </span>
-                    {visualizationType.supportedCaptureTypes.map(
-                      (type) => CAPTURE_TYPE_INFO[type].name,
-                    )}
-                  </span>
-                </Card.Text>
-              </Card.Body>
+              <Card.Body>{cardContent}</Card.Body>
             </Card>
-          </Col>
-        );
-      })}
-    </Row>
-  );
+          );
 
-  const renderDataSourceStep = () => (
-    <div>
-      <h6>
-        Select {selectionMode === 'multiple' ? 'one or more' : 'a'}{' '}
-        {CAPTURE_TYPE_INFO[selectedCaptureType!].name}{' '}
-        {selectionMode === 'multiple' ? 'captures' : 'capture'} to visualize:
-      </h6>
-      <CaptureSearch
-        captures={filteredCaptures}
-        selectedCaptureIds={selectedCaptureIds}
-        setSelectedCaptureIds={handleCaptureSelect}
-        hideCaptureTypeFilter
-      />
-      {currentStep === 2 && (
-        <div className="d-flex gap-2 mt-3">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setCurrentStep((prev) => prev - 1);
-              setSelectedCaptureType(null);
-              setSelectedCaptureIds([]);
-            }}
-          >
-            Back
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+          const tooltipContent =
+            selectedCapture && !isCompatible ? (
+              <Tooltip id={`tooltip-${visualizationType.name}`}>
+                This visualization is not available for{' '}
+                {CAPTURE_TYPE_INFO[selectedCapture.type].name} captures.
+              </Tooltip>
+            ) : null;
 
-  const renderExtraConfigStep = () => (
-    <div>
-      {selectedVizType === 'spectrogram' && (
-        <div>
-          <h6>Spectrogram Settings:</h6>
-          <label htmlFor="fftSize" style={{ marginRight: '10px' }}>
-            FFT Size:
-          </label>
-          <select
-            id="fftSize"
-            value={spectrogramSettings.fftSize}
-            onChange={(e) =>
-              setSpectrogramSettings({
-                ...spectrogramSettings,
-                fftSize: Number(e.target.value),
-              })
-            }
-          >
-            <option value="512">512</option>
-            <option value="1024">1024</option>
-            <option value="2048">2048</option>
-            <option value="4096">4096</option>
-          </select>
-        </div>
-      )}
-      {selectedVizType === 'waterfall' && (
-        <div>
-          <h6>Waterfall Settings:</h6>
-          <p>No additional configuration needed</p>
-        </div>
-      )}
-      {error && (
-        <div className="alert alert-danger mt-3" role="alert">
-          {error}
-        </div>
-      )}
+          return (
+            <Col key={visualizationType.name} md={6}>
+              {tooltipContent ? (
+                <OverlayTrigger placement="top" overlay={tooltipContent}>
+                  {card}
+                </OverlayTrigger>
+              ) : (
+                card
+              )}
+            </Col>
+          );
+        })}
+      </Row>
     </div>
   );
 
@@ -377,10 +256,10 @@ const NewVisualizationPage = () => {
           <>
             {/* Step 1 */}
             <div className="mb-4">
-              {renderStepHeader(1, 'Select Capture Type')}
+              {renderStepHeader(1, 'Select Capture')}
               {currentStep >= 1 && (
                 <div className={currentStep > 1 ? 'opacity-75' : ''}>
-                  {renderCaptureTypeStep()}
+                  {renderCaptureSelectionStep()}
                 </div>
               )}
             </div>
@@ -391,19 +270,6 @@ const NewVisualizationPage = () => {
                 {renderStepHeader(2, 'Select Visualization Type')}
                 <div className={currentStep > 2 ? 'opacity-75' : ''}>
                   {renderVizTypeStep()}
-                  {currentStep === 2 && (
-                    <div className="d-flex gap-2 mt-3">
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setCurrentStep((prev) => prev - 1);
-                          setSelectedCaptureType(null);
-                        }}
-                      >
-                        Back
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -411,62 +277,19 @@ const NewVisualizationPage = () => {
             {/* Step 3 */}
             {currentStep >= 3 && (
               <div className="mb-4">
-                {renderStepHeader(
-                  3,
-                  `Choose ${
-                    selectionMode === 'multiple' ? 'one or more' : 'a'
-                  } Capture${
-                    selectionMode === 'multiple' ? 's' : ''
-                  } to Visualize`,
-                )}
-                <div className={currentStep > 3 ? 'opacity-75' : ''}>
-                  {renderDataSourceStep()}
-                  {currentStep === 3 && (
-                    <div className="d-flex gap-2 mt-3">
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setCurrentStep((prev) => prev - 1);
-                          setSelectedVizType(null);
-                        }}
-                      >
-                        Back
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Step 4 */}
-            {currentStep >= 4 && (
-              <div className="mb-4">
-                {renderStepHeader(4, 'Configure Settings')}
-                <div>
-                  {renderExtraConfigStep()}
-                  <div className="d-flex gap-2 mt-3">
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setCurrentStep((prev) => prev - 1);
-                        setSelectedCaptureIds([]);
-                      }}
-                      disabled={isCreating}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      variant="primary"
-                      onClick={handleCreateVisualization}
-                      disabled={
-                        !selectedVizType ||
-                        selectedCaptureIds.length === 0 ||
-                        isCreating
-                      }
-                    >
-                      {isCreating ? 'Creating...' : 'Create Visualization'}
-                    </Button>
+                {error && (
+                  <div className="alert alert-danger mt-3" role="alert">
+                    {error}
                   </div>
+                )}
+                <div className="d-flex gap-2 mt-3">
+                  <Button
+                    variant="primary"
+                    onClick={handleCreateVisualization}
+                    disabled={!selectedVizType || isCreating}
+                  >
+                    {isCreating ? 'Creating...' : 'Create Visualization'}
+                  </Button>
                 </div>
               </div>
             )}

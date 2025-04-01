@@ -18,7 +18,6 @@ import {
   CAPTURE_TYPE_INFO,
   CAPTURE_SOURCES,
 } from '../apiClient/captureService';
-import { VISUALIZATION_TYPES } from '../apiClient/visualizationService';
 import { formatHertz } from '../utils/utils';
 
 // Style object for table cells that might contain long text
@@ -206,11 +205,6 @@ export const CaptureTable = ({
           id: 'actions',
           cell: ({ row }) => {
             const capture = row.original;
-            const visualizationType = VISUALIZATION_TYPES.find((visType) =>
-              visType.supportedCaptureTypes.includes(capture.type),
-            );
-
-            if (!visualizationType) return null;
 
             return (
               <OverlayTrigger
@@ -222,7 +216,7 @@ export const CaptureTable = ({
                 }
               >
                 <Link
-                  to={`/visualization/new?captureType=${capture.type}&vizType=${visualizationType.name}&selectedCaptures=${capture.id}`}
+                  to={`/visualization/new?captureId=${capture.id}`}
                   className="btn btn-primary p-1"
                   aria-label="Visualize capture"
                 >
