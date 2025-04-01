@@ -117,7 +117,6 @@ const NewVisualizationPage = () => {
         captures={captures}
         selectedCaptureIds={selectedCaptureId ? [selectedCaptureId] : []}
         setSelectedCaptureIds={handleCaptureSelect}
-        hideCaptureTypeFilter
       />
     </div>
   );
