@@ -94,11 +94,10 @@ export const getCapturesWithFilters = async (filters?: {
       `/api/captures/list/?${params.toString()}`,
     );
     const captures = CapturesResponseSchema.parse(response.data);
-    const sortedCaptures = captures.sort((a, b) => {
-      return (
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    });
+    const sortedCaptures = captures.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
     return sortedCaptures;
   } catch (error) {
     console.error('Error fetching captures:', error);

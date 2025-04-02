@@ -368,7 +368,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         for capture_id in visualization.capture_ids:
             capture = next((c for c in sds_captures if c["id"] == capture_id), None)
             if capture is None:
-                raise ValueError(f"Capture with ID {capture_id} not found in SDS")
+                raise ValueError(f"Capture ID {capture_id} not found in SDS")
 
             seen_filenames: set[str] = set()
 
@@ -379,7 +379,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     )
                 except requests.RequestException as e:
                     raise ValueError(
-                        f"Failed to download file with ID {file['id']} from capture with ID {capture_id}: {e}"
+                        f"Failed to download file ID {file['id']} from capture ID {capture_id}: {e}"
                     )
 
     def _handle_local_captures(
@@ -406,7 +406,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 for file_obj in capture.files.all():
                     if file_obj.name in seen_filenames:
                         raise ValueError(
-                            f"Duplicate filename found for capture with ID {capture_id}. "
+                            f"Duplicate filename found for capture ID {capture_id}. "
                             f"File name: {file_obj.name}"
                         )
                     seen_filenames.add(file_obj.name)
@@ -416,7 +416,9 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     with file_obj.file.open("rb") as f:
                         zip_file.writestr(zip_path, f.read())
             except Capture.DoesNotExist:
-                raise ValueError(f"Capture {capture_id} not found")
+                error_message = f"Capture ID {capture_id} not found"
+                logging.error(error_message)
+                raise ValueError(error_message)
 
     @action(detail=True, methods=["get"])
     def download_files(self, request: Request, pk=None) -> Response:

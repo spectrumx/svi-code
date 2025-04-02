@@ -119,7 +119,7 @@ export const CaptureTable = ({
               placement="right"
               overlay={
                 <Tooltip id="name-header-tooltip">
-                  For SDS captures, the capture name is the scan group
+                  For SDS captures, this column shows the scan group ID
                 </Tooltip>
               }
             >
@@ -248,6 +248,8 @@ export const CaptureTable = ({
     pageCount: Math.ceil(captures.length / pageSize),
   });
 
+  const hasMultiplePages = table.getPageCount() > 1;
+
   const handleRowClick = (capture: Capture) => {
     if (!onSelect) return;
     onSelect(capture.id);
@@ -296,7 +298,9 @@ export const CaptureTable = ({
             {selectedId ? ' • 1 selected' : ''}
           </span>
         </div>
-        <PaginationControls table={table} position="top" />
+        {hasMultiplePages && (
+          <PaginationControls table={table} position="top" />
+        )}
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -389,8 +393,9 @@ export const CaptureTable = ({
           </tbody>
         </Table>
       </div>
-
-      <PaginationControls table={table} position="bottom" />
+      {hasMultiplePages && (
+        <PaginationControls table={table} position="bottom" />
+      )}
     </div>
   );
 };
