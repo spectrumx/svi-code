@@ -19,7 +19,7 @@ import CaptureSearch from '../components/CaptureSearch';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
- * A simplified wizard-style page for creating new visualizations
+ * A wizard-style page for creating new visualizations
  * Guides users through selecting a capture and visualization type
  */
 const NewVisualizationPage = () => {
@@ -125,7 +125,7 @@ const NewVisualizationPage = () => {
     <div>
       <Row className="g-4">
         {sortedVisualizationTypes.map((visualizationType) => {
-          const isCompatible =
+          const typeIsSupported =
             selectedCapture &&
             visualizationType.supportedCaptureTypes.includes(
               selectedCapture.type,
@@ -153,22 +153,22 @@ const NewVisualizationPage = () => {
 
           const card = (
             <Card
-              role={isCompatible ? 'button' : 'presentation'}
-              tabIndex={isCompatible ? 0 : -1}
+              role={typeIsSupported ? 'button' : 'presentation'}
+              tabIndex={typeIsSupported ? 0 : -1}
               className={`h-100 ${
                 selectedVizType === visualizationType.name
                   ? 'border-primary'
                   : ''
               }`}
               style={{
-                opacity: isCompatible ? 1 : 0.5,
-                cursor: isCompatible ? 'pointer' : 'not-allowed',
+                opacity: typeIsSupported ? 1 : 0.5,
+                cursor: typeIsSupported ? 'pointer' : 'not-allowed',
               }}
               onClick={() =>
-                isCompatible && handleVizTypeSelect(visualizationType.name)
+                typeIsSupported && handleVizTypeSelect(visualizationType.name)
               }
               onKeyPress={(e) => {
-                if (isCompatible && (e.key === 'Enter' || e.key === ' ')) {
+                if (typeIsSupported && (e.key === 'Enter' || e.key === ' ')) {
                   handleVizTypeSelect(visualizationType.name);
                 }
               }}
@@ -178,7 +178,7 @@ const NewVisualizationPage = () => {
           );
 
           const tooltipContent =
-            selectedCapture && !isCompatible ? (
+            selectedCapture && !typeIsSupported ? (
               <Tooltip id={`tooltip-${visualizationType.name}`}>
                 This visualization is not available for{' '}
                 {CAPTURE_TYPE_INFO[selectedCapture.type].name} captures.
