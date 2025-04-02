@@ -8,7 +8,7 @@ import { CaptureSource } from './captureService';
 export const DJANGO_MAX_FILES_UPLOAD = 1000;
 
 export const FileMetadataSchema = zod.object({
-  id: zod.string(),
+  uuid: zod.string(),
   name: zod.string(),
   content_url: zod.string().optional(),
   media_type: zod.string().optional(),

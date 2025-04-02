@@ -400,7 +400,15 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         for capture_id in visualization.capture_ids:
             try:
-                capture = Capture.objects.get(id=capture_id, owner=request.user)
+                # If capture_id can be parsed as an int, we need to get the capture by ID
+                # because the viz capture_ids haven't been replaced with UUIDs yet
+                try:
+                    parsed_capture_id = int(capture_id)
+                    capture = Capture.objects.get(
+                        id=parsed_capture_id, owner=request.user
+                    )
+                except ValueError:
+                    capture = Capture.objects.get(uuid=capture_id, owner=request.user)
                 seen_filenames: set[str] = set()
 
                 for file_obj in capture.files.all():
@@ -442,7 +450,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         visualization: Visualization = self.get_object()
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-        zip_filename = f"visualization_{visualization.id}_{timestamp}.zip"
+        zip_filename = f"visualization_{visualization.uuid}_{timestamp}.zip"
 
         # Create a BytesIO object to store the ZIP file
         zip_buffer = io.BytesIO()

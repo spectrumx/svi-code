@@ -41,7 +41,7 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
 ];
 
 const BaseVisualizationRecordSchema = zod.object({
-  id: zod.number(),
+  uuid: zod.string(),
   owner: zod.string(),
   type: VisualizationTypeSchema,
   capture_type: CaptureTypeSchema,

@@ -59,9 +59,11 @@ def format_sds_capture(sds_capture: dict, user_id: int):
         for file in sds_capture["files"]
     ]
 
+    owner_uuid = User.objects.get(id=user_id).uuid
+
     return {
-        "id": sds_capture["uuid"],
-        "owner": user_id,
+        "uuid": sds_capture["uuid"],
+        "owner": owner_uuid,
         "name": sds_capture["scan_group"],
         "files": files,
         "created_at": sds_capture["created_at"],

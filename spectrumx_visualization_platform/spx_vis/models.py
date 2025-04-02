@@ -1,7 +1,7 @@
 """File storage models."""
 
 from enum import StrEnum
-
+from uuid import uuid4
 from django.db import models
 from django.db.models.constraints import UniqueConstraint
 
@@ -35,6 +35,7 @@ CAPTURE_SOURCE_CHOICES = [
 class Capture(models.Model):
     """A collection of related RF files."""
 
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True)
     owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -58,6 +59,7 @@ class File(models.Model):
     """A generic file in the SVI.
 
     Attributes:
+        uuid:               The UUID of the file.
         owner:              The user who uploaded the file.
         file:               The file object itself.
         created_at:         The timestamp when the file was created.
@@ -69,6 +71,7 @@ class File(models.Model):
         capture:            The capture that this file belongs to, if any.
     """
 
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True)
     owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
     file = models.FileField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -115,6 +118,7 @@ class Visualization(models.Model):
     visualization types with type-specific settings.
 
     Attributes:
+        uuid: The UUID of the visualization.
         owner: The user who created the visualization
         type: The type of visualization (spectrogram, waterfall)
         capture_ids: List of capture IDs used in this visualization
@@ -125,6 +129,7 @@ class Visualization(models.Model):
         updated_at: Timestamp when the visualization was last updated
     """
 
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True)
     owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
     type = models.CharField(max_length=255, choices=VISUALIZATION_TYPE_CHOICES)
     capture_ids = models.JSONField(

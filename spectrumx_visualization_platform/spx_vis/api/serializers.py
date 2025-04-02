@@ -28,7 +28,7 @@ class FileSerializer(serializers.ModelSerializer[File]):
     Provides serialization of File objects with owner information and file handling.
     """
 
-    id = serializers.CharField(read_only=True)
+    uuid = serializers.UUIDField(read_only=True)
     owner = serializers.ReadOnlyField(source="owner.username")
     file = serializers.FileField(write_only=True)
     content_url = serializers.SerializerMethodField()
@@ -36,7 +36,7 @@ class FileSerializer(serializers.ModelSerializer[File]):
     class Meta:
         model = File
         fields = [
-            "id",
+            "uuid",
             "owner",
             "file",
             "content_url",
@@ -46,7 +46,7 @@ class FileSerializer(serializers.ModelSerializer[File]):
             "name",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at", "local_path"]
+        read_only_fields = ["uuid", "created_at", "updated_at", "local_path"]
 
     def get_content_url(self, obj: File) -> str:
         """Get the URL for downloading the file content.
@@ -87,7 +87,7 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     Handles creation of associated File objects and automatic field population.
     """
 
-    id = serializers.CharField(read_only=True)
+    uuid = serializers.UUIDField(read_only=True)
     name = serializers.CharField(required=False, allow_null=True)
     files = FileSerializer(many=True, read_only=True)
     # Separate field for files to be uploaded on Capture creation
@@ -100,7 +100,7 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     class Meta:
         model = Capture
         fields = [
-            "id",
+            "uuid",
             "owner",
             "name",
             "files",
@@ -110,7 +110,7 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             "source",
             "uploaded_files",  # Write-only field for file uploads
         ]
-        read_only_fields = ["owner", "created_at", "timestamp", "source"]
+        read_only_fields = ["uuid", "owner", "created_at", "timestamp", "source"]
 
     def create(self, validated_data: dict) -> Capture | list[Capture]:
         """Create one or more Captures with associated File objects.
@@ -175,6 +175,7 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
     Provides a lightweight serialization of Visualization objects without detailed capture information.
     """
 
+    uuid = serializers.UUIDField(read_only=True)
     owner = serializers.ReadOnlyField(source="owner.username")
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization"
@@ -183,7 +184,7 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
     class Meta:
         model = Visualization
         fields = [
-            "id",
+            "uuid",
             "owner",
             "type",
             "capture_ids",
@@ -193,7 +194,7 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["uuid", "created_at", "updated_at"]
 
 
 class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
@@ -218,7 +219,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
     class Meta:
         model = Visualization
         fields = [
-            "id",
+            "uuid",
             "owner",
             "type",
             "capture_ids",
@@ -229,7 +230,53 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "updated_at",
             "captures",
         ]
-        read_only_fields = ["created_at", "updated_at", "captures"]
+        read_only_fields = ["uuid", "created_at", "updated_at", "captures"]
+
+    def _migrate_capture_ids(self, obj: Visualization) -> None:
+        """Migrate capture IDs from integers to UUIDs if needed.
+
+        This method checks if any capture IDs in the visualization are still using
+        integer IDs and updates them to use UUIDs instead. The migration happens
+        incrementally as visualizations are accessed.
+
+        Only applies to local captures (capture_source="svi_user").
+
+        Args:
+            obj: The Visualization instance to migrate
+        """
+        if not obj.capture_ids or obj.capture_source != CaptureSource.SVI_User:
+            return
+
+        # Check if any IDs are still integers
+        has_integer_ids = any(
+            isinstance(capture_id, int) or capture_id.isdigit()
+            for capture_id in obj.capture_ids
+        )
+        if not has_integer_ids:
+            return
+
+        # Get the UUIDs for the integer IDs
+        int_ids = [
+            int(capture_id)
+            for capture_id in obj.capture_ids
+            if isinstance(capture_id, int) or capture_id.isdigit()
+        ]
+        captures = Capture.objects.filter(id__in=int_ids, owner=obj.owner)
+        uuid_map = {str(capture.id): str(capture.uuid) for capture in captures}
+
+        # Update the capture_ids with UUIDs
+        new_capture_ids = []
+        for capture_id in obj.capture_ids:
+            if isinstance(capture_id, int) or capture_id.isdigit():
+                new_capture_ids.append(uuid_map.get(str(capture_id), capture_id))
+            else:
+                new_capture_ids.append(capture_id)
+
+        # Update the visualization if any IDs were changed
+        if new_capture_ids != obj.capture_ids:
+            obj.capture_ids = new_capture_ids
+            obj.save(update_fields=["capture_ids"])
+            logger.info(f"Migrated capture IDs for visualization {obj.uuid}")
 
     def get_captures(self, obj: Visualization) -> list[dict]:
         """Get the full capture information including files for each capture.
@@ -240,13 +287,17 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         Returns:
             list[dict]: List of capture data including files.
         """
+        # Migrate capture IDs if needed (only for local captures)
+        if obj.capture_source == CaptureSource.SVI_User:
+            self._migrate_capture_ids(obj)
+
         request = self.context.get("request")
         if not request:
             return []
 
         captures = []
 
-        if obj.capture_source == "sds":
+        if obj.capture_source == CaptureSource.SDS:
             try:
                 sds_captures = get_sds_captures(request)
                 captures = [
@@ -261,7 +312,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             for capture_id in obj.capture_ids:
                 try:
                     # Get local capture
-                    capture = Capture.objects.get(id=capture_id, owner=request.user)
+                    capture = Capture.objects.get(uuid=capture_id, owner=request.user)
                     captures.append(
                         CaptureSerializer(capture, context={"request": request}).data
                     )
@@ -344,7 +395,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             )
             local_capture_ids = [
                 str(capture_id)
-                for capture_id in local_captures.values_list("id", flat=True)
+                for capture_id in local_captures.values_list("uuid", flat=True)
             ]
 
             # Verify all requested captures were found
@@ -442,7 +493,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
 
         if existing_visualization:
             logger.info(
-                f"Returning existing visualization with same config: {existing_visualization.id}"
+                f"Returning existing visualization with same config: {existing_visualization.uuid}"
             )
             return existing_visualization
 
