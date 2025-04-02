@@ -48,10 +48,10 @@ const VisualizationPage = () => {
 
         // Process each capture in the visualization state
         for (const capture of vizRecord.captures) {
-          const captureDir = zipContent.folder(capture.id.toString());
+          const captureDir = zipContent.folder(capture.uuid);
           if (!captureDir) {
             console.warn(
-              `Capture directory not found for capture ID ${capture.id}`,
+              `Capture directory not found for capture ID ${capture.uuid}`,
             );
             continue;
           }
@@ -83,8 +83,8 @@ const VisualizationPage = () => {
             }
 
             // Add the file to our files object
-            files[file.id] = {
-              id: file.id,
+            files[file.uuid] = {
+              uuid: file.uuid,
               name: file.name,
               fileContent: parsedContent,
               isValid,

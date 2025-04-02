@@ -38,7 +38,7 @@ const SpectrogramVizContainer = ({
 
   const captureId =
     visualizationRecord.captures.length > 0
-      ? Number(visualizationRecord.captures[0].id)
+      ? visualizationRecord.captures[0].uuid
       : null;
 
   const createSpectrogramJob = async () => {

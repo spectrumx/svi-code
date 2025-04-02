@@ -107,7 +107,7 @@ export const CaptureTable = ({
 
   const columns = useMemo<ColumnDef<Capture, any>[]>(() => {
     const baseColumns: ColumnDef<Capture, any>[] = [
-      columnHelper.accessor('id', {
+      columnHelper.accessor('uuid', {
         header: 'ID',
         size: 80,
       }),
@@ -187,9 +187,9 @@ export const CaptureTable = ({
           cell: ({ row }) => (
             <input
               type="radio"
-              checked={row.original.id === selectedId}
-              onChange={() => onSelect(row.original.id)}
-              aria-label={`Select capture ${row.original.id}`}
+              checked={row.original.uuid === selectedId}
+              onChange={() => onSelect(row.original.uuid)}
+              aria-label={`Select capture ${row.original.uuid}`}
               onClick={(e) => e.stopPropagation()}
             />
           ),
@@ -210,13 +210,13 @@ export const CaptureTable = ({
               <OverlayTrigger
                 placement="left"
                 overlay={
-                  <Tooltip id={`visualize-tooltip-${capture.id}`}>
+                  <Tooltip id={`visualize-tooltip-${capture.uuid}`}>
                     Visualize capture
                   </Tooltip>
                 }
               >
                 <Link
-                  to={`/visualization/new?captureId=${capture.id}`}
+                  to={`/visualization/new?captureId=${capture.uuid}`}
                   className="btn btn-primary p-1"
                   aria-label="Visualize capture"
                 >
@@ -252,7 +252,7 @@ export const CaptureTable = ({
 
   const handleRowClick = (capture: Capture) => {
     if (!onSelect) return;
-    onSelect(capture.id);
+    onSelect(capture.uuid);
   };
 
   return (
@@ -365,9 +365,9 @@ export const CaptureTable = ({
             ) : (
               table.getRowModel().rows.map((row) => (
                 <tr
-                  key={row.id}
+                  key={row.original.uuid}
                   className={
-                    row.original.id === selectedId ? 'table-primary' : ''
+                    row.original.uuid === selectedId ? 'table-primary' : ''
                   }
                   onClick={() => handleRowClick(row.original)}
                   style={onSelect ? { cursor: 'pointer' } : undefined}
