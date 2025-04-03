@@ -371,7 +371,8 @@ export const CaptureTable = ({
           <span>
             {totalCaptures !== undefined ? (
               <>
-                Showing {captures.length} of {totalCaptures} captures
+                Showing {Math.min(captures.length, pageSize)} of {totalCaptures}{' '}
+                captures
                 {numHiddenCaptures
                   ? ` (${numHiddenCaptures} hidden by filters)`
                   : ''}
