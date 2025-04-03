@@ -90,7 +90,7 @@ interface ColumnVisibilityMenuProps {
 
 const ColumnVisibilityMenu = ({ table }: ColumnVisibilityMenuProps) => {
   return (
-    <>
+    <Dropdown>
       <Dropdown.Toggle
         variant="outline-secondary"
         size="sm"
@@ -138,7 +138,7 @@ const ColumnVisibilityMenu = ({ table }: ColumnVisibilityMenuProps) => {
           );
         })}
       </Dropdown.Menu>
-    </>
+    </Dropdown>
   );
 };
 
@@ -173,7 +173,6 @@ export const CaptureTable = ({
     created_at: false,
     source: false,
   });
-  console.log({ columnVisibility });
 
   const columnHelper = createColumnHelper<Capture>();
 
@@ -371,8 +370,8 @@ export const CaptureTable = ({
           <span>
             {totalCaptures !== undefined ? (
               <>
-                Showing {Math.min(table.getRowModel().rows.length, pageSize)} of{' '}
-                {totalCaptures} captures
+                Showing {table.getRowModel().rows.length} of {totalCaptures}{' '}
+                captures
                 {numHiddenCaptures
                   ? ` (${numHiddenCaptures} hidden by filters)`
                   : ''}
