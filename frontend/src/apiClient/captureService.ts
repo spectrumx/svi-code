@@ -9,6 +9,7 @@ import {
   DJANGO_MAX_FILES_UPLOAD,
 } from './fileService';
 import { sortByDate } from '../utils/utils';
+
 export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
 export type CaptureType = zod.infer<typeof CaptureTypeSchema>;
 
