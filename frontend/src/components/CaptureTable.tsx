@@ -34,23 +34,18 @@ const textCellStyle = {
 interface PaginationControlsProps {
   table: TableInstance<any>;
   position: 'top' | 'bottom';
-  className?: string;
 }
 
-const PaginationControls = ({
-  table,
-  position,
-  className,
-}: PaginationControlsProps) => {
+const PaginationControls = ({ table, position }: PaginationControlsProps) => {
   const isTop = position === 'top';
 
   return (
     <div
-      className={`${className} capture-table-infobox-height`}
+      className="capture-table-infobox-height"
       style={{
         padding: isTop ? '0.25rem 1rem' : '1rem',
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: isTop ? 'flex-end' : 'center',
         alignItems: 'center',
       }}
     >
@@ -90,7 +85,10 @@ interface ColumnVisibilityMenuProps {
 
 const ColumnVisibilityMenu = ({ table }: ColumnVisibilityMenuProps) => {
   return (
-    <Dropdown>
+    <Dropdown
+      className="capture-table-infobox-height"
+      style={{ display: 'flex', alignItems: 'center' }}
+    >
       <Dropdown.Toggle
         variant="outline-secondary"
         size="sm"
@@ -187,6 +185,7 @@ export const CaptureTable = ({
       columnHelper.accessor('id', {
         header: 'ID',
         size: 80,
+        cell: (info) => <div style={textCellStyle}>{info.getValue()}</div>,
       }),
       columnHelper.accessor('name', {
         id: 'Name',
