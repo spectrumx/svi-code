@@ -97,7 +97,7 @@ const ColumnVisibilityMenu = ({ table }: ColumnVisibilityMenuProps) => {
       >
         <i className="bi bi-gear" aria-hidden="true" />
       </Dropdown.Toggle>
-      <Dropdown.Menu style={{ zIndex: 100 }}>
+      <Dropdown.Menu>
         {table.getAllLeafColumns().map((column) => {
           if (!column.getCanHide()) {
             return null;
