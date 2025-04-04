@@ -8,6 +8,7 @@ import {
   FileMetadataSchema,
   DJANGO_MAX_FILES_UPLOAD,
 } from './fileService';
+import { sortByDate } from '../utils/utils';
 
 export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
 export type CaptureType = zod.infer<typeof CaptureTypeSchema>;
@@ -46,10 +47,10 @@ export const CAPTURE_TYPE_INFO: Record<CaptureType, CaptureTypeInfo> = {
 
 export const CAPTURE_SOURCES = {
   sds: { name: 'SDS' },
-  svi_public: { name: 'SVI Public' },
   svi_user: { name: 'SVI User' },
+  svi_public: { name: 'SVI Public' },
 } as const;
-export const CaptureSourceSchema = zod.enum(['sds', 'svi_public', 'svi_user']);
+export const CaptureSourceSchema = zod.enum(['sds', 'svi_user', 'svi_public']);
 export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
 export const CaptureSchema = zod.object({
@@ -61,6 +62,10 @@ export const CaptureSchema = zod.object({
   type: CaptureTypeSchema,
   source: CaptureSourceSchema,
   files: zod.array(FileMetadataSchema),
+  min_freq: zod.number().optional().nullable(),
+  max_freq: zod.number().optional().nullable(),
+  scan_time: zod.number().optional().nullable(),
+  end_time: zod.string().optional().nullable(),
 });
 export type Capture = zod.infer<typeof CaptureSchema>;
 
@@ -90,7 +95,10 @@ export const getCapturesWithFilters = async (filters?: {
       `/api/captures/list/?${params.toString()}`,
     );
     const captures = CapturesResponseSchema.parse(response.data);
-    return captures;
+    const sortedCaptures = captures.sort((a, b) =>
+      sortByDate(a, b, 'timestamp'),
+    );
+    return sortedCaptures;
   } catch (error) {
     console.error('Error fetching captures:', error);
     throw error;

@@ -25,7 +25,7 @@ const AppContext = createContext<AppContextModel | undefined>(undefined);
 export const AppContextProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [username, setUsername] = useState<Username>(undefined);
+  const [username, setUsername] = useState<Username>(null);
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [visualizations, setVisualizations] = useState<VisualizationRecord[]>(

@@ -1,6 +1,10 @@
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.utils import calculate_end_time
+from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
+    RadioHoundUtility,
+)
 from spectrumx_visualization_platform.spx_vis.models import Capture
+from spectrumx_visualization_platform.spx_vis.models import File
 
 
 def get_local_captures(request) -> list:
@@ -28,21 +32,28 @@ def format_local_capture(capture: dict) -> dict:
     """
     # TODO: Fix this function, as the Capture model doesn't have some of these fields
     # it's trying to access
-    timestamp = capture.get("timestamp", "")
+    timestamp = capture.get("timestamp")
     scan_time = capture.get("scan_time")
+
+    if capture["type"] == "rh":
+        first_file = File.objects.get(id=capture["files"][0]["id"]).file
+        min_freq, max_freq = RadioHoundUtility.get_frequency_range(first_file)
+    else:
+        min_freq = capture.get("metadata", {}).get("fmin", None)
+        max_freq = capture.get("metadata", {}).get("fmax", None)
 
     return {
         "id": capture["id"],
         "name": capture["name"],
         "media_type": capture.get("metadata", {}).get("data_type", "unknown"),
         "timestamp": timestamp,
-        "created_at": timestamp,
+        "created_at": capture["created_at"],
         "source": capture["source"],
         "files": capture["files"],
         "owner": capture["owner"],
         "type": capture["type"],
-        "min_freq": capture.get("metadata", {}).get("fmin", ""),
-        "max_freq": capture.get("metadata", {}).get("fmax", ""),
+        "min_freq": min_freq,
+        "max_freq": max_freq,
         "scan_time": scan_time,
         "end_time": calculate_end_time(timestamp, scan_time),
     }

@@ -52,7 +52,7 @@ const MyDataPage = () => {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container-wide">
       <h5>Captures</h5>
       <br />
       <Button
@@ -66,7 +66,8 @@ const MyDataPage = () => {
 
       <Row className="mt-3 align-items-start">
         {/* Filter Column */}
-        <Col xs={3} style={{ minWidth: '250px', marginTop: '25px' }}>
+        <Col xs={3} style={{ minWidth: '250px' }}>
+          <div className="capture-table-infobox-height" />
           <div className="filter-box p-3 border bg-white">
             <FrequencyFilter
               minFrequency={minFrequency}
