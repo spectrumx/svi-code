@@ -97,7 +97,7 @@ const ColumnVisibilityMenu = ({ table }: ColumnVisibilityMenuProps) => {
       >
         <i className="bi bi-gear" aria-hidden="true" />
       </Dropdown.Toggle>
-      <Dropdown.Menu>
+      <Dropdown.Menu style={{ zIndex: 100 }}>
         {table.getAllLeafColumns().map((column) => {
           if (!column.getCanHide()) {
             return null;
@@ -345,7 +345,6 @@ export const CaptureTable = ({
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
       }}
     >
       <div
