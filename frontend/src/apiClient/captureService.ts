@@ -8,6 +8,7 @@ import {
   FileMetadataSchema,
   DJANGO_MAX_FILES_UPLOAD,
 } from './fileService';
+import { sortByDate } from '../utils/utils';
 
 export const CaptureTypeSchema = zod.enum(['rh', 'drf', 'sigmf']);
 export type CaptureType = zod.infer<typeof CaptureTypeSchema>;
@@ -94,9 +95,8 @@ export const getCapturesWithFilters = async (filters?: {
       `/api/captures/list/?${params.toString()}`,
     );
     const captures = CapturesResponseSchema.parse(response.data);
-    const sortedCaptures = captures.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    const sortedCaptures = captures.sort((a, b) =>
+      sortByDate(a, b, 'timestamp'),
     );
     return sortedCaptures;
   } catch (error) {

@@ -11,14 +11,20 @@ import {
 } from '@tanstack/react-table';
 import Table from 'react-bootstrap/Table';
 import { Link } from 'react-router';
-import { Button, ButtonGroup, Tooltip, OverlayTrigger } from 'react-bootstrap';
+import {
+  Button,
+  ButtonGroup,
+  Tooltip,
+  OverlayTrigger,
+  Dropdown,
+} from 'react-bootstrap';
 
 import {
   Capture,
   CAPTURE_TYPE_INFO,
   CAPTURE_SOURCES,
 } from '../apiClient/captureService';
-import { formatHertz } from '../utils/utils';
+import { formatHertz, sortByDate } from '../utils/utils';
 
 // Style object for table cells that might contain long text
 const textCellStyle = {
@@ -28,23 +34,18 @@ const textCellStyle = {
 interface PaginationControlsProps {
   table: TableInstance<any>;
   position: 'top' | 'bottom';
-  className?: string;
 }
 
-const PaginationControls = ({
-  table,
-  position,
-  className,
-}: PaginationControlsProps) => {
+const PaginationControls = ({ table, position }: PaginationControlsProps) => {
   const isTop = position === 'top';
 
   return (
     <div
-      className={`${className} capture-table-infobox-height`}
+      className="capture-table-infobox-height"
       style={{
         padding: isTop ? '0.25rem 1rem' : '1rem',
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: isTop ? 'flex-end' : 'center',
         alignItems: 'center',
       }}
     >
@@ -78,6 +79,67 @@ const PaginationControls = ({
   );
 };
 
+interface ColumnVisibilityMenuProps {
+  table: TableInstance<any>;
+}
+
+const ColumnVisibilityMenu = ({ table }: ColumnVisibilityMenuProps) => {
+  return (
+    <Dropdown
+      className="capture-table-infobox-height"
+      style={{ display: 'flex', alignItems: 'center' }}
+    >
+      <Dropdown.Toggle
+        variant="outline-secondary"
+        size="sm"
+        className="py-0"
+        aria-label="Column visibility"
+      >
+        <i className="bi bi-gear" aria-hidden="true" />
+      </Dropdown.Toggle>
+      <Dropdown.Menu>
+        {table.getAllLeafColumns().map((column) => {
+          if (!column.getCanHide()) {
+            return null;
+          }
+          return (
+            <Dropdown.Item
+              key={column.id}
+              as="div"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              className="py-0"
+            >
+              <div className="form-check" onClick={(e) => e.stopPropagation()}>
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  checked={column.getIsVisible()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    column.getToggleVisibilityHandler()(e);
+                  }}
+                  id={`column-${column.id}`}
+                />
+                <label
+                  className="form-check-label"
+                  htmlFor={`column-${column.id}`}
+                  style={{ width: '100%' }}
+                >
+                  {typeof column.columnDef.header === 'string'
+                    ? column.columnDef.header
+                    : column.columnDef.id}
+                </label>
+              </div>
+            </Dropdown.Item>
+          );
+        })}
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+};
+
 export interface CaptureTableProps {
   captures: Capture[];
   selectedId?: string | null;
@@ -103,15 +165,30 @@ export const CaptureTable = ({
     pageSize,
   });
 
+  const [columnVisibility, setColumnVisibility] = useState<
+    Record<string, boolean>
+  >({
+    created_at: false,
+    source: false,
+  });
+
   const columnHelper = createColumnHelper<Capture>();
 
   const columns = useMemo<ColumnDef<Capture, any>[]>(() => {
     const baseColumns: ColumnDef<Capture, any>[] = [
+      columnHelper.accessor('source', {
+        header: 'Source',
+        cell: (info) =>
+          CAPTURE_SOURCES[info.getValue() as keyof typeof CAPTURE_SOURCES].name,
+        size: 120,
+      }),
       columnHelper.accessor('uuid', {
         header: 'ID',
         size: 80,
+        cell: (info) => <div style={textCellStyle}>{info.getValue()}</div>,
       }),
       columnHelper.accessor('name', {
+        id: 'Name',
         header: () => (
           <div className="d-flex align-items-center gap-1">
             Name
@@ -129,12 +206,6 @@ export const CaptureTable = ({
         ),
         cell: (info) => <div style={textCellStyle}>{info.getValue()}</div>,
       }),
-      columnHelper.accessor('created_at', {
-        header: 'Created',
-        cell: (info) =>
-          info.getValue() ? new Date(info.getValue()).toLocaleString() : 'None',
-        size: 200,
-      }),
       columnHelper.accessor('timestamp', {
         header: 'Timestamp',
         cell: (info) =>
@@ -144,6 +215,14 @@ export const CaptureTable = ({
                 .replace('Z', ' UTC')
                 .replace('T', ' ')
             : 'None',
+        sortingFn: (a, b) => -sortByDate(a, b, 'original.timestamp'),
+        size: 200,
+      }),
+      columnHelper.accessor('created_at', {
+        header: 'Created',
+        cell: (info) =>
+          info.getValue() ? new Date(info.getValue()).toLocaleString() : 'None',
+        sortingFn: (a, b) => -sortByDate(a, b, 'original.created_at'),
         size: 200,
       }),
       columnHelper.accessor('type', {
@@ -157,12 +236,6 @@ export const CaptureTable = ({
         header: 'Files',
         cell: (info) => info.getValue().length,
         size: 80,
-      }),
-      columnHelper.accessor('source', {
-        header: 'Source',
-        cell: (info) =>
-          CAPTURE_SOURCES[info.getValue() as keyof typeof CAPTURE_SOURCES].name,
-        size: 120,
       }),
       columnHelper.accessor('min_freq', {
         header: 'Min Freq',
@@ -194,6 +267,7 @@ export const CaptureTable = ({
             />
           ),
           size: 20,
+          enableHiding: false,
         }),
       );
     }
@@ -218,14 +292,20 @@ export const CaptureTable = ({
                 <Link
                   to={`/visualization/new?captureId=${capture.uuid}`}
                   className="btn btn-primary p-1"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
                   aria-label="Visualize capture"
                 >
-                  <i className="bi bi-eye-fill" aria-hidden="true" />
+                  <i className="bi bi-graph-up" aria-hidden="true" />
                 </Link>
               </OverlayTrigger>
             );
           },
           size: 60,
+          enableHiding: false,
         }),
       );
     }
@@ -243,8 +323,10 @@ export const CaptureTable = ({
     state: {
       rowSelection: selectedId ? { [selectedId]: true } : {},
       pagination,
+      columnVisibility,
     },
     onPaginationChange: setPagination,
+    onColumnVisibilityChange: setColumnVisibility,
     pageCount: Math.ceil(captures.length / pageSize),
   });
 
@@ -287,7 +369,8 @@ export const CaptureTable = ({
           <span>
             {totalCaptures !== undefined ? (
               <>
-                Showing {captures.length} of {totalCaptures} captures
+                Showing {table.getRowModel().rows.length} of {totalCaptures}{' '}
+                captures
                 {numHiddenCaptures
                   ? ` (${numHiddenCaptures} hidden by filters)`
                   : ''}
@@ -298,9 +381,12 @@ export const CaptureTable = ({
             {selectedId ? ' • 1 selected' : ''}
           </span>
         </div>
-        {hasMultiplePages && (
-          <PaginationControls table={table} position="top" />
-        )}
+        <div className="d-flex align-items-center">
+          {hasMultiplePages && (
+            <PaginationControls table={table} position="top" />
+          )}
+          <ColumnVisibilityMenu table={table} />
+        </div>
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>
