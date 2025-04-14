@@ -42,6 +42,7 @@ const useVisualizationFileCount = (uuid: string) => {
             ? err
             : new Error('Failed to fetch visualization details'),
         );
+        console.error('Error fetching visualization details:', err);
       } finally {
         setIsLoading(false);
       }

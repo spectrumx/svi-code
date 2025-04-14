@@ -5,7 +5,6 @@ from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
 )
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import File
-from spectrumx_visualization_platform.users.models import User
 
 
 def get_local_captures(request) -> list:
@@ -43,8 +42,6 @@ def format_local_capture(capture: dict) -> dict:
         min_freq = capture.get("metadata", {}).get("fmin", None)
         max_freq = capture.get("metadata", {}).get("fmax", None)
 
-    owner_uuid = User.objects.get(id=capture["owner"]).uuid
-
     return {
         "uuid": capture["uuid"],
         "name": capture["name"],
@@ -53,7 +50,7 @@ def format_local_capture(capture: dict) -> dict:
         "created_at": capture["created_at"],
         "source": capture["source"],
         "files": capture["files"],
-        "owner": owner_uuid,
+        "owner": capture["owner"],
         "type": capture["type"],
         "min_freq": min_freq,
         "max_freq": max_freq,

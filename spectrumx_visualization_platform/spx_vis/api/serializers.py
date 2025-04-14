@@ -61,7 +61,7 @@ class FileSerializer(serializers.ModelSerializer[File]):
         if request is None:
             return ""
         return request.build_absolute_uri(
-            reverse("api:file-content", kwargs={"pk": obj.pk}),
+            reverse("api:file-content", kwargs={"uuid": obj.uuid}),
         )
 
     def create(self, validated_data: dict) -> File:
@@ -90,6 +90,7 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
     uuid = serializers.UUIDField(read_only=True)
     name = serializers.CharField(required=False, allow_null=True)
     files = FileSerializer(many=True, read_only=True)
+    owner = serializers.ReadOnlyField(source="owner.uuid")
     # Separate field for files to be uploaded on Capture creation
     uploaded_files = serializers.ListField(
         child=serializers.FileField(),
@@ -176,7 +177,7 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
     """
 
     uuid = serializers.UUIDField(read_only=True)
-    owner = serializers.ReadOnlyField(source="owner.username")
+    owner = serializers.ReadOnlyField(source="owner.uuid")
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization"
     )
@@ -203,7 +204,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
     Provides full serialization of Visualization objects including detailed capture and file information.
     """
 
-    owner = serializers.ReadOnlyField(source="owner.username")
+    owner = serializers.ReadOnlyField(source="owner.uuid")
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization",
         write_only=True,
@@ -300,10 +301,12 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         if obj.capture_source == CaptureSource.SDS:
             try:
                 sds_captures = get_sds_captures(request)
+                logger.info(f"SDS captures: {sds_captures}")
+                logger.info(f"obj.capture_ids: {obj.capture_ids}")
                 captures = [
                     capture
                     for capture in sds_captures
-                    if str(capture["id"]) in obj.capture_ids
+                    if str(capture["uuid"]) in obj.capture_ids
                 ]
             except Exception as e:
                 logger.error(f"Error fetching SDS captures: {e}")
