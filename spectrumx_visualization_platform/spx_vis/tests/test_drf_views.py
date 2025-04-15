@@ -1,4 +1,6 @@
 from pathlib import Path
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -99,23 +101,46 @@ class TestCaptureViewSet:
         self, user: User, capture: Capture, api_rf: APIRequestFactory
     ):
         """Test successful spectrogram creation request."""
-        view = CaptureViewSet()
-        request = api_rf.post(
-            f"/fake-url/{capture.uuid}/create_spectrogram/",
-            {"width": 10, "height": 10},
-            format="json",
-        )
-        force_authenticate(request, user=user)
-        drf_request = Request(request)
-        drf_request.parsers = [JSONParser()]
-        view.request = drf_request
-        view.kwargs = {"uuid": str(capture.uuid)}
+        with (
+            patch("redis.Redis") as mock_redis,
+            patch(
+                "spectrumx_visualization_platform.spx_vis.capture_utils.sigmf.request_job_submission"
+            ) as mock_job_submission,
+        ):
+            # Configure mock Redis instance
+            mock_redis_instance = mock_redis.return_value
+            mock_redis_instance.ping.return_value = True
 
-        response = view.create_spectrogram(drf_request, uuid=str(capture.uuid))
+            # Configure mock job submission
+            mock_job = MagicMock()
+            mock_job.id = "test-job-id"
+            mock_job_submission.return_value = mock_job
 
-        assert response.status_code == status.HTTP_201_CREATED
-        assert "job_id" in response.data
-        assert response.data["status"] == "submitted"
+            view = CaptureViewSet()
+            request = api_rf.post(
+                f"/fake-url/{capture.uuid}/create_spectrogram/",
+                {"width": 10, "height": 10},
+                format="json",
+            )
+            force_authenticate(request, user=user)
+            drf_request = Request(request)
+            drf_request.parsers = [JSONParser()]
+            view.request = drf_request
+            view.kwargs = {"uuid": str(capture.uuid)}
+
+            response = view.create_spectrogram(drf_request, uuid=str(capture.uuid))
+
+            assert response.status_code == status.HTTP_201_CREATED
+            assert "job_id" in response.data
+            assert response.data["status"] == "submitted"
+            assert response.data["job_id"] == "test-job-id"
+
+            # Verify job submission was called with correct arguments
+            mock_job_submission.assert_called_once()
+            call_args = mock_job_submission.call_args[1]
+            assert call_args["visualization_type"] == "spectrogram"
+            assert call_args["owner"] == user
+            assert call_args["config"] == {"width": 10, "height": 10}
 
     def test_create_spectrogram_invalid_type(
         self, user: User, capture: Capture, api_rf: APIRequestFactory
