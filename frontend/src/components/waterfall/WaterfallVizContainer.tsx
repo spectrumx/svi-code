@@ -42,9 +42,7 @@ export const WaterfallVizContainer = ({
   }
 
   return (
-    <div className="page-container-wide">
-      <h5>Waterfall</h5>
-      <br />
+    <div>
       <Row>
         <Col xs={3} style={{ maxWidth: 250 }}>
           <div className="d-flex flex-column gap-3">

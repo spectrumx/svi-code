@@ -87,20 +87,21 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
           <i
             className={`bi ${visualizationType?.icon ?? 'bi-graph-up'} me-2`}
           ></i>
-          {_.startCase(vizRecord.type)}
+          {vizRecord.name}
         </Card.Title>
         <Card.Text>
           <span className="text-muted">
             Created {new Date(vizRecord.created_at).toLocaleString()}
           </span>
           <br />
+          <strong> Type: </strong>
+          {_.startCase(vizRecord.type)}
+          <br />
           <strong>Capture Type:</strong>{' '}
           {CAPTURE_TYPE_INFO[vizRecord.capture_type].name}
           <br />
           <strong>Source:</strong>{' '}
           {CAPTURE_SOURCES[vizRecord.capture_source].name}
-          <br />
-          <strong>Number of Captures:</strong> {vizRecord.capture_ids.length}
           <br />
           <strong>Total Files:</strong>{' '}
           {isLoading ? (

@@ -1,3 +1,6 @@
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -247,10 +250,12 @@ class TestVisualizationViewSet:
     def visualization(self, user: User) -> Visualization:
         return Visualization.objects.create(
             owner=user,
+            name="Test Visualization",
             type="spectrogram",
             capture_type="sigmf",
             capture_source="local",
             capture_ids=["123e4567-e89b-12d3-a456-426614174000"],
+            is_saved=True,
         )
 
     def test_get_queryset(
@@ -261,6 +266,7 @@ class TestVisualizationViewSet:
         request = api_rf.get("/fake-url/")
         request.user = user
         view.request = request
+        view.action = "list"
 
         queryset = view.get_queryset()
 
@@ -287,6 +293,41 @@ class TestVisualizationViewSet:
         view.request = drf_request
         serializer_class = view.get_serializer_class()
         assert serializer_class.__name__ == "VisualizationDetailSerializer"
+
+    def test_save_visualization(self, user: User, api_rf: APIRequestFactory):
+        """Test that an unsaved visualization can be saved via the save endpoint."""
+        # Create an unsaved visualization
+        visualization = Visualization.objects.create(
+            owner=user,
+            type="spectrogram",
+            capture_type="sigmf",
+            capture_source="local",
+            capture_ids=["123e4567-e89b-12d3-a456-426614174000"],
+            is_saved=False,
+            expiration_date=datetime.now(UTC) + timedelta(hours=1),
+        )
+
+        view = VisualizationViewSet()
+        request = api_rf.post(f"/fake-url/{visualization.uuid}/save/")
+        force_authenticate(request, user=user)
+        drf_request = Request(request)
+        drf_request.parsers = [JSONParser()]
+        view.request = drf_request
+        view.kwargs = {"uuid": str(visualization.uuid)}
+        view.action = "post"
+        view.format_kwarg = None
+
+        response = view.save(drf_request, uuid=str(visualization.uuid))
+
+        # Verify response
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["is_saved"] is True
+        assert response.data["expiration_date"] is None
+
+        # Verify database state
+        visualization.refresh_from_db()
+        assert visualization.is_saved is True
+        assert visualization.expiration_date is None
 
 
 @pytest.mark.django_db()

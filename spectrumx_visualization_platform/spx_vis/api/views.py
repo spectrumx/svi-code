@@ -282,10 +282,27 @@ class VisualizationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Get the queryset of visualizations for the current user.
 
+        When listing visualizations, only returns saved visualizations.
+        When retrieving a single visualization, returns it regardless of saved status.
+
         Returns:
             QuerySet: Filtered queryset containing only the user's visualizations.
         """
-        return Visualization.objects.filter(owner=self.request.user)
+        if self.action == "list":
+            # Delete expired unsaved visualizations
+            Visualization.objects.filter(
+                owner=self.request.user,
+                is_saved=False,
+                expiration_date__lte=datetime.now(UTC),
+            ).delete()
+
+        queryset = Visualization.objects.filter(owner=self.request.user)
+
+        # For list action, only return saved visualizations
+        if self.action == "list":
+            queryset = queryset.filter(is_saved=True)
+
+        return queryset
 
     def perform_create(self, serializer: VisualizationDetailSerializer) -> None:
         """Create a new visualization object.
@@ -485,3 +502,24 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             message = f"Failed to create ZIP file: {e!s}"
             logging.error(message)
             return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"])
+    def save(self, request: Request, uuid=None) -> Response:
+        """Save an existing unsaved visualization.
+
+        Args:
+            request: The HTTP request
+            uuid: The UUID of the visualization
+
+        Returns:
+            Response: The saved visualization
+        """
+        visualization: Visualization = self.get_object()
+        serializer = self.get_serializer(
+            visualization,
+            data={"is_saved": True, "expiration_date": None},
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
