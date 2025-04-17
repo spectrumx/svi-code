@@ -45,7 +45,7 @@ const WorkspacePage = () => {
       ) : username ? (
         <div className="text-center py-5">
           <i className="bi bi-graph-up display-4 text-muted mb-3"></i>
-          <p className="lead">No visualizations created. Make one now!</p>
+          <p className="lead">No saved visualizations. Make one now!</p>
         </div>
       ) : (
         <div className="text-center py-5">

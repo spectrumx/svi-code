@@ -320,15 +320,13 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         if obj.capture_source == CaptureSource.SDS:
             try:
                 sds_captures = get_sds_captures(request)
-                logger.info(f"SDS captures: {sds_captures}")
-                logger.info(f"obj.capture_ids: {obj.capture_ids}")
                 captures = [
                     capture
                     for capture in sds_captures
                     if str(capture["uuid"]) in obj.capture_ids
                 ]
-            except Exception as e:
-                logger.error(f"Error fetching SDS captures: {e}")
+            except Exception:
+                logger.exception("Error fetching SDS captures")
                 raise
         else:
             for capture_id in obj.capture_ids:
@@ -338,8 +336,8 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
                     captures.append(
                         CaptureSerializer(capture, context={"request": request}).data
                     )
-                except (Capture.DoesNotExist, Exception) as e:
-                    logger.error(f"Error fetching capture {capture_id}: {e}")
+                except (Capture.DoesNotExist, Exception):
+                    logger.exception(f"Error fetching capture {capture_id}")
                     continue
 
         return captures
@@ -519,8 +517,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
 
         # If the visualization is not saved, set the expiration date to 12 hours from now
         if "is_saved" not in validated_data:
-            logger.info(f"validated_data: {validated_data}")
-            logger.info("Setting is_saved to False")
             validated_data["is_saved"] = False
         if not validated_data["is_saved"]:
             validated_data["expiration_date"] = datetime.now(UTC) + timedelta(hours=12)

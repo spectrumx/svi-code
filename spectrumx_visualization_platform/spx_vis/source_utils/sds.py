@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from django.conf import settings
 from rest_framework.request import Request
@@ -17,15 +19,15 @@ def get_sds_captures(request: Request):
             headers={"Authorization": f"Api-Key: {token}"},
             timeout=10,
         )
-        captures = captures_response.json()
+        captures = captures_response.json()["results"]
         formatted_captures = []
 
         for capture in captures:
             formatted_capture = format_sds_capture(capture, request.user.id)
             formatted_captures.append(formatted_capture)
 
-    except Exception as e:
-        print(f"Error fetching SDS captures: {e}")
+    except Exception:
+        logging.exception("Error fetching SDS captures")
         return []
 
     return formatted_captures

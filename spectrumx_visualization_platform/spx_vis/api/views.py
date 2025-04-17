@@ -448,7 +448,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                         zip_file.writestr(zip_path, f.read())
             except Capture.DoesNotExist:
                 error_message = f"Capture ID {capture_id} not found"
-                logging.error(error_message)
+                logging.exception(error_message)
                 raise ValueError(error_message)
 
     @action(detail=True, methods=["get"])
@@ -473,7 +473,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         visualization: Visualization = self.get_object()
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-        zip_filename = f"visualization_{visualization.uuid}_{timestamp}.zip"
+        zip_filename = f"vis_{visualization.uuid}_{timestamp}.zip"
 
         # Create a BytesIO object to store the ZIP file
         zip_buffer = io.BytesIO()
@@ -495,13 +495,12 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             response["Content-Disposition"] = f'attachment; filename="{zip_filename}"'
             return response
 
-        except ValueError as e:
-            logging.error(str(e))
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            message = f"Failed to create ZIP file: {e!s}"
-            logging.error(message)
-            return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+            logging.exception("Error downloading files")
+            return Response(
+                {"error": f"Failed to download files: {e}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     @action(detail=True, methods=["post"])
     def save(self, request: Request, uuid=None) -> Response:
