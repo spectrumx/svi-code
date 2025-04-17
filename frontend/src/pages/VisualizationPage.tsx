@@ -135,9 +135,13 @@ const VisualizationPage = () => {
 
     setIsSaving(true);
     try {
-      const updatedRecord = await updateVisualization(vizId, {
+      let updatedRecord = await updateVisualization(vizId, {
         name: editedName,
       });
+      if (!visualizationRecord.is_saved) {
+        updatedRecord = await saveVisualization(vizId);
+      }
+
       setVisualizationRecord(updatedRecord);
       setIsEditingName(false);
     } catch (err) {

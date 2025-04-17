@@ -39,39 +39,41 @@ class TestCaptureViewSet:
         )
 
     @pytest.fixture()
-    def sigmf_data_file(self) -> SimpleUploadedFile:
-        """Load SigMF data file from fixtures."""
-        fixture_path = Path(__file__).parent / "fixtures" / "sample.sigmf-data"
-        with open(fixture_path, "rb") as f:
-            return SimpleUploadedFile(
-                "sample.sigmf-data", f.read(), content_type="application/octet-stream"
-            )
+    def sigmf_files(self) -> tuple[SimpleUploadedFile, SimpleUploadedFile]:
+        """Load SigMF files from fixtures."""
+        sigmf_dir = Path(__file__).parent / "fixtures" / "sigmf"
+        data_path = sigmf_dir / "sample.sigmf-data"
+        meta_path = sigmf_dir / "sample.sigmf-meta"
 
-    @pytest.fixture()
-    def sigmf_meta_file(self) -> SimpleUploadedFile:
-        """Load SigMF metadata file from fixtures."""
-        fixture_path = Path(__file__).parent / "fixtures" / "sample.sigmf-meta"
-        with open(fixture_path, "rb") as f:
-            return SimpleUploadedFile(
-                "sample.sigmf-meta", f.read(), content_type="application/json"
+        with open(data_path, "rb") as f1, open(meta_path, "rb") as f2:
+            return (
+                SimpleUploadedFile(
+                    "sample.sigmf-data",
+                    f1.read(),
+                    content_type="application/octet-stream",
+                ),
+                SimpleUploadedFile(
+                    "sample.sigmf-meta", f2.read(), content_type="application/json"
+                ),
             )
 
     @pytest.fixture()
     def capture(
         self,
         user: User,
-        sigmf_data_file: SimpleUploadedFile,
-        sigmf_meta_file: SimpleUploadedFile,
+        sigmf_files: tuple[SimpleUploadedFile, SimpleUploadedFile],
     ) -> Capture:
         """Create a capture with SigMF files."""
         capture = Capture.objects.create(owner=user, name="Test Capture", type="sigmf")
+
+        data_file, meta_file = sigmf_files
 
         # Create data file
         File.objects.create(
             owner=user,
             name="sample.sigmf-data",
             media_type="application/octet-stream",
-            file=sigmf_data_file,
+            file=data_file,
             capture=capture,
         )
 
@@ -80,7 +82,7 @@ class TestCaptureViewSet:
             owner=user,
             name="sample.sigmf-meta",
             media_type="application/json",
-            file=sigmf_meta_file,
+            file=meta_file,
             capture=capture,
         )
 
@@ -247,19 +249,75 @@ class TestVisualizationViewSet:
         )
 
     @pytest.fixture()
-    def visualization(self, user: User) -> Visualization:
+    def radiohound_files(self) -> list[SimpleUploadedFile]:
+        """Load all Radiohound files from fixtures directory."""
+        radiohound_dir = Path(__file__).parent / "fixtures" / "radiohound"
+        files = []
+
+        for file_path in radiohound_dir.glob("*.rh.json"):
+            with open(file_path, "rb") as f:
+                files.append(
+                    SimpleUploadedFile(
+                        file_path.name, f.read(), content_type="application/json"
+                    )
+                )
+
+        return files
+
+    @pytest.fixture()
+    def capture(
+        self,
+        user: User,
+        radiohound_files: list[SimpleUploadedFile],
+    ) -> Capture:
+        """Create a capture with Radiohound files."""
+        capture = Capture.objects.create(
+            owner=user,
+            name="Test Radiohound Capture",
+            type="rh",
+            source="svi_user",
+        )
+
+        # Create a File object for each Radiohound file
+        for uploaded_file in radiohound_files:
+            File.objects.create(
+                owner=user,
+                name=uploaded_file.name,
+                media_type="application/json",
+                file=uploaded_file,
+                capture=capture,
+            )
+
+        return capture
+
+    @pytest.fixture()
+    def unsaved_visualization(self, user: User, capture: Capture) -> Visualization:
         return Visualization.objects.create(
             owner=user,
             name="Test Visualization",
-            type="spectrogram",
-            capture_type="sigmf",
-            capture_source="local",
-            capture_ids=["123e4567-e89b-12d3-a456-426614174000"],
+            type="waterfall",
+            capture_type="rh",
+            capture_source="svi_user",
+            capture_ids=[str(capture.uuid)],
+            is_saved=False,
+            expiration_date=datetime.now(UTC) + timedelta(hours=1),
+        )
+
+    @pytest.fixture()
+    def saved_visualization(self, user: User, capture: Capture) -> Visualization:
+        return Visualization.objects.create(
+            owner=user,
+            name="Test Saved Visualization",
+            type="waterfall",
+            capture_type="rh",
+            capture_source="svi_user",
+            capture_ids=[str(capture.uuid)],
             is_saved=True,
+            expiration_date=None,
         )
 
     def test_get_queryset(
-        self, user: User, visualization: Visualization, api_rf: APIRequestFactory
+        self, user: User, saved_visualization: Visualization, api_rf: APIRequestFactory
     ):
         """Test that get_queryset returns only visualizations owned by the user."""
         view = VisualizationViewSet()
@@ -270,7 +328,7 @@ class TestVisualizationViewSet:
 
         queryset = view.get_queryset()
 
-        assert visualization in queryset
+        assert saved_visualization in queryset
         assert queryset.count() == 1
 
     def test_get_serializer_class(self, user: User, api_rf: APIRequestFactory):
@@ -294,30 +352,24 @@ class TestVisualizationViewSet:
         serializer_class = view.get_serializer_class()
         assert serializer_class.__name__ == "VisualizationDetailSerializer"
 
-    def test_save_visualization(self, user: User, api_rf: APIRequestFactory):
+    def test_save_visualization(
+        self,
+        user: User,
+        unsaved_visualization: Visualization,
+        api_rf: APIRequestFactory,
+    ):
         """Test that an unsaved visualization can be saved via the save endpoint."""
-        # Create an unsaved visualization
-        visualization = Visualization.objects.create(
-            owner=user,
-            type="spectrogram",
-            capture_type="sigmf",
-            capture_source="local",
-            capture_ids=["123e4567-e89b-12d3-a456-426614174000"],
-            is_saved=False,
-            expiration_date=datetime.now(UTC) + timedelta(hours=1),
-        )
-
         view = VisualizationViewSet()
-        request = api_rf.post(f"/fake-url/{visualization.uuid}/save/")
+        request = api_rf.post(f"/fake-url/{unsaved_visualization.uuid}/save/")
         force_authenticate(request, user=user)
         drf_request = Request(request)
         drf_request.parsers = [JSONParser()]
         view.request = drf_request
-        view.kwargs = {"uuid": str(visualization.uuid)}
+        view.kwargs = {"uuid": str(unsaved_visualization.uuid)}
         view.action = "post"
         view.format_kwarg = None
 
-        response = view.save(drf_request, uuid=str(visualization.uuid))
+        response = view.save(drf_request, uuid=str(unsaved_visualization.uuid))
 
         # Verify response
         assert response.status_code == status.HTTP_200_OK
@@ -325,9 +377,9 @@ class TestVisualizationViewSet:
         assert response.data["expiration_date"] is None
 
         # Verify database state
-        visualization.refresh_from_db()
-        assert visualization.is_saved is True
-        assert visualization.expiration_date is None
+        unsaved_visualization.refresh_from_db()
+        assert unsaved_visualization.is_saved is True
+        assert unsaved_visualization.expiration_date is None
 
 
 @pytest.mark.django_db()

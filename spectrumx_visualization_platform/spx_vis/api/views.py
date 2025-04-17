@@ -515,11 +515,9 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             Response: The saved visualization
         """
         visualization: Visualization = self.get_object()
-        serializer = self.get_serializer(
-            visualization,
-            data={"is_saved": True, "expiration_date": None},
-            partial=True,
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        visualization.is_saved = True
+        visualization.expiration_date = None
+        visualization.save()
+        serializer = self.get_serializer(visualization)
+
         return Response(serializer.data)
