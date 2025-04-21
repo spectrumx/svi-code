@@ -204,7 +204,7 @@ const VisualizationPage = () => {
 
   return (
     <div className="container-fluid page-container-wide">
-      <div className="d-flex align-items-center gap-3 mb-4">
+      <div className="d-flex align-items-center justify-content-between mb-4">
         {isEditingName ? (
           <div className="d-flex align-items-center gap-2">
             <Form.Control
@@ -246,7 +246,20 @@ const VisualizationPage = () => {
           </div>
         ) : (
           <div className="d-flex align-items-center gap-2">
-            <h2 className="mb-0">{visualizationRecord.name}</h2>
+            <h2
+              className="mb-0 cursor-pointer"
+              onClick={() => setIsEditingName(true)}
+              style={{ cursor: 'pointer' }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setIsEditingName(true);
+                }
+              }}
+            >
+              {visualizationRecord.name}
+            </h2>
             <Button
               variant="outline-secondary"
               size="sm"
@@ -268,7 +281,13 @@ const VisualizationPage = () => {
             }
           >
             <Button variant="primary" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Visualization'}
+              {isSaving ? (
+                'Saving...'
+              ) : (
+                <span>
+                  <i className="bi bi-floppy-fill me-2"></i>Save Visualization
+                </span>
+              )}
             </Button>
           </OverlayTrigger>
         )}
