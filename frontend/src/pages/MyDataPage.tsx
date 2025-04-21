@@ -10,7 +10,7 @@ import { useSyncCaptures, CaptureSource } from '../apiClient/captureService';
 import CaptureTable from '../components/CaptureTable';
 import Button from '../components/Button';
 import FileUploadModal from '../components/FileUploadModal';
-
+import LoadingBlock from '../components/LoadingBlock';
 const MyDataPage = () => {
   const context = useAppContext();
   const { captures, username } = context;
@@ -104,13 +104,13 @@ const MyDataPage = () => {
               <CaptureTable captures={captures} />
             ) : (
               <div className="p-3" style={{ marginTop: '25px' }}>
-                <p>
-                  {isLoading
-                    ? 'Loading...'
-                    : username
-                      ? 'No captures found. Upload a capture to get started!'
-                      : 'Please log in to view your data.'}
-                </p>
+                {isLoading ? (
+                  <LoadingBlock message="Getting captures..." />
+                ) : username ? (
+                  <p>No captures found. Upload a capture to get started!</p>
+                ) : (
+                  <p>Please log in to view your data.</p>
+                )}
               </div>
             )}
           </div>
