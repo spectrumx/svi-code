@@ -11,6 +11,7 @@ import CaptureTable from '../components/CaptureTable';
 import Button from '../components/Button';
 import FileUploadModal from '../components/FileUploadModal';
 import LoadingBlock from '../components/LoadingBlock';
+
 const MyDataPage = () => {
   const context = useAppContext();
   const { captures, username } = context;

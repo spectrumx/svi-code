@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import { VisualizationCard } from '../components/VisualizationCard';
 import { useSyncVisualizations } from '../apiClient/visualizationService';
 import LoadingBlock from '../components/LoadingBlock';
+
 const WorkspacePage = () => {
   const { username, visualizations: vizRecords } = useAppContext();
   const syncVisualizations = useSyncVisualizations();
