@@ -345,7 +345,6 @@ export const CaptureTable = ({
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
       }}
     >
       <div
