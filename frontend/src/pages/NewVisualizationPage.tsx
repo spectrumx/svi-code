@@ -16,7 +16,7 @@ import {
   VISUALIZATION_TYPES,
 } from '../apiClient/visualizationService';
 import CaptureSearch from '../components/CaptureSearch';
-import LoadingSpinner from '../components/LoadingSpinner';
+import LoadingBlock from '../components/LoadingBlock';
 
 /**
  * A wizard-style page for creating new visualizations
@@ -245,12 +245,7 @@ const NewVisualizationPage = () => {
       <h5>Create a New Visualization</h5>
       <div className="mt-4">
         {captures.length === 0 && isFetchingCaptures ? (
-          <div className="d-flex flex-column align-items-center">
-            <div className="me-2">
-              <LoadingSpinner />
-            </div>
-            <div>Syncing captures...</div>
-          </div>
+          <LoadingBlock message="Getting captures..." />
         ) : (
           <>
             {/* Step 1 */}

@@ -153,9 +153,7 @@ const SpectrogramVizContainer = ({
   }
 
   return (
-    <div className="page-container">
-      <h5>Spectrogram for capture {captureId}</h5>
-      <br />
+    <div>
       <Row>
         <Col xs={3} style={{ maxWidth: 200 }}>
           <div className="d-flex flex-column gap-3">

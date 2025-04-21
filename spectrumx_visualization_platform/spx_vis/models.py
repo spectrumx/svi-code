@@ -120,6 +120,7 @@ class Visualization(models.Model):
 
     Attributes:
         uuid: The UUID of the visualization.
+        name: The name of the visualization.
         owner: The user who created the visualization
         type: The type of visualization (spectrogram, waterfall)
         capture_ids: List of capture IDs used in this visualization
@@ -128,9 +129,12 @@ class Visualization(models.Model):
         settings: JSON field for type-specific visualization settings
         created_at: Timestamp when the visualization was created
         updated_at: Timestamp when the visualization was last updated
+        is_saved: Whether the visualization has been saved
+        expiration_date: Timestamp when the visualization will be deleted if not saved
     """
 
     uuid = models.UUIDField(default=uuid4, unique=True)
+    name = models.CharField(max_length=255)
     owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
     type = models.CharField(max_length=255, choices=VISUALIZATION_TYPE_CHOICES)
     capture_ids = models.JSONField(
@@ -143,12 +147,14 @@ class Visualization(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_saved = models.BooleanField(default=False)
+    expiration_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.type} visualization by {self.owner} ({len(self.capture_ids)} captures)"
+        return f"Visualization '{self.name}' ({self.type}) by {self.owner} ({len(self.capture_ids)} captures)"
 
 
 __all__ = [

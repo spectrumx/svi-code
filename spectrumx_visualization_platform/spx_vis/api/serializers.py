@@ -1,4 +1,7 @@
 import logging
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 
 from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
@@ -29,7 +32,7 @@ class FileSerializer(serializers.ModelSerializer[File]):
     """
 
     uuid = serializers.UUIDField(read_only=True)
-    owner = serializers.ReadOnlyField(source="owner.username")
+    owner = serializers.ReadOnlyField(source="owner.uuid")
     file = serializers.FileField(write_only=True)
     content_url = serializers.SerializerMethodField()
 
@@ -177,6 +180,7 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
     """
 
     uuid = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(read_only=True)
     owner = serializers.ReadOnlyField(source="owner.uuid")
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization"
@@ -186,6 +190,7 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
         model = Visualization
         fields = [
             "uuid",
+            "name",
             "owner",
             "type",
             "capture_ids",
@@ -195,7 +200,7 @@ class VisualizationListSerializer(serializers.ModelSerializer[Visualization]):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["uuid", "created_at", "updated_at"]
+        read_only_fields = ["uuid", "name", "created_at", "updated_at"]
 
 
 class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
@@ -204,12 +209,16 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
     Provides full serialization of Visualization objects including detailed capture and file information.
     """
 
+    uuid = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(required=False, allow_null=True)
     owner = serializers.ReadOnlyField(source="owner.uuid")
     capture_ids = serializers.JSONField(
         help_text="List of capture IDs used in this visualization",
         write_only=True,
     )
     captures = serializers.SerializerMethodField(read_only=True)
+    is_saved = serializers.BooleanField(read_only=True)
+    expiration_date = serializers.DateTimeField(read_only=True)
 
     # Define supported capture types for each visualization type
     SUPPORTED_CAPTURE_TYPES = {
@@ -221,6 +230,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         model = Visualization
         fields = [
             "uuid",
+            "name",
             "owner",
             "type",
             "capture_ids",
@@ -230,8 +240,17 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "created_at",
             "updated_at",
             "captures",
+            "is_saved",
+            "expiration_date",
         ]
-        read_only_fields = ["uuid", "created_at", "updated_at", "captures"]
+        read_only_fields = [
+            "uuid",
+            "created_at",
+            "updated_at",
+            "captures",
+            "is_saved",
+            "expiration_date",
+        ]
 
     def _migrate_capture_ids(self, obj: Visualization) -> None:
         """Migrate capture IDs from integers to UUIDs if needed.
@@ -301,15 +320,13 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         if obj.capture_source == CaptureSource.SDS:
             try:
                 sds_captures = get_sds_captures(request)
-                logger.info(f"SDS captures: {sds_captures}")
-                logger.info(f"obj.capture_ids: {obj.capture_ids}")
                 captures = [
                     capture
                     for capture in sds_captures
                     if str(capture["uuid"]) in obj.capture_ids
                 ]
-            except Exception as e:
-                logger.error(f"Error fetching SDS captures: {e}")
+            except Exception:
+                logger.exception("Error fetching SDS captures")
                 raise
         else:
             for capture_id in obj.capture_ids:
@@ -319,8 +336,8 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
                     captures.append(
                         CaptureSerializer(capture, context={"request": request}).data
                     )
-                except (Capture.DoesNotExist, Exception) as e:
-                    logger.error(f"Error fetching capture {capture_id}: {e}")
+                except (Capture.DoesNotExist, Exception):
+                    logger.exception(f"Error fetching capture {capture_id}")
                     continue
 
         return captures
@@ -380,31 +397,27 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         if capture_source == "sds":
             sds_client = user.sds_client()
             sds_captures = sds_client.captures.listing(capture_type=capture_type)
-            sds_capture_ids = [str(capture.uuid) for capture in sds_captures]
+            sds_capture_uuids = [str(capture.uuid) for capture in sds_captures]
 
             # Verify all requested captures were found
-            missing_ids = set(capture_ids) - set(sds_capture_ids)
-            if missing_ids:
-                error_message = f"SDS captures of type {capture_type} not found: {', '.join(missing_ids)}"
+            missing_uuids = set(capture_ids) - set(sds_capture_uuids)
+            if missing_uuids:
+                error_message = f"SDS captures of type {capture_type} not found: {', '.join(missing_uuids)}"
                 logger.error(error_message)
                 raise serializers.ValidationError(error_message)
             return
 
         if capture_source == "svi_user":
             # Get local captures
-            int_ids = [int(capture_id) for capture_id in capture_ids]
             local_captures = Capture.objects.filter(
-                id__in=int_ids, owner=user, type=capture_type
+                uuid__in=capture_ids, owner=user, type=capture_type
             )
-            local_capture_ids = [
-                str(capture_id)
-                for capture_id in local_captures.values_list("uuid", flat=True)
-            ]
+            local_capture_uuids = [str(capture.uuid) for capture in local_captures]
 
             # Verify all requested captures were found
-            missing_ids = set(capture_ids) - set(local_capture_ids)
-            if missing_ids:
-                error_message = f"Local captures of type {capture_type} not found: {', '.join(missing_ids)}"
+            missing_uuids = set(capture_ids) - set(local_capture_uuids)
+            if missing_uuids:
+                error_message = f"Local captures of type {capture_type} not found: {', '.join(missing_uuids)}"
                 logger.error(error_message)
                 raise serializers.ValidationError(error_message)
             return
@@ -437,31 +450,33 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         Raises:
             serializers.ValidationError: If validation fails
         """
-        # Validate number of captures for spectrogram
-        if (
-            data["type"] == VisualizationType.Spectrogram
-            and len(data["capture_ids"]) != 1
-        ):
-            error_message = "Spectrogram visualizations must have exactly one capture"
-            raise serializers.ValidationError(error_message)
+        # Only validate type-related fields if type is being updated
+        if "type" in data:
+            # Validate that the capture type is supported for this visualization type
+            supported_types = self.SUPPORTED_CAPTURE_TYPES.get(data["type"], [])
+            if data["capture_type"] not in supported_types:
+                supported_names = [
+                    dict(CAPTURE_TYPE_CHOICES)[t] for t in supported_types
+                ]
+                error_message = (
+                    f"{dict(VISUALIZATION_TYPE_CHOICES)[data['type']]} visualizations only support "
+                    f"the following capture types: {', '.join(supported_names)}"
+                )
+                raise serializers.ValidationError(error_message)
 
-        # Check if the given capture IDs are valid and accessible to the user
-        self._check_captures(
-            data["capture_ids"],
-            data["capture_source"],
-            data["capture_type"],
-            self.context["request"].user,
-        )
+        # Only validate capture-related fields if they're being updated
+        if "capture_ids" in data or "capture_source" in data or "capture_type" in data:
+            # Check if the given capture IDs are valid and accessible to the user
+            capture_ids = data.get("capture_ids") or self.instance.capture_ids
+            capture_source = data.get("capture_source") or self.instance.capture_source
+            capture_type = data.get("capture_type") or self.instance.capture_type
 
-        # Validate that the capture type is supported for this visualization type
-        supported_types = self.SUPPORTED_CAPTURE_TYPES.get(data["type"], [])
-        if data["capture_type"] not in supported_types:
-            supported_names = [dict(CAPTURE_TYPE_CHOICES)[t] for t in supported_types]
-            error_message = (
-                f"{dict(VISUALIZATION_TYPE_CHOICES)[data['type']]} visualizations only support "
-                f"the following capture types: {', '.join(supported_names)}"
+            self._check_captures(
+                capture_ids,
+                capture_source,
+                capture_type,
+                self.context["request"].user,
             )
-            raise serializers.ValidationError(error_message)
 
         return data
 
@@ -484,20 +499,16 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         sorted_capture_ids = sorted(validated_data["capture_ids"])
         validated_data["capture_ids"] = sorted_capture_ids
 
-        # Check for existing visualization with same configuration
-        existing_visualization = Visualization.objects.filter(
-            owner=user,
-            type=validated_data["type"],
-            capture_ids=sorted_capture_ids,
-            capture_type=validated_data["capture_type"],
-            capture_source=validated_data["capture_source"],
-            settings=validated_data.get("settings", {}),
-        ).first()
-
-        if existing_visualization:
-            logger.info(
-                f"Returning existing visualization with same config: {existing_visualization.uuid}"
+        # Set a default name if not provided
+        if "name" not in validated_data:
+            validated_data["name"] = (
+                f"Unnamed {dict(VISUALIZATION_TYPE_CHOICES)[validated_data['type']]}"
             )
-            return existing_visualization
+
+        # If the visualization is not saved, set the expiration date to 12 hours from now
+        if "is_saved" not in validated_data:
+            validated_data["is_saved"] = False
+        if not validated_data["is_saved"]:
+            validated_data["expiration_date"] = datetime.now(UTC) + timedelta(hours=12)
 
         return super().create(validated_data)

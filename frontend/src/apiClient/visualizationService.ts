@@ -42,6 +42,7 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
 
 const BaseVisualizationRecordSchema = zod.object({
   uuid: zod.string(),
+  name: zod.string(),
   owner: zod.string(),
   type: VisualizationTypeSchema,
   capture_type: CaptureTypeSchema,
@@ -59,6 +60,8 @@ export type VisualizationRecord = zod.infer<typeof VisualizationRecordSchema>;
 
 const VisualizationRecordDetailSchema = BaseVisualizationRecordSchema.extend({
   captures: zod.array(CaptureSchema),
+  is_saved: zod.boolean(),
+  expiration_date: zod.string().nullable(),
 });
 
 export type VisualizationRecordDetail = zod.infer<
@@ -66,6 +69,7 @@ export type VisualizationRecordDetail = zod.infer<
 >;
 
 export interface CreateVisualizationRequest {
+  name?: string;
   type: VisualizationType;
   capture_ids: string[];
   capture_type: CaptureType;
@@ -114,6 +118,28 @@ export const postVisualization = async (
     console.error('Error creating visualization:', error);
     throw error;
   }
+};
+
+export const saveVisualization = async (
+  id: string,
+): Promise<VisualizationRecordDetail> => {
+  const response = await apiClient.post(`/api/visualizations/${id}/save/`);
+  return VisualizationRecordDetailSchema.parse(response.data);
+};
+
+export const updateVisualization = async (
+  id: string,
+  newData: Partial<Pick<VisualizationRecordDetail, 'name' | 'settings'>>,
+): Promise<VisualizationRecordDetail> => {
+  const response = await apiClient.patch(`/api/visualizations/${id}/`, newData);
+  return VisualizationRecordDetailSchema.parse(response.data);
+};
+
+export const deleteVisualization = async (
+  id: string,
+): Promise<VisualizationRecordDetail> => {
+  const response = await apiClient.delete(`/api/visualizations/${id}/`);
+  return VisualizationRecordDetailSchema.parse(response.data);
 };
 
 export const useSyncVisualizations = () => {
