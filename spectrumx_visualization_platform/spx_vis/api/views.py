@@ -332,17 +332,17 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         Raises:
             ValueError: If duplicate filename is found or file download fails
         """
-        file_id = file["id"]
-        logging.info(f"Downloading file with ID {file_id}")
+        file_uuid = file["uuid"]
+        logging.info(f"Downloading file with ID {file_uuid}")
 
         response = requests.get(
-            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_id}/download",
+            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_uuid}/download",
             headers={"Authorization": f"Api-Key: {token}"},
             timeout=10,
             stream=True,
         )
         response.raise_for_status()
-        logging.info(f"File with ID {file_id} downloaded")
+        logging.info(f"File with ID {file_uuid} downloaded")
 
         # Get filename from Content-Disposition header or use file ID
         content_disposition = response.headers.get("Content-Disposition", "")
@@ -389,7 +389,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         token = request.user.fetch_sds_token()
 
         for capture_id in visualization.capture_ids:
-            capture = next((c for c in sds_captures if c["id"] == capture_id), None)
+            capture = next((c for c in sds_captures if c["uuid"] == capture_id), None)
             if capture is None:
                 raise ValueError(f"Capture ID {capture_id} not found in SDS")
 
@@ -402,7 +402,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     )
                 except requests.RequestException as e:
                     raise ValueError(
-                        f"Failed to download file ID {file['id']} from capture ID {capture_id}: {e}"
+                        f"Failed to download file ID {file['uuid']} from capture ID {capture_id}: {e}"
                     )
 
     def _handle_local_captures(
