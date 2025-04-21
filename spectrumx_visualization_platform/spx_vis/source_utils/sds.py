@@ -1,13 +1,9 @@
-from typing import TYPE_CHECKING
-
 import requests
 from django.conf import settings
 from rest_framework.request import Request
 
 from spectrumx_visualization_platform.spx_vis.api.utils import calculate_end_time
-
-if TYPE_CHECKING:
-    from spectrumx_visualization_platform.users.models import User
+from spectrumx_visualization_platform.users.models import User
 
 
 def get_sds_captures(request: Request):
@@ -53,15 +49,17 @@ def format_sds_capture(sds_capture: dict, user_id: int):
 
     files = [
         {
-            "id": file["uuid"],
+            "uuid": file["uuid"],
             "name": file["name"],
         }
         for file in sds_capture["files"]
     ]
 
+    owner_uuid = User.objects.get(id=user_id).uuid
+
     return {
-        "id": sds_capture["uuid"],
-        "owner": user_id,
+        "uuid": sds_capture["uuid"],
+        "owner": owner_uuid,
         "name": sds_capture["scan_group"],
         "files": files,
         "created_at": sds_capture["created_at"],

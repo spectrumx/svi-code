@@ -36,14 +36,14 @@ def format_local_capture(capture: dict) -> dict:
     scan_time = capture.get("scan_time")
 
     if capture["type"] == "rh":
-        first_file = File.objects.get(id=capture["files"][0]["id"]).file
+        first_file = File.objects.get(uuid=capture["files"][0]["uuid"]).file
         min_freq, max_freq = RadioHoundUtility.get_frequency_range(first_file)
     else:
         min_freq = capture.get("metadata", {}).get("fmin", None)
         max_freq = capture.get("metadata", {}).get("fmax", None)
 
     return {
-        "id": capture["id"],
+        "uuid": capture["uuid"],
         "name": capture["name"],
         "media_type": capture.get("metadata", {}).get("data_type", "unknown"),
         "timestamp": timestamp,

@@ -93,7 +93,7 @@ export const CaptureSearch = ({
 
     // Get IDs of currently visible captures
     const visibleCaptureIds = new Set(
-      filteredCaptures.map((capture) => capture.id),
+      filteredCaptures.map((capture) => capture.uuid),
     );
 
     // Keep only selected IDs that are still visible in filtered results

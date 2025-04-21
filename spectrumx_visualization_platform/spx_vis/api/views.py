@@ -89,6 +89,8 @@ class CaptureViewSet(viewsets.ModelViewSet):
     queryset = Capture.objects.all()
     serializer_class = CaptureSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    lookup_field = "uuid"
+    lookup_url_kwarg = "uuid"
 
     def get_queryset(self):
         """Get the queryset of captures for the current user.
@@ -127,13 +129,13 @@ class CaptureViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["post"])
-    def create_spectrogram(self, request, pk=None):
+    def create_spectrogram(self, request, uuid=None):
         """
         Create a spectrogram visualization job for a SigMF capture.
 
         Args:
             request: HTTP request containing width, height parameters
-            pk: Primary key of the Capture
+            uuid: UUID of the Capture
 
         Returns:
             Response with job_id and status if successful
@@ -184,6 +186,8 @@ class FileViewSet(viewsets.ModelViewSet):
     search_fields = ["name", "media_type"]
     ordering_fields = ["created_at", "updated_at", "name"]
     ordering = ["-created_at"]
+    lookup_field = "uuid"
+    lookup_url_kwarg = "uuid"
 
     def get_queryset(self):
         """Get the queryset of files for the current user.
@@ -194,12 +198,12 @@ class FileViewSet(viewsets.ModelViewSet):
         return File.objects.filter(owner=self.request.user)
 
     @action(detail=True, methods=["get"])
-    def content(self, request, pk=None):
+    def content(self, request, uuid=None):
         """Get the file content.
 
         Args:
             request: The HTTP request
-            pk: The primary key of the file
+            uuid: The UUID of the file
 
         Returns:
             FileResponse: The file content with appropriate content type
@@ -212,13 +216,13 @@ class FileViewSet(viewsets.ModelViewSet):
         if source == "sds":
             try:
                 token = request.user.fetch_sds_token()
-                logging.info(f"Fetching SDS file {pk}")
+                logging.info(f"Fetching SDS file {uuid}")
                 response = requests.get(
-                    f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{pk}/download",
+                    f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{uuid}/download",
                     headers={"Authorization": f"Api-Key: {token}"},
                     timeout=10,
                 )
-                logging.info(f"Returning SDS file {pk}")
+                logging.info(f"Returning SDS file {uuid}")
                 return FileResponse(response)
             except Exception as e:
                 return Response(
@@ -259,6 +263,8 @@ class VisualizationViewSet(viewsets.ModelViewSet):
     search_fields = ["type", "capture_type", "capture_source"]
     ordering_fields = ["created_at", "updated_at", "type"]
     ordering = ["-created_at"]
+    lookup_field = "uuid"
+    lookup_url_kwarg = "uuid"
 
     def get_serializer_class(self):
         """Get the appropriate serializer class based on the action and query parameters.
@@ -400,7 +406,15 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         for capture_id in visualization.capture_ids:
             try:
-                capture = Capture.objects.get(id=capture_id, owner=request.user)
+                # If capture_id can be parsed as an int, we need to get the capture by ID
+                # because the viz capture_ids haven't been replaced with UUIDs yet
+                try:
+                    parsed_capture_id = int(capture_id)
+                    capture = Capture.objects.get(
+                        id=parsed_capture_id, owner=request.user
+                    )
+                except ValueError:
+                    capture = Capture.objects.get(uuid=capture_id, owner=request.user)
                 seen_filenames: set[str] = set()
 
                 for file_obj in capture.files.all():
@@ -421,7 +435,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 raise ValueError(error_message)
 
     @action(detail=True, methods=["get"])
-    def download_files(self, request: Request, pk=None) -> Response:
+    def download_files(self, request: Request, uuid=None) -> Response:
         """Download all files associated with the visualization as a ZIP file.
 
         This endpoint retrieves all files from both local and SDS sources associated
@@ -432,7 +446,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
 
         Args:
             request: The HTTP request
-            pk: The primary key of the visualization
+            uuid: The UUID of the visualization
 
         Returns:
             FileResponse: A ZIP file containing all associated files
@@ -442,7 +456,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         visualization: Visualization = self.get_object()
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-        zip_filename = f"visualization_{visualization.id}_{timestamp}.zip"
+        zip_filename = f"visualization_{visualization.uuid}_{timestamp}.zip"
 
         # Create a BytesIO object to store the ZIP file
         zip_buffer = io.BytesIO()

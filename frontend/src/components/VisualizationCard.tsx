@@ -21,7 +21,7 @@ interface VisualizationCardProps {
 /**
  * Custom hook to fetch the total number of files across all captures in a visualization
  */
-const useVisualizationFileCount = (id: number) => {
+const useVisualizationFileCount = (uuid: string) => {
   const [fileCount, setFileCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -30,7 +30,7 @@ const useVisualizationFileCount = (id: number) => {
     const fetchFileCount = async () => {
       try {
         setIsLoading(true);
-        const data = await getVisualization(id.toString());
+        const data = await getVisualization(uuid);
         const totalFiles = data.captures.reduce(
           (sum, capture) => sum + (capture.files?.length ?? 0),
           0,
@@ -42,13 +42,14 @@ const useVisualizationFileCount = (id: number) => {
             ? err
             : new Error('Failed to fetch visualization details'),
         );
+        console.error('Error fetching visualization details:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchFileCount();
-  }, [id]);
+  }, [uuid]);
 
   return { fileCount, isLoading, error };
 };
@@ -62,7 +63,7 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const { fileCount, isLoading, error } = useVisualizationFileCount(
-    vizRecord.id,
+    vizRecord.uuid,
   );
   const visualizationType = VISUALIZATION_TYPES.find(
     (v) => v.name === vizRecord.type,
@@ -70,14 +71,14 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
 
   return (
     <Card
-      onClick={() => navigate(`/visualization/${vizRecord.id}`)}
+      onClick={() => navigate(`/visualization/${vizRecord.uuid}`)}
       className="mb-3 visualization-card"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          navigate(`/visualization/${vizRecord.id}`);
+          navigate(`/visualization/${vizRecord.uuid}`);
         }
       }}
     >

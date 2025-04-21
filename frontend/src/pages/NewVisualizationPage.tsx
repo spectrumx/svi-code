@@ -54,7 +54,7 @@ const NewVisualizationPage = () => {
 
   // Get selected capture and its type
   const selectedCapture = useMemo(
-    () => captures.find((c) => c.id === selectedCaptureId),
+    () => captures.find((c) => c.uuid === selectedCaptureId),
     [captures, selectedCaptureId],
   );
 
@@ -101,7 +101,7 @@ const NewVisualizationPage = () => {
         settings: {},
       });
 
-      navigate(`/visualization/${visualizationRecord.id}`);
+      navigate(`/visualization/${visualizationRecord.uuid}`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to create visualization',

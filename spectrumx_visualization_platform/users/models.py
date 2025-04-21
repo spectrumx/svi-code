@@ -1,9 +1,11 @@
 import logging
+from uuid import uuid4
 
 import requests
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.signals import user_logged_in
+from django.db import models
 from django.db.models import CharField
 from django.dispatch import receiver
 from django.urls import reverse
@@ -18,6 +20,7 @@ class User(AbstractUser):
     check forms.SignupForm and forms.SocialSignupForms accordingly.
     """
 
+    uuid = models.UUIDField(default=uuid4, unique=True)
     # First and last name do not cover name patterns around the globe
     name = CharField(_("Name of User"), blank=True, max_length=255)
     first_name = None  # type: ignore[assignment]

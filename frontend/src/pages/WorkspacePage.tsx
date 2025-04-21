@@ -37,7 +37,7 @@ const WorkspacePage = () => {
       {sortedVizRecords.length > 0 ? (
         <Row>
           {sortedVizRecords.map((vizRecord) => (
-            <Col key={vizRecord.id} xs={12} md={6} lg={4} className="mb-3">
+            <Col key={vizRecord.uuid} xs={12} md={6} lg={4} className="mb-3">
               <VisualizationCard vizRecord={vizRecord} />
             </Col>
           ))}

@@ -23,14 +23,14 @@ export type CreateSpectrogramResponse = zod.infer<
  * @returns Promise containing the job response
  */
 export const postSpectrogramJob = async (
-  captureId: number,
+  captureUUID: string,
   // fftSize: number,
   width: number,
   height: number,
 ): Promise<CreateSpectrogramResponse> => {
   try {
     const response = await apiClient.post(
-      `/api/captures/${captureId}/create_spectrogram/`,
+      `/api/captures/${captureUUID}/create_spectrogram/`,
       {
         // fft_size: fftSize,
         width: width,

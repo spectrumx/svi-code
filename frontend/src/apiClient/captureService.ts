@@ -54,9 +54,9 @@ export const CaptureSourceSchema = zod.enum(['sds', 'svi_user', 'svi_public']);
 export type CaptureSource = keyof typeof CAPTURE_SOURCES;
 
 export const CaptureSchema = zod.object({
-  id: zod.string(),
+  uuid: zod.string(),
   name: zod.string(),
-  owner: zod.number(),
+  owner: zod.string(),
   created_at: zod.string(),
   timestamp: zod.string(),
   type: CaptureTypeSchema,
