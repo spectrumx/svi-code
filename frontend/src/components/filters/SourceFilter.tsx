@@ -26,6 +26,7 @@ export const SourceFilter: React.FC<SourceFilterProps> = ({
               key={sourceValue}
               type="checkbox"
               label={CAPTURE_SOURCES[sourceValue].name}
+              id={sourceValue}
               value={sourceValue}
               checked={selectedSources.includes(sourceValue)}
               onChange={() => onSourceChange(sourceValue)}
