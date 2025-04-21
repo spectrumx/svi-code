@@ -452,16 +452,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         """
         # Only validate type-related fields if type is being updated
         if "type" in data:
-            # Validate number of captures for spectrogram
-            if (
-                data["type"] == VisualizationType.Spectrogram
-                and len(data["capture_ids"]) != 1
-            ):
-                error_message = (
-                    "Spectrogram visualizations must have exactly one capture"
-                )
-                raise serializers.ValidationError(error_message)
-
             # Validate that the capture type is supported for this visualization type
             supported_types = self.SUPPORTED_CAPTURE_TYPES.get(data["type"], [])
             if data["capture_type"] not in supported_types:
