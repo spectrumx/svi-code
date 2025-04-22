@@ -13,7 +13,7 @@ def get_sds_captures(request: Request):
     user: User = request.user
 
     try:
-        token = user.fetch_sds_token()
+        token = user.sds_token
         captures_response = requests.get(
             f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/",
             headers={"Authorization": f"Api-Key: {token}"},

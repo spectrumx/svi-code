@@ -215,7 +215,7 @@ class FileViewSet(viewsets.ModelViewSet):
 
         if source == "sds":
             try:
-                token = request.user.fetch_sds_token()
+                token = request.user.sds_token
                 logging.info(f"Fetching SDS file {uuid}")
                 response = requests.get(
                     f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{uuid}/download",
@@ -386,7 +386,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         logging.info("Getting SDS captures")
         sds_captures = get_sds_captures(request)
         logging.info(f"Got {len(sds_captures)} SDS captures")
-        token = request.user.fetch_sds_token()
+        token = request.user.sds_token
 
         for capture_id in visualization.capture_ids:
             capture = next((c for c in sds_captures if c["uuid"] == capture_id), None)
