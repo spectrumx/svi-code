@@ -16,6 +16,7 @@ import './components.css';
 
 interface VisualizationCardProps {
   vizRecord: VisualizationRecord;
+  onDeleteClick?: (vizRecord: VisualizationRecord) => void;
 }
 
 /**
@@ -60,6 +61,7 @@ const useVisualizationFileCount = (uuid: string) => {
  */
 export const VisualizationCard: React.FC<VisualizationCardProps> = ({
   vizRecord,
+  onDeleteClick,
 }) => {
   const navigate = useNavigate();
   const { fileCount, isLoading, error } = useVisualizationFileCount(
@@ -69,9 +71,19 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
     (v) => v.name === vizRecord.type,
   );
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent navigation if clicking the delete button
+    if ((e.target as HTMLElement).closest('.delete-button')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    navigate(`/visualization/${vizRecord.uuid}`);
+  };
+
   return (
     <Card
-      onClick={() => navigate(`/visualization/${vizRecord.uuid}`)}
+      onClick={handleCardClick}
       className="mb-3 visualization-card"
       role="button"
       tabIndex={0}
@@ -83,12 +95,27 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
       }}
     >
       <Card.Body>
-        <Card.Title className="d-flex align-items-center">
-          <i
-            className={`bi ${visualizationType?.icon ?? 'bi-graph-up'} me-2`}
-          ></i>
-          {vizRecord.name}
-        </Card.Title>
+        <div className="d-flex justify-content-between align-items-start">
+          <Card.Title className="d-flex align-items-center">
+            <i
+              className={`bi ${visualizationType?.icon ?? 'bi-graph-up'} me-2`}
+            ></i>
+            {vizRecord.name}
+          </Card.Title>
+          {onDeleteClick && (
+            <button
+              className="btn btn-link delete-button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDeleteClick?.(vizRecord);
+              }}
+              aria-label="Delete visualization"
+            >
+              <i className="bi bi-trash text-danger"></i>
+            </button>
+          )}
+        </div>
         <Card.Text>
           <span className="text-muted">
             Created {new Date(vizRecord.created_at).toLocaleString()}
