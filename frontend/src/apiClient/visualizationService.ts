@@ -135,11 +135,9 @@ export const updateVisualization = async (
   return VisualizationRecordDetailSchema.parse(response.data);
 };
 
-export const deleteVisualization = async (
-  id: string,
-): Promise<VisualizationRecordDetail> => {
+export const deleteVisualization = async (id: string): Promise<boolean> => {
   const response = await apiClient.delete(`/api/visualizations/${id}/`);
-  return VisualizationRecordDetailSchema.parse(response.data);
+  return response.status === 204;
 };
 
 export const useSyncVisualizations = () => {

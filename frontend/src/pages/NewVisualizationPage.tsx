@@ -241,7 +241,7 @@ const NewVisualizationPage = () => {
   }, [syncCaptures]);
 
   return (
-    <div className="page-container">
+    <div className="page-container-wide">
       <h5>Create a New Visualization</h5>
       <div className="mt-4">
         {captures.length === 0 && isFetchingCaptures ? (

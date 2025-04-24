@@ -1,29 +1,61 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router';
-import { Container, Row, Col } from 'react-bootstrap';
+import { Container, Row, Col, Modal } from 'react-bootstrap';
 import _ from 'lodash';
 
 import { useAppContext } from '../utils/AppContext';
 import Button from '../components/Button';
 import { VisualizationCard } from '../components/VisualizationCard';
-import { useSyncVisualizations } from '../apiClient/visualizationService';
+import {
+  useSyncVisualizations,
+  deleteVisualization,
+  VisualizationRecord,
+} from '../apiClient/visualizationService';
 import LoadingBlock from '../components/LoadingBlock';
 
 const WorkspacePage = () => {
   const { username, visualizations: vizRecords } = useAppContext();
   const syncVisualizations = useSyncVisualizations();
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [vizToDelete, setVizToDelete] = useState<VisualizationRecord | null>(
+    null,
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    const sync = async () => {
-      setIsLoading(true);
-      await syncVisualizations();
-      setIsLoading(false);
-    };
-    sync();
+  const loadVisualizations = useCallback(async () => {
+    setIsLoading(true);
+    await syncVisualizations();
+    setIsLoading(false);
   }, [syncVisualizations]);
 
+  useEffect(() => {
+    loadVisualizations();
+  }, [loadVisualizations]);
+
   const sortedVizRecords = _.sortBy(vizRecords, 'created_at').reverse();
+
+  const handleDeleteClick = (vizRecord: VisualizationRecord) => {
+    setVizToDelete(vizRecord);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!vizToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteVisualization(vizToDelete.uuid);
+      setShowDeleteModal(false);
+      await loadVisualizations();
+    } catch (err) {
+      console.error('Error deleting visualization:', err);
+    } finally {
+      setShowDeleteModal(false);
+      setIsDeleting(false);
+      setVizToDelete(null);
+    }
+  };
 
   return (
     <Container className="py-4">
@@ -57,11 +89,44 @@ const WorkspacePage = () => {
         <Row>
           {sortedVizRecords.map((vizRecord) => (
             <Col key={vizRecord.uuid} xs={12} md={6} lg={4} className="mb-3">
-              <VisualizationCard vizRecord={vizRecord} />
+              <VisualizationCard
+                vizRecord={vizRecord}
+                onDeleteClick={handleDeleteClick}
+              />
             </Col>
           ))}
         </Row>
       )}
+
+      <Modal
+        show={showDeleteModal && !!vizToDelete}
+        onHide={() => {
+          setShowDeleteModal(false);
+          setVizToDelete(null);
+        }}
+      >
+        <Modal.Header>
+          <Modal.Title>Delete visualization "{vizToDelete?.name}"?</Modal.Title>
+        </Modal.Header>
+        <Modal.Footer className="d-flex justify-content-between">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowDeleteModal(false);
+              setVizToDelete(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDeleteConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };
