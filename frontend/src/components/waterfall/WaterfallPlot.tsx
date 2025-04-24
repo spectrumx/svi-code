@@ -371,7 +371,6 @@ export function WaterfallPlot({
         context.fillStyle = 'white';
         context.fillRect(0, margin.top, labelWidth, plotHeight);
 
-        const gradientHeight = plotHeight - margin.top - margin.bottom;
         const barWidth = colorLegendWidth * colorbarProportion;
         const barX = 0;
         const barY = margin.top;
@@ -379,14 +378,27 @@ export function WaterfallPlot({
         const totalRange =
           (displayCopy.scaleMax ?? 0) - (displayCopy.scaleMin ?? -130);
 
-        // Draw color gradient bar
-        for (let y = 0; y < gradientHeight; y++) {
-          const fraction = y / gradientHeight;
+        // Create a linear gradient
+        const gradient = context.createLinearGradient(
+          0,
+          barY,
+          0,
+          barY + plotHeight,
+        );
+
+        // Add color stops at regular intervals
+        const numStops = 10; // Number of color stops for smooth gradient
+
+        for (let i = 0; i <= numStops; i++) {
+          const fraction = i / numStops;
           const dbVal = (displayCopy.scaleMax ?? 0) - fraction * totalRange;
-          const dbValColor = colorScale?.(dbVal) ?? 'black';
-          context.fillStyle = dbValColor;
-          context.fillRect(barX, barY + y, barWidth, 1);
+          const color = colorScale?.(dbVal) ?? 'black';
+          gradient.addColorStop(fraction, color);
         }
+
+        // Draw the gradient
+        context.fillStyle = gradient;
+        context.fillRect(barX, barY, barWidth, plotHeight);
 
         // Draw labels at 5 dB intervals
         context.font = '12px Arial';
@@ -401,10 +413,10 @@ export function WaterfallPlot({
         // Draw dB value labels with units
         for (let dbVal = maxDb; dbVal >= minDb; dbVal -= dbStep) {
           const fraction = ((displayCopy.scaleMax ?? 0) - dbVal) / totalRange;
-          const y = margin.top + fraction * gradientHeight;
+          const y = margin.top + fraction * plotHeight;
 
           // Only draw if within the gradient bounds
-          if (y >= margin.top && y <= margin.top + gradientHeight) {
+          if (y >= margin.top && y <= margin.top + plotHeight) {
             context.fillText(`${dbVal} dBm`, labelX, y + 4);
           }
         }
