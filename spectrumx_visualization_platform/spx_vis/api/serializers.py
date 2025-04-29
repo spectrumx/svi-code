@@ -116,8 +116,8 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         ]
         read_only_fields = ["uuid", "owner", "created_at", "timestamp", "source"]
 
-    def create(self, validated_data: dict) -> Capture | list[Capture]:
-        """Create one or more Captures with associated File objects.
+    def create(self, validated_data: dict) -> Capture:
+        """Create a Capture with associated File objects.
 
         Args:
             validated_data: Validated data including uploaded files

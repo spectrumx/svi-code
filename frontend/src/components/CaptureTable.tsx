@@ -196,7 +196,8 @@ export const CaptureTable = ({
               placement="right"
               overlay={
                 <Tooltip id="name-header-tooltip">
-                  For SDS captures, this column shows the scan group ID
+                  For SDS captures, this column shows the scan group ID or
+                  channel name
                 </Tooltip>
               }
             >

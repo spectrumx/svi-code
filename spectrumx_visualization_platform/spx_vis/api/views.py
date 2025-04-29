@@ -30,6 +30,7 @@ from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
+from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
 from spectrumx_visualization_platform.spx_vis.source_utils.local import (
@@ -101,28 +102,15 @@ class CaptureViewSet(viewsets.ModelViewSet):
         return Capture.objects.filter(owner=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        """Create a new capture or captures.
-
-        For RadioHound captures, creates multiple captures (one per file).
-        For other types, creates a single capture with multiple files.
+        """Create a new capture.
 
         Returns:
-            Response: Created capture(s) data with appropriate status code
+            Response: Created capture data with appropriate status code
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = serializer.save()
+        serializer.save()
 
-        # Handle RadioHound multi-capture case
-        if isinstance(result, list):
-            # Serialize the list of captures
-            serializer = self.get_serializer(result, many=True)
-            headers = self.get_success_headers(serializer.data)
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-
-        # Handle single capture case (other types)
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers
@@ -131,7 +119,7 @@ class CaptureViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def create_spectrogram(self, request, uuid=None):
         """
-        Create a spectrogram visualization job for a SigMF capture.
+        Create a spectrogram visualization job.
 
         Args:
             request: HTTP request containing width, height parameters
@@ -141,15 +129,20 @@ class CaptureViewSet(viewsets.ModelViewSet):
             Response with job_id and status if successful
 
         Raises:
-            400: If capture is not SigMF type or required files are missing
+            400: If capture is not of a supported type or required files are missing
         """
         capture: Capture = self.get_object()
 
-        if capture.type != "sigmf":
+        supported_capture_types: list[CaptureType] = [
+            CaptureType.SigMF,
+            CaptureType.DigitalRF,
+        ]
+
+        if capture.type not in supported_capture_types:
             return Response(
                 {
                     "status": "error",
-                    "message": "Spectrogram generation is only supported for SigMF captures",
+                    "message": f"Spectrogram generation is only supported for the following capture types: {supported_capture_types}",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

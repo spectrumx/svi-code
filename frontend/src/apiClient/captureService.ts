@@ -31,10 +31,10 @@ export const CAPTURE_TYPE_INFO: Record<CaptureType, CaptureTypeInfo> = {
   },
   drf: {
     name: 'Digital RF',
-    fileExtensions: ['.drf'],
+    fileExtensions: ['.zip'],
     minFiles: 1,
     maxFiles: 1,
-    uploadInstructions: 'Upload a single Digital RF file.',
+    uploadInstructions: 'Upload a ZIP archive of a single Digital RF channel.',
   },
   sigmf: {
     name: 'SigMF',
