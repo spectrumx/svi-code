@@ -7,6 +7,9 @@ from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
 
+from spectrumx_visualization_platform.spx_vis.capture_utils.digitalrf import (
+    DigitalRFUtility,
+)
 from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
     RadioHoundUtility,
 )
@@ -132,6 +135,8 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             capture_utility = RadioHoundUtility
         elif capture_type == CaptureType.SigMF:
             capture_utility = SigMFUtility
+        elif capture_type == CaptureType.DigitalRF:
+            capture_utility = DigitalRFUtility
         else:
             error_message = f"Unsupported capture type: {capture_type}"
             logger.error(error_message)
