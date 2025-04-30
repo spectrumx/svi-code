@@ -3,20 +3,20 @@ import { Row, Col } from 'react-bootstrap';
 import {
   FrequencyFilter,
   DateTimeFilter,
-  SourceFilter,
+  // SourceFilter,
 } from '../components/filters';
 import { useAppContext } from '../utils/AppContext';
-import { useSyncCaptures, CaptureSource } from '../apiClient/captureService';
+import { useSyncCaptures } from '../apiClient/captureService';
 import CaptureTable from '../components/CaptureTable';
 import Button from '../components/Button';
-import FileUploadModal from '../components/FileUploadModal';
+// import CaptureUploadModal from '../components/CaptureUploadModal';
 import LoadingBlock from '../components/LoadingBlock';
 
 const MyDataPage = () => {
   const context = useAppContext();
   const { captures, username } = context;
   const syncCaptures = useSyncCaptures();
-  const [showModal, setShowModal] = useState(false);
+  // const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Filter states
@@ -24,7 +24,7 @@ const MyDataPage = () => {
   const [maxFrequency, setMaxFrequency] = useState<string>('');
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
-  const [selectedSources, setSelectedSources] = useState<CaptureSource[]>([]);
+  // const [selectedSources, setSelectedSources] = useState<CaptureSource[]>([]);
 
   useEffect(() => {
     if (username) {
@@ -33,13 +33,13 @@ const MyDataPage = () => {
     }
   }, [syncCaptures, username]);
 
-  const handleSourceChange = (source: CaptureSource) => {
-    setSelectedSources((prevSources) =>
-      prevSources.includes(source)
-        ? prevSources.filter((s) => s !== source)
-        : [...prevSources, source],
-    );
-  };
+  // const handleSourceChange = (source: CaptureSource) => {
+  //   setSelectedSources((prevSources) =>
+  //     prevSources.includes(source)
+  //       ? prevSources.filter((s) => s !== source)
+  //       : [...prevSources, source],
+  //   );
+  // };
 
   // filters- to select captures based on filters
   const applyFilters = () => {
@@ -48,14 +48,14 @@ const MyDataPage = () => {
       max_frequency: maxFrequency,
       start_time: startTime,
       end_time: endTime,
-      source: selectedSources.length > 0 ? selectedSources : undefined,
+      // source: selectedSources.length > 0 ? selectedSources : undefined,
     });
   };
 
   return (
     <div className="page-container-wide">
       <h5>Captures</h5>
-      <br />
+      {/* <br />
       <Button
         variant="primary"
         onClick={() => setShowModal(true)}
@@ -63,7 +63,7 @@ const MyDataPage = () => {
         disabledHelpText="You must be logged in to upload a capture"
       >
         Upload New Capture
-      </Button>
+      </Button> */}
 
       <Row className="mt-3 align-items-start">
         {/* Filter Column */}
@@ -86,11 +86,11 @@ const MyDataPage = () => {
               className="mb-3"
             />
 
-            <SourceFilter
+            {/* <SourceFilter
               selectedSources={selectedSources}
               onSourceChange={handleSourceChange}
               className="mb-3"
-            />
+            /> */}
 
             <Button variant="primary" onClick={applyFilters} className="mt-3">
               Apply Filters
@@ -108,7 +108,17 @@ const MyDataPage = () => {
                 {isLoading ? (
                   <LoadingBlock message="Getting captures..." />
                 ) : username ? (
-                  <p>No captures found. Upload a capture to get started!</p>
+                  <p>
+                    No captures found. Create a capture in the{' '}
+                    <a
+                      href="https://sds.crc.nd.edu/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      SpectrumX Data System
+                    </a>{' '}
+                    to get started!
+                  </p>
                 ) : (
                   <p>Please log in to view your data.</p>
                 )}
@@ -118,11 +128,11 @@ const MyDataPage = () => {
         </Col>
       </Row>
 
-      <FileUploadModal
+      {/* <CaptureUploadModal
         show={showModal}
         handleClose={() => setShowModal(false)}
         handleSuccess={syncCaptures}
-      />
+      /> */}
     </div>
   );
 };

@@ -10,17 +10,17 @@ import {
 } from '../apiClient/captureService';
 import { Alert } from 'react-bootstrap';
 
-interface FileUploadModalProps {
+interface CaptureUploadModalProps {
   show: boolean;
   handleClose: () => void;
   handleSuccess: () => void;
 }
 
-const FileUploadModal = ({
+const CaptureUploadModal = ({
   show,
   handleClose,
   handleSuccess,
-}: FileUploadModalProps) => {
+}: CaptureUploadModalProps) => {
   const [showFailedAlert, setShowFailedAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
@@ -257,4 +257,4 @@ const FileUploadModal = ({
   );
 };
 
-export default FileUploadModal;
+export default CaptureUploadModal;

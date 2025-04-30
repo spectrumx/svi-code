@@ -455,6 +455,12 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         Raises:
             serializers.ValidationError: If validation fails
         """
+        if "capture_source" in data:
+            if data["capture_source"] != CaptureSource.SDS:
+                error_message = "SVI-hosted captures are not currently supported"
+                logger.error(error_message)
+                raise serializers.ValidationError(error_message)
+
         # Only validate type-related fields if type is being updated
         if "type" in data:
             # Validate that the capture type is supported for this visualization type
@@ -486,10 +492,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         return data
 
     def create(self, validated_data: dict) -> Visualization:
-        """Create a new Visualization instance or return an existing matching one.
-
-        Checks if a visualization with identical configuration already exists for the user.
-        If found, returns the existing visualization instead of creating a new one.
+        """Create a new Visualization instance.
 
         Args:
             validated_data: The validated data for creating the visualization

@@ -33,9 +33,6 @@ from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
-from spectrumx_visualization_platform.spx_vis.source_utils.local import (
-    get_local_captures,
-)
 from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
 
 
@@ -48,13 +45,14 @@ def capture_list(request: Request) -> Response:
         sds_captures = get_sds_captures(request)
     else:
         sds_captures = []
-    if not source_filter or "svi" in source_filter:
-        local_captures = get_local_captures(request)
-    else:
-        local_captures = []
+    # if not source_filter or "svi" in source_filter:
+    #     local_captures = get_local_captures(request)
+    # else:
+    #     local_captures = []
 
     # Combine captures
-    combined_capture_list = sds_captures + local_captures
+    # combined_capture_list = sds_captures + local_captures
+    combined_capture_list = sds_captures
 
     # Get filter parameters
     min_frequency = request.query_params.get("min_frequency")
@@ -99,7 +97,7 @@ class CaptureViewSet(viewsets.ModelViewSet):
         Returns:
             QuerySet: Filtered queryset containing only the user's captures.
         """
-        return Capture.objects.filter(owner=self.request.user)
+        return Capture.objects.filter(owner=self.request.user, source="sds")
 
     def create(self, request, *args, **kwargs):
         """Create a new capture.
@@ -107,14 +105,21 @@ class CaptureViewSet(viewsets.ModelViewSet):
         Returns:
             Response: Created capture data with appropriate status code
         """
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        headers = self.get_success_headers(serializer.data)
         return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            {
+                "status": "error",
+                "message": "SVI-hosted captures are currently not supported",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
+        # serializer = self.get_serializer(data=request.data)
+        # serializer.is_valid(raise_exception=True)
+        # serializer.save()
+
+        # headers = self.get_success_headers(serializer.data)
+        # return Response(
+        #     serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        # )
 
     @action(detail=True, methods=["post"])
     def create_spectrogram(self, request, uuid=None):
@@ -289,7 +294,10 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 expiration_date__lte=datetime.now(UTC),
             ).delete()
 
-        queryset = Visualization.objects.filter(owner=self.request.user)
+        # SDS captures are our current priority
+        queryset = Visualization.objects.filter(
+            owner=self.request.user, capture_source="sds"
+        )
 
         # For list action, only return saved visualizations
         if self.action == "list":

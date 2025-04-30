@@ -22,7 +22,7 @@ import {
 import {
   Capture,
   CAPTURE_TYPE_INFO,
-  CAPTURE_SOURCES,
+  // CAPTURE_SOURCES,
 } from '../apiClient/captureService';
 import { formatHertz, sortByDate } from '../utils/utils';
 
@@ -176,12 +176,12 @@ export const CaptureTable = ({
 
   const columns = useMemo<ColumnDef<Capture, any>[]>(() => {
     const baseColumns: ColumnDef<Capture, any>[] = [
-      columnHelper.accessor('source', {
-        header: 'Source',
-        cell: (info) =>
-          CAPTURE_SOURCES[info.getValue() as keyof typeof CAPTURE_SOURCES].name,
-        size: 120,
-      }),
+      // columnHelper.accessor('source', {
+      //   header: 'Source',
+      //   cell: (info) =>
+      //     CAPTURE_SOURCES[info.getValue() as keyof typeof CAPTURE_SOURCES].name,
+      //   size: 120,
+      // }),
       columnHelper.accessor('uuid', {
         header: 'ID',
         size: 80,
