@@ -22,14 +22,12 @@ def request_job_submission(
     # check if there is already a token for this user
     token = Token.objects.get_or_create(user=owner)[0]
 
-    print(f"Config: {config}")
     job = Job.objects.create(
         type=visualization_type,
         owner=owner,
         config=config,
     )
 
-    print("job in req subm", job)
     for local_file in local_files:
         JobLocalFile.objects.create(job=job, file=local_file)
 

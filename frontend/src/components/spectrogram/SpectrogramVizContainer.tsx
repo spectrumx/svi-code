@@ -36,20 +36,17 @@ const SpectrogramVizContainer = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const captureId =
-    visualizationRecord.captures.length > 0
-      ? visualizationRecord.captures[0].uuid
-      : null;
-
   const createSpectrogramJob = async () => {
-    if (!captureId) return;
-
     setIsSubmitting(true);
     const width = window.innerWidth / 100;
     const height = window.innerHeight / 100;
 
     try {
-      const response = await postSpectrogramJob(captureId, width, height);
+      const response = await postSpectrogramJob(
+        visualizationRecord.uuid,
+        width,
+        height,
+      );
       setJobInfo({
         job_id: response.job_id ?? null,
         status: response.status ?? null,
@@ -143,11 +140,11 @@ const SpectrogramVizContainer = ({
     };
   }, [jobInfo.job_id, spectrogramUrl]);
 
-  if (!captureId) {
+  if (!visualizationRecord.uuid) {
     return (
       <Alert variant="warning">
-        <Alert.Heading>No Capture Data Found</Alert.Heading>
-        <p>No capture data found for this visualization</p>
+        <Alert.Heading>No Visualization Data Found</Alert.Heading>
+        <p>No visualization data found!</p>
       </Alert>
     );
   }

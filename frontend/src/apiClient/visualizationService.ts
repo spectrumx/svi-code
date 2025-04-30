@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { z as zod } from 'zod';
 
 import apiClient from '.';
@@ -10,6 +10,9 @@ import {
   CaptureSourceSchema,
   CaptureSchema,
 } from './captureService';
+import { RadioHoundFileSchema } from '../components/waterfall/types';
+import { FilesWithContent } from '../components/types';
+import JSZip from 'jszip';
 
 const VisualizationTypeSchema = zod.enum(['spectrogram', 'waterfall']);
 export type VisualizationType = zod.infer<typeof VisualizationTypeSchema>;
@@ -27,7 +30,7 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
     name: 'spectrogram',
     description: 'Visualize signal strength across frequency and time',
     icon: 'bi-graph-up',
-    supportedCaptureTypes: ['sigmf'],
+    supportedCaptureTypes: ['sigmf', 'drf'],
     multipleSelection: false,
   },
   {
@@ -164,4 +167,82 @@ export const downloadVizFiles = async (id: string): Promise<Blob> => {
     },
   );
   return response.data;
+};
+
+export const useVisualizationFiles = (vizRecord: VisualizationRecordDetail) => {
+  const [files, setFiles] = useState<FilesWithContent>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        // Download the ZIP file containing all files
+        const zipBlob = await downloadVizFiles(vizRecord.uuid);
+
+        // Parse the ZIP file
+        const zip = new JSZip();
+        const zipContent = await zip.loadAsync(zipBlob);
+
+        // Process each file in the ZIP
+        const files: FilesWithContent = {};
+
+        // Process each capture in the visualization state
+        for (const capture of vizRecord.captures) {
+          const captureDir = zipContent.folder(capture.uuid);
+          if (!captureDir) {
+            console.warn(
+              `Capture directory not found for capture ID ${capture.uuid}`,
+            );
+            continue;
+          }
+
+          // Process each file in the capture
+          for (const file of capture.files) {
+            const zipFile = captureDir.file(file.name);
+            if (!zipFile) {
+              console.warn(`File not found: ${file.name}`);
+              continue;
+            }
+
+            const content = await (zipFile as JSZip.JSZipObject).async('blob');
+            let parsedContent: unknown = content;
+            let isValid: boolean | undefined;
+
+            // Validate RadioHound files
+            if (vizRecord.capture_type === 'rh') {
+              parsedContent = JSON.parse(await content.text());
+              const validationResult =
+                RadioHoundFileSchema.safeParse(parsedContent);
+              isValid = validationResult.success;
+
+              if (!isValid) {
+                console.warn(
+                  `Invalid RadioHound file content for ${file.name}: ${validationResult.error}`,
+                );
+              }
+            }
+
+            // Add the file to our files object
+            files[file.uuid] = {
+              uuid: file.uuid,
+              name: file.name,
+              fileContent: parsedContent,
+              isValid,
+            };
+          }
+        }
+
+        setFiles(files);
+      } catch (error) {
+        console.error('Error fetching visualization files:', error);
+        setError('Failed to fetch visualization files');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchFiles();
+  }, [vizRecord]);
+
+  return { files, isLoading, error };
 };

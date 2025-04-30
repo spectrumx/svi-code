@@ -1,8 +1,11 @@
 import io
 import logging
+import shutil
 import zipfile
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import requests
 from django.conf import settings
@@ -28,12 +31,19 @@ from spectrumx_visualization_platform.spx_vis.api.serializers import (
 )
 from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
+from spectrumx_visualization_platform.spx_vis.capture_utils.digitalrf import (
+    DigitalRFUtility,
+)
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
+from spectrumx_visualization_platform.spx_vis.models import VisualizationType
 from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
+
+if TYPE_CHECKING:
+    from spectrumx_visualization_platform.users.models import User
 
 
 @api_view(["GET"])
@@ -312,6 +322,95 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             serializer: The VisualizationDetailSerializer instance with validated data.
         """
         serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def create_spectrogram(self, request: Request, uuid=None) -> Response:
+        """Create a spectrogram visualization job.
+
+        Args:
+            request: HTTP request containing width, height parameters
+            uuid: UUID of the Visualization
+
+        Returns:
+            Response with job_id and status if successful
+
+        Raises:
+            400: If visualization is not of a supported type or required files are missing
+        """
+        visualization: Visualization = self.get_object()
+        user: User = request.user
+
+        if visualization.type != VisualizationType.Spectrogram:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Spectrogram generation is only supported for spectrogram visualizations",
+                },
+            )
+
+        if visualization.capture_type == CaptureType.SigMF:
+            capture_utility = SigMFUtility
+        elif visualization.capture_type == CaptureType.DigitalRF:
+            capture_utility = DigitalRFUtility
+        else:
+            return Response(
+                {"status": "error", "message": "Unsupported capture type"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        width = request.data.get("width", 10)
+        height = request.data.get("height", 10)
+
+        try:
+            # Get SDS captures
+            sds_captures = get_sds_captures(request)
+            capture = next(
+                (c for c in sds_captures if c["uuid"] == visualization.capture_ids[0]),
+                None,
+            )
+            if not capture:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": f"Capture ID {visualization.capture_ids[0]} not found in SDS",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            sds_client = user.sds_client()
+            capture_path = capture["path"]
+            # Download to media root
+            file_results = sds_client.download(
+                from_sds_path=capture_path,
+                to_local_path=Path(settings.MEDIA_ROOT + capture_path),
+                skip_contents=False,
+                overwrite=True,
+                verbose=True,
+            )
+            logging.info(f"Downloaded file results: {file_results}")
+
+            try:
+                # Pass the downloaded file paths to the utility
+                job = capture_utility.submit_spectrogram_job(
+                    user, file_results, width, height
+                )
+                return Response(
+                    {"job_id": job.id, "status": "submitted"},
+                    status=status.HTTP_201_CREATED,
+                )
+            finally:
+                # Clean up the temporary files
+                shutil.rmtree(Path(settings.MEDIA_ROOT + capture_path))
+        except ValueError as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except requests.RequestException as e:
+            return Response(
+                {"status": "error", "message": f"Failed to download SDS file: {e}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     def _process_sds_file(
         self,

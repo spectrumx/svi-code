@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import JSZip from 'jszip';
 import { Form, Button, Tooltip, OverlayTrigger } from 'react-bootstrap';
 
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -9,12 +8,9 @@ import WaterfallVizContainer from '../components/waterfall/WaterfallVizContainer
 import {
   VisualizationRecordDetail,
   getVisualization,
-  downloadVizFiles,
   updateVisualization,
   saveVisualization,
 } from '../apiClient/visualizationService';
-import { FilesWithContent } from '../components/types';
-import { RadioHoundFileSchema } from '../components/waterfall/types';
 
 /**
  * Router component for visualization pages.
@@ -26,7 +22,6 @@ const VisualizationPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [visualizationRecord, setVisualizationRecord] =
     useState<VisualizationRecordDetail | null>(null);
-  const [files, setFiles] = useState<FilesWithContent>({});
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -42,65 +37,7 @@ const VisualizationPage = () => {
       try {
         const vizRecord = await getVisualization(vizId);
         setEditedName(vizRecord.name);
-
-        // Download the ZIP file containing all files
-        const zipBlob = await downloadVizFiles(vizId);
-
-        // Parse the ZIP file
-        const zip = new JSZip();
-        const zipContent = await zip.loadAsync(zipBlob);
-
-        // Process each file in the ZIP
-        const files: FilesWithContent = {};
-
-        // Process each capture in the visualization state
-        for (const capture of vizRecord.captures) {
-          const captureDir = zipContent.folder(capture.uuid);
-          if (!captureDir) {
-            console.warn(
-              `Capture directory not found for capture ID ${capture.uuid}`,
-            );
-            continue;
-          }
-
-          // Process each file in the capture
-          for (const file of capture.files) {
-            const zipFile = captureDir.file(file.name);
-            if (!zipFile) {
-              console.warn(`File not found: ${file.name}`);
-              continue;
-            }
-
-            const content = await (zipFile as JSZip.JSZipObject).async('blob');
-            let parsedContent: unknown = content;
-            let isValid: boolean | undefined;
-
-            // Validate RadioHound files
-            if (vizRecord.capture_type === 'rh') {
-              parsedContent = JSON.parse(await content.text());
-              const validationResult =
-                RadioHoundFileSchema.safeParse(parsedContent);
-              isValid = validationResult.success;
-
-              if (!isValid) {
-                console.warn(
-                  `Invalid RadioHound file content for ${file.name}: ${validationResult.error}`,
-                );
-              }
-            }
-
-            // Add the file to our files object
-            files[file.uuid] = {
-              uuid: file.uuid,
-              name: file.name,
-              fileContent: parsedContent,
-              isValid,
-            };
-          }
-        }
-
         setVisualizationRecord(vizRecord);
-        setFiles(files);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load visualization',
@@ -293,7 +230,7 @@ const VisualizationPage = () => {
         )}
       </div>
       {VizContainer ? (
-        <VizContainer visualizationRecord={visualizationRecord} files={files} />
+        <VizContainer visualizationRecord={visualizationRecord} />
       ) : (
         <div className="alert alert-danger" role="alert">
           Unsupported visualization type: {visualizationRecord.type}

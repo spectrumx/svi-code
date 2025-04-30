@@ -30,6 +30,8 @@ numpy==2.2.0  # https://github.com/numpy/numpy
 scipy==1.14.1  # https://github.com/scipy/scipy
 matplotlib==3.9.3  # https://github.com/matplotlib/matplotlib
 sigmf==1.2.3  # https://github.com/sigmf/sigmf-python
+digital-rf==2.6.11  # https://github.com/MITHaystack/digitalrf
+h5py==3.13.0  # https://github.com/h5py/h5py
 
 # SpectrumX Data System SDK
 spectrumx==0.1.8  # https://pypi.org/project/spectrumx/

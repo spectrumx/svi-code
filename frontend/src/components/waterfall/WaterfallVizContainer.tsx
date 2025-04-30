@@ -6,6 +6,7 @@ import { RadioHoundFile } from './types';
 import WaterfallControls from './WaterfallControls';
 import ScanDetailsTable from './ScanDetailsTable';
 import { VizContainerProps } from '../types';
+import { useVisualizationFiles } from '../../apiClient/visualizationService';
 
 export interface WaterfallSettings {
   fileIndex: number;
@@ -15,8 +16,9 @@ export interface WaterfallSettings {
 
 export const WaterfallVizContainer = ({
   visualizationRecord,
-  files,
 }: VizContainerProps) => {
+  const { files, isLoading, error } =
+    useVisualizationFiles(visualizationRecord);
   const [settings, setSettings] = useState<WaterfallSettings>({
     fileIndex: 0,
     isPlaying: false,

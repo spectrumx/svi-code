@@ -4,10 +4,12 @@ import re
 import zipfile
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 
 from django.core.files.uploadedfile import UploadedFile
 
 from jobs.submission import request_job_submission
+from spectrumx_visualization_platform.spx_vis.models import CaptureType
 
 from .base import CaptureUtility
 
@@ -123,7 +125,7 @@ class DigitalRFUtility(CaptureUtility):
         """Get the DigitalRF data and metadata files needed for spectrogram generation.
 
         Args:
-            capture_files: QuerySet of File objects associated with the capture
+            capture_files: List of file paths
             width: Width of the spectrogram in inches
             height: Height of the spectrogram in inches
 
@@ -133,22 +135,53 @@ class DigitalRFUtility(CaptureUtility):
         Raises:
             ValueError: If the required DigitalRF files are not found
         """
-        # DigitalRF typically requires the metadata.h5 file and the data directory
-        meta_file = capture_files.filter(name__endswith="metadata.h5").first()
-        data_dir = next((f for f in capture_files if f.name.endswith("/")), None)
+        # Find the metadata file and data directories
+        meta_file = None
+        data_dirs = []
 
-        if not meta_file or not data_dir:
-            error_message = (
-                "Required DigitalRF files (metadata and/or data directory) not found"
-            )
+        for f in capture_files:
+            if f.endswith("/"):
+                data_dirs.append(f)
+            elif f.endswith("metadata.h5"):
+                meta_file = f
+
+        if not meta_file:
+            error_message = "Required DigitalRF metadata file not found"
             logger.error(error_message)
             raise ValueError(error_message)
 
-        dimensions = {"width": width, "height": height}
+        if not data_dirs:
+            error_message = "No data directories found in DigitalRF files"
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+        config = {
+            "width": width,
+            "height": height,
+            "capture_type": CaptureType.DigitalRF,
+        }
+
+        # Get all HDF5 files from all data directories
+        local_files = [meta_file]
+        for data_dir in data_dirs:
+            data_dir_path = Path(data_dir)
+            if not data_dir_path.exists():
+                error_message = f"Data directory {data_dir} does not exist"
+                logger.error(error_message)
+                raise ValueError(error_message)
+
+            # Get all HDF5 files in the data directory
+            h5_files = [str(f) for f in data_dir_path.glob("**/*.h5")]
+            if not h5_files:
+                error_message = f"No HDF5 files found in data directory {data_dir}"
+                logger.error(error_message)
+                raise ValueError(error_message)
+
+            local_files.extend(h5_files)
 
         return request_job_submission(
             visualization_type="spectrogram",
             owner=user,
-            local_files=[meta_file.file.name, data_dir.file.name],
-            config=dimensions,
+            local_files=local_files,
+            config=config,
         )

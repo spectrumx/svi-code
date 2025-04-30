@@ -4,6 +4,8 @@ from datetime import datetime
 
 from django.core.files.uploadedfile import UploadedFile
 
+from spectrumx_visualization_platform.users.models import User
+
 
 class CaptureUtility(ABC):
     """Abstract base class for capture type utilities.
@@ -47,4 +49,21 @@ class CaptureUtility(ABC):
 
         Returns:
             str: The inferred capture name
+        """
+
+    @staticmethod
+    @abstractmethod
+    def submit_spectrogram_job(
+        user: User, capture_files: list[UploadedFile], width: int = 10, height: int = 10
+    ):
+        """Submit a job to the backend for spectrogram generation.
+
+        Args:
+            user: The user submitting the job
+            capture_files: The capture files to use for the job
+            width: The width of the spectrogram
+            height: The height of the spectrogram
+
+        Returns:
+            The submitted job
         """

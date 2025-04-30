@@ -227,7 +227,10 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
 
     # Define supported capture types for each visualization type
     SUPPORTED_CAPTURE_TYPES = {
-        VisualizationType.Spectrogram: [CaptureType.SigMF],
+        VisualizationType.Spectrogram: [
+            CaptureType.SigMF,
+            CaptureType.DigitalRF,
+        ],
         VisualizationType.Waterfall: [CaptureType.RadioHound],
     }
 

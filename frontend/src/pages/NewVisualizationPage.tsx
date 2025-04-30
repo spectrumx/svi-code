@@ -143,9 +143,9 @@ const NewVisualizationPage = () => {
                 <br />
                 <span className="text-muted">
                   <span>Supported capture types: </span>
-                  {visualizationType.supportedCaptureTypes.map(
-                    (type) => CAPTURE_TYPE_INFO[type].name,
-                  )}
+                  {visualizationType.supportedCaptureTypes
+                    .map((type) => CAPTURE_TYPE_INFO[type].name)
+                    .join(', ')}
                 </span>
               </Card.Text>
             </>
