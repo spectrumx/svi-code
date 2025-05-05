@@ -4,7 +4,6 @@ import re
 import zipfile
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 
 from django.core.files.uploadedfile import UploadedFile
 
@@ -137,21 +136,13 @@ class DigitalRFUtility(CaptureUtility):
         """
         # Find the metadata file and data directories
         meta_file = None
-        data_dirs = []
 
         for f in capture_files:
-            if f.endswith("/"):
-                data_dirs.append(f)
-            elif f.endswith("metadata.h5"):
+            if f.endswith("drf_properties.h5"):
                 meta_file = f
 
         if not meta_file:
             error_message = "Required DigitalRF metadata file not found"
-            logger.error(error_message)
-            raise ValueError(error_message)
-
-        if not data_dirs:
-            error_message = "No data directories found in DigitalRF files"
             logger.error(error_message)
             raise ValueError(error_message)
 
@@ -161,27 +152,9 @@ class DigitalRFUtility(CaptureUtility):
             "capture_type": CaptureType.DigitalRF,
         }
 
-        # Get all HDF5 files from all data directories
-        local_files = [meta_file]
-        for data_dir in data_dirs:
-            data_dir_path = Path(data_dir)
-            if not data_dir_path.exists():
-                error_message = f"Data directory {data_dir} does not exist"
-                logger.error(error_message)
-                raise ValueError(error_message)
-
-            # Get all HDF5 files in the data directory
-            h5_files = [str(f) for f in data_dir_path.glob("**/*.h5")]
-            if not h5_files:
-                error_message = f"No HDF5 files found in data directory {data_dir}"
-                logger.error(error_message)
-                raise ValueError(error_message)
-
-            local_files.extend(h5_files)
-
         return request_job_submission(
             visualization_type="spectrogram",
             owner=user,
-            local_files=local_files,
+            local_files=capture_files,
             config=config,
         )

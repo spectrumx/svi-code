@@ -363,36 +363,62 @@ class VisualizationViewSet(viewsets.ModelViewSet):
 
         try:
             # Get SDS captures
-            sds_captures = get_sds_captures(request)
+            sds_client = user.sds_client()
+            sds_captures = sds_client.captures.listing(
+                capture_type=visualization.capture_type
+            )
             capture = next(
-                (c for c in sds_captures if c["uuid"] == visualization.capture_ids[0]),
+                (
+                    c
+                    for c in sds_captures
+                    if str(c.uuid) == visualization.capture_ids[0]
+                ),
                 None,
             )
             if not capture:
                 return Response(
                     {
                         "status": "error",
-                        "message": f"Capture ID {visualization.capture_ids[0]} not found in SDS",
+                        "message": f"Capture ID {visualization.capture_ids[0]} of type {visualization.capture_type} not found in SDS",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            logging.info(f"Found capture: {capture.model_dump_json(indent=2)}")
 
-            sds_client = user.sds_client()
-            capture_path = capture["path"]
             # Download to media root
+            local_path = Path(
+                settings.MEDIA_ROOT,
+                "sds_download",
+                str(capture.top_level_dir).removeprefix("/"),
+            )
             file_results = sds_client.download(
-                from_sds_path=capture_path,
-                to_local_path=Path(settings.MEDIA_ROOT + capture_path),
+                from_sds_path=capture.top_level_dir,
+                to_local_path=local_path,
                 skip_contents=False,
                 overwrite=True,
                 verbose=True,
             )
-            logging.info(f"Downloaded file results: {file_results}")
+            downloaded_files = [result() for result in file_results if result]
+            download_errors = [
+                result.error_info for result in file_results if not result
+            ]
+
+            if download_errors:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": f"Failed to download SDS files: {download_errors}",
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            file_paths = [str(f.local_path) for f in downloaded_files]
+            logging.info(f"Downloaded file paths: {file_paths}")
 
             try:
                 # Pass the downloaded file paths to the utility
                 job = capture_utility.submit_spectrogram_job(
-                    user, file_results, width, height
+                    user, file_paths, width, height
                 )
                 return Response(
                     {"job_id": job.id, "status": "submitted"},
@@ -400,7 +426,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 )
             finally:
                 # Clean up the temporary files
-                shutil.rmtree(Path(settings.MEDIA_ROOT + capture_path))
+                shutil.rmtree(local_path)
         except ValueError as e:
             return Response(
                 {"status": "error", "message": str(e)},

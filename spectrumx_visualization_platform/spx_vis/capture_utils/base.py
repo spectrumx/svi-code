@@ -54,7 +54,7 @@ class CaptureUtility(ABC):
     @staticmethod
     @abstractmethod
     def submit_spectrogram_job(
-        user: User, capture_files: list[UploadedFile], width: int = 10, height: int = 10
+        user: User, capture_files: list[str], width: int = 10, height: int = 10
     ):
         """Submit a job to the backend for spectrogram generation.
 
