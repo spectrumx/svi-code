@@ -176,6 +176,8 @@ export const useVisualizationFiles = (vizRecord: VisualizationRecordDetail) => {
 
   useEffect(() => {
     const fetchFiles = async () => {
+      setIsLoading(true);
+
       try {
         // Download the ZIP file containing all files
         const zipBlob = await downloadVizFiles(vizRecord.uuid);
