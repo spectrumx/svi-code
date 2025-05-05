@@ -260,52 +260,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "expiration_date",
         ]
 
-    def _migrate_capture_ids(self, obj: Visualization) -> None:
-        """Migrate capture IDs from integers to UUIDs if needed.
-
-        This method checks if any capture IDs in the visualization are still using
-        integer IDs and updates them to use UUIDs instead. The migration happens
-        incrementally as visualizations are accessed.
-
-        Only applies to local captures (capture_source="svi_user").
-
-        Args:
-            obj: The Visualization instance to migrate
-        """
-        if not obj.capture_ids or obj.capture_source != CaptureSource.SVI_User:
-            return
-
-        # Check if any IDs are still integers
-        has_integer_ids = any(
-            isinstance(capture_id, int) or capture_id.isdigit()
-            for capture_id in obj.capture_ids
-        )
-        if not has_integer_ids:
-            return
-
-        # Get the UUIDs for the integer IDs
-        int_ids = [
-            int(capture_id)
-            for capture_id in obj.capture_ids
-            if isinstance(capture_id, int) or capture_id.isdigit()
-        ]
-        captures = Capture.objects.filter(id__in=int_ids, owner=obj.owner)
-        uuid_map = {str(capture.id): str(capture.uuid) for capture in captures}
-
-        # Update the capture_ids with UUIDs
-        new_capture_ids = []
-        for capture_id in obj.capture_ids:
-            if isinstance(capture_id, int) or capture_id.isdigit():
-                new_capture_ids.append(uuid_map.get(str(capture_id), capture_id))
-            else:
-                new_capture_ids.append(capture_id)
-
-        # Update the visualization if any IDs were changed
-        if new_capture_ids != obj.capture_ids:
-            obj.capture_ids = new_capture_ids
-            obj.save(update_fields=["capture_ids"])
-            logger.info(f"Migrated capture IDs for visualization {obj.uuid}")
-
     def get_captures(self, obj: Visualization) -> list[dict]:
         """Get the full capture information including files for each capture.
 
@@ -315,10 +269,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         Returns:
             list[dict]: List of capture data including files.
         """
-        # Migrate capture IDs if needed (only for local captures)
-        if obj.capture_source == CaptureSource.SVI_User:
-            self._migrate_capture_ids(obj)
-
         request = self.context.get("request")
         if not request:
             return []
