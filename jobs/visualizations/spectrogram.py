@@ -2,9 +2,10 @@
 import argparse
 import json
 import logging
+import tempfile
+import zipfile
 from pathlib import Path
 
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from digital_rf import DigitalRFReader
@@ -35,7 +36,7 @@ def make_spectrogram(job_data, width, height, files_dir=""):
     if capture_type == CaptureType.SigMF:
         return _make_sigmf_spectrogram(job_data, width, height, files_dir)
     if capture_type == CaptureType.DigitalRF:
-        return _make_digitalrf_spectrogram(job_data, width, height, files_dir)
+        return _make_digital_rf_spectrogram(job_data, width, height, files_dir)
     raise ValueError(f"Unsupported capture type: {capture_type}")
 
 
@@ -95,8 +96,8 @@ def _make_sigmf_spectrogram(job_data, width, height, files_dir=""):
     return _generate_spectrogram(data_array, sample_rate, sample_count, width, height)
 
 
-def _make_digitalrf_spectrogram(job_data, width, height, files_dir=""):
-    """Generate a spectrogram from DigitalRF data.
+def _make_digital_rf_spectrogram(job_data, width, height, files_dir=""):
+    """Generate a spectrogram from Digital RF data.
 
     Args:
         job_data: Dictionary containing job configuration and file information
@@ -110,47 +111,54 @@ def _make_digitalrf_spectrogram(job_data, width, height, files_dir=""):
     Raises:
         ValueError: If required files are not found
     """
-    # Find the data directory and metadata file
-    data_dir = None
-    meta_file = None
-
+    # Find the ZIP file
+    zip_file = None
     for f in job_data["data"]["local_files"]:
-        if f["name"].endswith("/"):
-            data_dir = f"{files_dir}{f['name']}"
-        elif f["name"].endswith("metadata.h5"):
-            meta_file = f"{files_dir}{f['name']}"
+        if f["name"].endswith(".zip"):
+            zip_file = f"{files_dir}{f['name']}"
+            break
 
-    if not data_dir or not meta_file:
-        msg = "Data directory or metadata file not found in job data"
+    if not zip_file:
+        msg = "ZIP file not found in job data"
         logging.error(msg)
         raise ValueError(msg)
 
-    # Initialize DigitalRF reader
-    reader = DigitalRFReader(data_dir)
-    channels = reader.get_channels()
+    # Create a temporary directory to extract the ZIP file
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            # Extract the ZIP file
+            with zipfile.ZipFile(zip_file, "r") as zf:
+                zf.extractall(temp_dir)
 
-    if not channels:
-        msg = "No channels found in DigitalRF data"
-        logging.error(msg)
-        raise ValueError(msg)
+            # Initialize DigitalRF reader with the extracted directory
+            reader = DigitalRFReader(temp_dir)
+            channels = reader.get_channels()
 
-    # For now, we'll use the first channel
-    channel = channels[0]
-    start_sample, end_sample = reader.get_bounds(channel)
+            if not channels:
+                msg = "No channels found in DigitalRF data"
+                logging.error(msg)
+                raise ValueError(msg)
 
-    # Get sample rate from metadata
-    with h5py.File(meta_file, "r") as f:
-        sample_rate = (
-            f.attrs["sample_rate_numerator"] / f.attrs["sample_rate_denominator"]
-        )
+            # For now, we'll use the first channel
+            channel = channels[0]
+            start_sample, end_sample = reader.get_bounds(channel)
 
-    # Read a portion of the data (adjust duration as needed)
-    duration = 1  # seconds
-    num_samples = int(sample_rate * duration)
-    data_array = reader.read_vector(start_sample, num_samples, channel)
-    sample_count = len(data_array)
+            # Get sample rate from metadata
+            sample_rate = reader.get_properties(channel)["sample_rate"]
 
-    return _generate_spectrogram(data_array, sample_rate, sample_count, width, height)
+            # Read a portion of the data (adjust duration as needed)
+            duration = 1  # seconds
+            num_samples = int(sample_rate * duration)
+            data_array = reader.read_vector(start_sample, num_samples, channel)
+            sample_count = len(data_array)
+
+            return _generate_spectrogram(
+                data_array, sample_rate, sample_count, width, height
+            )
+
+        except Exception as e:
+            logging.error(f"Error processing DigitalRF data: {e}")
+            raise
 
 
 def _generate_spectrogram(data_array, sample_rate, sample_count, width, height):

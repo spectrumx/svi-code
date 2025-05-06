@@ -1,10 +1,13 @@
 import logging
 import mimetypes
+import os
 import re
 import zipfile
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 
 from jobs.submission import request_job_submission
@@ -121,10 +124,10 @@ class DigitalRFUtility(CaptureUtility):
 
     @staticmethod
     def submit_spectrogram_job(user, capture_files, width=10, height=10):
-        """Get the DigitalRF data and metadata files needed for spectrogram generation.
+        """Get the Digital RF data and metadata files needed for spectrogram generation.
 
         Args:
-            capture_files: List of file paths
+            capture_files: List of file paths that make up a Digital RF channel directory structure
             width: Width of the spectrogram in inches
             height: Height of the spectrogram in inches
 
@@ -132,7 +135,7 @@ class DigitalRFUtility(CaptureUtility):
             Job: The submitted job
 
         Raises:
-            ValueError: If the required DigitalRF files are not found
+            ValueError: If the required Digital RF files are not found
         """
         # Find the metadata file and data directories
         meta_file = None
@@ -142,9 +145,25 @@ class DigitalRFUtility(CaptureUtility):
                 meta_file = f
 
         if not meta_file:
-            error_message = "Required DigitalRF metadata file not found"
+            error_message = "Required Digital RF metadata file not found"
             logger.error(error_message)
             raise ValueError(error_message)
+
+        # Create a ZIP file in the media directory
+        parent_dir = os.path.commonpath(capture_files)
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        zip_filename = f"{parent_dir.split('/')[-1]}_{timestamp}.zip"
+        zip_path = Path(settings.MEDIA_ROOT) / "zip" / str(user.uuid) / zip_filename
+
+        # Ensure the digitalrf directory exists
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            # Add each file to the ZIP, preserving the directory structure
+            for file_path in capture_files:
+                # Get the relative path from the parent directory
+                rel_path = os.path.relpath(file_path, parent_dir)
+                zf.write(file_path, rel_path)
 
         config = {
             "width": width,
@@ -152,9 +171,10 @@ class DigitalRFUtility(CaptureUtility):
             "capture_type": CaptureType.DigitalRF,
         }
 
+        # Submit the job with the ZIP file
         return request_job_submission(
             visualization_type="spectrogram",
             owner=user,
-            local_files=capture_files,
+            local_files=[str(zip_path)],
             config=config,
         )
