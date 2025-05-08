@@ -126,6 +126,11 @@ const SpectrogramVizContainer = ({
         } catch (error) {
           console.error('Error fetching job status:', error);
           clearInterval(interval);
+          setJobInfo((prevStatus) => ({
+            ...prevStatus,
+            status: 'failed',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          }));
         }
       }, 2000);
     }
