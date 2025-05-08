@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from celery import shared_task
@@ -18,6 +19,7 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
     # 1. What type of visualization we should do
     # 2. A list of files we'll need
     job_data = get_job_meta(job_id, token)
+    logging.info(f"job_data: {job_data}")
     if job_data is None:
         error_msg = "Could not get job information."
         update_job_status(
@@ -57,21 +59,9 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
     # print(f"job_data['data']: {job_data.get('data', 'data key is missing')}")
     if job_data["data"]["type"] == "spectrogram":
         try:
-            try:
-                width = config["width"]
-                height = config["height"]
-            except KeyError:
-                print("Width or height not found in config, using defaults")
-                width = 1024
-                height = 768
-            print(
-                f"Job {job_id} dimensions: width={width}, height={height}",
-            )
-
             figure = make_spectrogram(
                 job_data,
-                width,
-                height,
+                config,
                 files_dir="jobs/job_files/",
             )
             figure.savefig("jobs/job_results/figure.png")

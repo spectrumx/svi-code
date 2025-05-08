@@ -1,8 +1,12 @@
 import io
 import logging
+import os
+import shutil
 import zipfile
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import requests
 from django.conf import settings
@@ -28,14 +32,19 @@ from spectrumx_visualization_platform.spx_vis.api.serializers import (
 )
 from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
+from spectrumx_visualization_platform.spx_vis.capture_utils.digitalrf import (
+    DigitalRFUtility,
+)
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
+from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
 from spectrumx_visualization_platform.spx_vis.models import Visualization
-from spectrumx_visualization_platform.spx_vis.source_utils.local import (
-    get_local_captures,
-)
+from spectrumx_visualization_platform.spx_vis.models import VisualizationType
 from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_captures
+
+if TYPE_CHECKING:
+    from spectrumx_visualization_platform.users.models import User
 
 
 @api_view(["GET"])
@@ -47,13 +56,14 @@ def capture_list(request: Request) -> Response:
         sds_captures = get_sds_captures(request)
     else:
         sds_captures = []
-    if not source_filter or "svi" in source_filter:
-        local_captures = get_local_captures(request)
-    else:
-        local_captures = []
+    # if not source_filter or "svi" in source_filter:
+    #     local_captures = get_local_captures(request)
+    # else:
+    #     local_captures = []
 
     # Combine captures
-    combined_capture_list = sds_captures + local_captures
+    # combined_capture_list = sds_captures + local_captures
+    combined_capture_list = sds_captures
 
     # Get filter parameters
     min_frequency = request.query_params.get("min_frequency")
@@ -98,40 +108,34 @@ class CaptureViewSet(viewsets.ModelViewSet):
         Returns:
             QuerySet: Filtered queryset containing only the user's captures.
         """
-        return Capture.objects.filter(owner=self.request.user)
+        return Capture.objects.filter(owner=self.request.user, source="sds")
 
     def create(self, request, *args, **kwargs):
-        """Create a new capture or captures.
-
-        For RadioHound captures, creates multiple captures (one per file).
-        For other types, creates a single capture with multiple files.
+        """Create a new capture.
 
         Returns:
-            Response: Created capture(s) data with appropriate status code
+            Response: Created capture data with appropriate status code
         """
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        result = serializer.save()
-
-        # Handle RadioHound multi-capture case
-        if isinstance(result, list):
-            # Serialize the list of captures
-            serializer = self.get_serializer(result, many=True)
-            headers = self.get_success_headers(serializer.data)
-            return Response(
-                serializer.data, status=status.HTTP_201_CREATED, headers=headers
-            )
-
-        # Handle single capture case (other types)
-        headers = self.get_success_headers(serializer.data)
         return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            {
+                "status": "error",
+                "message": "SVI-hosted captures are currently not supported",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
+        # serializer = self.get_serializer(data=request.data)
+        # serializer.is_valid(raise_exception=True)
+        # serializer.save()
+
+        # headers = self.get_success_headers(serializer.data)
+        # return Response(
+        #     serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        # )
 
     @action(detail=True, methods=["post"])
     def create_spectrogram(self, request, uuid=None):
         """
-        Create a spectrogram visualization job for a SigMF capture.
+        Create a spectrogram visualization job.
 
         Args:
             request: HTTP request containing width, height parameters
@@ -141,15 +145,20 @@ class CaptureViewSet(viewsets.ModelViewSet):
             Response with job_id and status if successful
 
         Raises:
-            400: If capture is not SigMF type or required files are missing
+            400: If capture is not of a supported type or required files are missing
         """
         capture: Capture = self.get_object()
 
-        if capture.type != "sigmf":
+        supported_capture_types: list[CaptureType] = [
+            CaptureType.SigMF,
+            CaptureType.DigitalRF,
+        ]
+
+        if capture.type not in supported_capture_types:
             return Response(
                 {
                     "status": "error",
-                    "message": "Spectrogram generation is only supported for SigMF captures",
+                    "message": f"Spectrogram generation is only supported for the following capture types: {supported_capture_types}",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -296,7 +305,10 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 expiration_date__lte=datetime.now(UTC),
             ).delete()
 
-        queryset = Visualization.objects.filter(owner=self.request.user)
+        # SDS captures are our current priority
+        queryset = Visualization.objects.filter(
+            owner=self.request.user, capture_source="sds"
+        )
 
         # For list action, only return saved visualizations
         if self.action == "list":
@@ -311,6 +323,136 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             serializer: The VisualizationDetailSerializer instance with validated data.
         """
         serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def create_spectrogram(self, request: Request, uuid=None) -> Response:
+        """Create a spectrogram visualization job.
+
+        Args:
+            request: HTTP request containing width, height parameters
+            uuid: UUID of the Visualization
+
+        Returns:
+            Response with job_id and status if successful
+
+        Raises:
+            400: If visualization is not of a supported type or required files are missing
+        """
+        visualization: Visualization = self.get_object()
+        user: User = request.user
+
+        if visualization.type != VisualizationType.Spectrogram:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Spectrogram generation is only supported for spectrogram visualizations",
+                },
+            )
+
+        if visualization.capture_type == CaptureType.SigMF:
+            capture_utility = SigMFUtility
+        elif visualization.capture_type == CaptureType.DigitalRF:
+            capture_utility = DigitalRFUtility
+        else:
+            return Response(
+                {"status": "error", "message": "Unsupported capture type"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        width = request.data.get("width", 10)
+        height = request.data.get("height", 10)
+
+        try:
+            # Get SDS captures
+            sds_client = user.sds_client()
+            sds_captures = sds_client.captures.listing(
+                capture_type=visualization.capture_type
+            )
+            capture = next(
+                (
+                    c
+                    for c in sds_captures
+                    if str(c.uuid) == visualization.capture_ids[0]
+                ),
+                None,
+            )
+            if not capture:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": f"Capture ID {visualization.capture_ids[0]} of type {visualization.capture_type} not found in SDS",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            logging.info(f"Found capture: {capture.model_dump_json()}")
+
+            # Download to media root
+            local_path = Path(
+                settings.MEDIA_ROOT,
+                "sds",
+                str(user.uuid),
+                str(datetime.now(UTC).timestamp()),
+            )
+            file_results = sds_client.download(
+                from_sds_path=capture.top_level_dir,
+                to_local_path=local_path,
+                skip_contents=False,
+                overwrite=True,
+                verbose=True,
+            )
+            downloaded_files = [result() for result in file_results if result]
+            download_errors = [
+                result.error_info for result in file_results if not result
+            ]
+
+            if download_errors:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": f"Failed to download SDS files: {download_errors}",
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            file_paths = [str(f.local_path) for f in downloaded_files]
+            logging.info(f"Downloaded file paths: {file_paths}")
+            common_path = os.path.commonpath(file_paths)
+            logging.info(f"Common path: {common_path}")
+
+            # Move commonpath directory to local_path and delete the remaining empty directories
+            shutil.move(common_path, local_path)
+            sds_root = str(capture.files[0].directory).strip("/").split("/")[0]
+            logging.info(f"SDS root: {sds_root}")
+            sds_root_path = local_path / sds_root
+            logging.info(f"SDS root path: {sds_root_path}")
+            shutil.rmtree(sds_root_path)
+            new_file_paths = [
+                str(path) for path in Path(local_path).glob("**/*") if path.is_file()
+            ]
+            logging.info(f"New file paths: {new_file_paths}")
+
+            try:
+                # Pass the downloaded file paths to the utility
+                job = capture_utility.submit_spectrogram_job(
+                    user, new_file_paths, width, height
+                )
+                return Response(
+                    {"job_id": job.id, "status": "submitted"},
+                    status=status.HTTP_201_CREATED,
+                )
+            finally:
+                # Clean up the temporary files
+                shutil.rmtree(local_path)
+        except ValueError as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except requests.RequestException as e:
+            return Response(
+                {"status": "error", "message": f"Failed to download SDS file: {e}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     def _process_sds_file(
         self,

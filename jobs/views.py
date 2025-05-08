@@ -151,6 +151,11 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
             remote_file.file for remote_file in JobRemoteFile.objects.filter(job=job)
         ]
 
+        if status_update and isinstance(status_update.info, dict):
+            results_id = status_update.info.get("results_id", None)
+        else:
+            results_id = None
+
         return JsonResponse(
             {
                 "status": "success",
@@ -161,9 +166,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
                     "updated_at": job.updated_at,
                     "local_files": local_files,
                     "remote_files": remote_files,
-                    "results_id": status_update.info.get("results_id", None)
-                    if status_update
-                    else None,
+                    "results_id": results_id,
                 },
             },
         )
