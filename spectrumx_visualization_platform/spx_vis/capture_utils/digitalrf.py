@@ -157,17 +157,13 @@ class DigitalRFUtility(CaptureUtility):
             # Create the tar file in the temporary directory
             timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             parent_dir = os.path.commonpath(capture_files)
-            archive_filename = f"{parent_dir.split('/')[-1]}_{timestamp}.tar.gz"
+            archive_filename = f"{parent_dir.split('/')[-1][:30]}_{timestamp}.tar.gz"
             temp_archive_path = Path(temp_dir) / archive_filename
 
             # Create the tar archive in the temporary directory
             logger.info(f"Creating tar archive in temp directory: {temp_archive_path}")
             with tarfile.open(temp_archive_path, "w:gz") as tf:
-                # Add each file to the archive, preserving the directory structure
-                for file_path in capture_files:
-                    # Get the relative path from the parent directory
-                    rel_path = os.path.relpath(file_path, parent_dir)
-                    tf.add(file_path, arcname=rel_path)
+                tf.add(parent_dir, arcname=parent_dir.split("/")[-1])
 
             # Create the final destination directory
             # final_archive_path = (
