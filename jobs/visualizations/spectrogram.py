@@ -2,8 +2,8 @@
 import argparse
 import json
 import logging
+import tarfile
 import tempfile
-import zipfile
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -16,13 +16,12 @@ from scipy.signal.windows import gaussian
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 
 
-def make_spectrogram(job_data, width, height, files_dir=""):
+def make_spectrogram(job_data, config, files_dir=""):
     """Generate a spectrogram from either SigMF or DigitalRF data.
 
     Args:
         job_data: Dictionary containing job configuration and file information
-        width: Width of the spectrogram in inches
-        height: Height of the spectrogram in inches
+        config: Dictionary containing job configuration
         files_dir: Directory containing the input files
 
     Returns:
@@ -31,22 +30,22 @@ def make_spectrogram(job_data, width, height, files_dir=""):
     Raises:
         ValueError: If required files are not found or data format is unsupported
     """
-    capture_type = job_data.get("capture_type", CaptureType.SigMF)
+    capture_type = config.get("capture_type", CaptureType.SigMF)
+    logging.info(f"Capture type from job_data: {capture_type}")
 
     if capture_type == CaptureType.SigMF:
-        return _make_sigmf_spectrogram(job_data, width, height, files_dir)
+        return _make_sigmf_spectrogram(job_data, config, files_dir)
     if capture_type == CaptureType.DigitalRF:
-        return _make_digital_rf_spectrogram(job_data, width, height, files_dir)
+        return _make_digital_rf_spectrogram(job_data, config, files_dir)
     raise ValueError(f"Unsupported capture type: {capture_type}")
 
 
-def _make_sigmf_spectrogram(job_data, width, height, files_dir=""):
+def _make_sigmf_spectrogram(job_data, config, files_dir=""):
     """Generate a spectrogram from SigMF data.
 
     Args:
         job_data: Dictionary containing job configuration and file information
-        width: Width of the spectrogram in inches
-        height: Height of the spectrogram in inches
+        config: Dictionary containing job configuration
         files_dir: Directory containing the input files
 
     Returns:
@@ -93,16 +92,15 @@ def _make_sigmf_spectrogram(job_data, width, height, files_dir=""):
     data_array = np.fromfile(f"{files_dir}{data_file['name']}", dtype=np.complex64)
     sample_count = len(data_array)
 
-    return _generate_spectrogram(data_array, sample_rate, sample_count, width, height)
+    return _generate_spectrogram(data_array, sample_rate, sample_count, config)
 
 
-def _make_digital_rf_spectrogram(job_data, width, height, files_dir=""):
+def _make_digital_rf_spectrogram(job_data, config, files_dir=""):
     """Generate a spectrogram from Digital RF data.
 
     Args:
         job_data: Dictionary containing job configuration and file information
-        width: Width of the spectrogram in inches
-        height: Height of the spectrogram in inches
+        config: Dictionary containing job configuration
         files_dir: Directory containing the input files
 
     Returns:
@@ -111,24 +109,25 @@ def _make_digital_rf_spectrogram(job_data, width, height, files_dir=""):
     Raises:
         ValueError: If required files are not found
     """
-    # Find the ZIP file
-    zip_file = None
+    # Find the tar.gz file
+    tar_file = None
     for f in job_data["data"]["local_files"]:
-        if f["name"].endswith(".zip"):
-            zip_file = f"{files_dir}{f['name']}"
+        if f["name"].endswith(".tar.gz"):
+            tar_file = f"{files_dir}{f['name']}"
             break
 
-    if not zip_file:
-        msg = "ZIP file not found in job data"
+    if not tar_file:
+        msg = "tar.gz file not found in job data"
         logging.error(msg)
         raise ValueError(msg)
 
-    # Create a temporary directory to extract the ZIP file
+    # Create a temporary directory to extract the tar.gz file
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
-            # Extract the ZIP file
-            with zipfile.ZipFile(zip_file, "r") as zf:
-                zf.extractall(temp_dir)
+            # Extract the tar.gz file
+            drf_dir = Path(temp_dir) / "digital_rf"
+            with tarfile.open(tar_file, "r:gz") as tf:
+                tf.extractall(drf_dir)
 
             # Initialize DigitalRF reader with the extracted directory
             reader = DigitalRFReader(temp_dir)
@@ -152,24 +151,21 @@ def _make_digital_rf_spectrogram(job_data, width, height, files_dir=""):
             data_array = reader.read_vector(start_sample, num_samples, channel)
             sample_count = len(data_array)
 
-            return _generate_spectrogram(
-                data_array, sample_rate, sample_count, width, height
-            )
+            return _generate_spectrogram(data_array, sample_rate, sample_count, config)
 
         except Exception as e:
             logging.error(f"Error processing DigitalRF data: {e}")
             raise
 
 
-def _generate_spectrogram(data_array, sample_rate, sample_count, width, height):
+def _generate_spectrogram(data_array, sample_rate, sample_count, config):
     """Generate a spectrogram from complex data.
 
     Args:
         data_array: Complex data array
         sample_rate: Sample rate in Hz
         sample_count: Number of samples
-        width: Width of the spectrogram in inches
-        height: Height of the spectrogram in inches
+        config: Dictionary containing job configuration
 
     Returns:
         matplotlib.figure.Figure: The generated spectrogram figure
@@ -177,6 +173,8 @@ def _generate_spectrogram(data_array, sample_rate, sample_count, width, height):
     std_dev = 100  # standard deviation for Gaussian window in samples
     gaussian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
     fft_size = 1024
+    width = config["width"] or 1024
+    height = config["height"] or 768
 
     short_time_fft = ShortTimeFFT(
         gaussian_window,

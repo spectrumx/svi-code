@@ -1,5 +1,6 @@
 import io
 import logging
+import os
 import shutil
 import zipfile
 from datetime import UTC
@@ -383,13 +384,14 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            logging.info(f"Found capture: {capture.model_dump_json(indent=2)}")
+            logging.info(f"Found capture: {capture.model_dump_json()}")
 
             # Download to media root
             local_path = Path(
                 settings.MEDIA_ROOT,
-                "sds_download",
-                str(capture.top_level_dir).removeprefix("/"),
+                "sds",
+                str(user.uuid),
+                str(datetime.now(UTC).timestamp()),
             )
             file_results = sds_client.download(
                 from_sds_path=capture.top_level_dir,
@@ -414,11 +416,25 @@ class VisualizationViewSet(viewsets.ModelViewSet):
 
             file_paths = [str(f.local_path) for f in downloaded_files]
             logging.info(f"Downloaded file paths: {file_paths}")
+            common_path = os.path.commonpath(file_paths)
+            logging.info(f"Common path: {common_path}")
+
+            # Move commonpath directory to local_path and delete the remaining empty directories
+            shutil.move(common_path, local_path)
+            sds_root = str(capture.files[0].directory).strip("/").split("/")[0]
+            logging.info(f"SDS root: {sds_root}")
+            sds_root_path = local_path / sds_root
+            logging.info(f"SDS root path: {sds_root_path}")
+            shutil.rmtree(sds_root_path)
+            new_file_paths = [
+                str(path) for path in Path(local_path).glob("**/*") if path.is_file()
+            ]
+            logging.info(f"New file paths: {new_file_paths}")
 
             try:
                 # Pass the downloaded file paths to the utility
                 job = capture_utility.submit_spectrogram_job(
-                    user, file_paths, width, height
+                    user, new_file_paths, width, height
                 )
                 return Response(
                     {"job_id": job.id, "status": "submitted"},

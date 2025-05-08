@@ -2,6 +2,9 @@ import logging
 import mimetypes
 import os
 import re
+import shutil
+import tarfile
+import tempfile
 import zipfile
 from datetime import UTC
 from datetime import datetime
@@ -149,21 +152,33 @@ class DigitalRFUtility(CaptureUtility):
             logger.error(error_message)
             raise ValueError(error_message)
 
-        # Create a ZIP file in the media directory
-        parent_dir = os.path.commonpath(capture_files)
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-        zip_filename = f"{parent_dir.split('/')[-1]}_{timestamp}.zip"
-        zip_path = Path(settings.MEDIA_ROOT) / "zip" / str(user.uuid) / zip_filename
+        # Create a temporary directory for archive creation
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create the tar file in the temporary directory
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+            parent_dir = os.path.commonpath(capture_files)
+            archive_filename = f"{parent_dir.split('/')[-1]}_{timestamp}.tar.gz"
+            temp_archive_path = Path(temp_dir) / archive_filename
 
-        # Ensure the digitalrf directory exists
-        zip_path.parent.mkdir(parents=True, exist_ok=True)
+            # Create the tar archive in the temporary directory
+            logger.info(f"Creating tar archive in temp directory: {temp_archive_path}")
+            with tarfile.open(temp_archive_path, "w:gz") as tf:
+                # Add each file to the archive, preserving the directory structure
+                for file_path in capture_files:
+                    # Get the relative path from the parent directory
+                    rel_path = os.path.relpath(file_path, parent_dir)
+                    tf.add(file_path, arcname=rel_path)
 
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            # Add each file to the ZIP, preserving the directory structure
-            for file_path in capture_files:
-                # Get the relative path from the parent directory
-                rel_path = os.path.relpath(file_path, parent_dir)
-                zf.write(file_path, rel_path)
+            # Create the final destination directory
+            # final_archive_path = (
+            #     Path("/app/jobs/job_files/zip") / str(user.uuid) / archive_filename
+            # )
+            final_archive_path = Path(settings.MEDIA_ROOT)
+            # final_archive_path.parent.mkdir(exist_ok=True)
+
+            # Move the archive file to its final location
+            logger.info(f"Moving tar archive to final location: {final_archive_path}")
+            shutil.move(str(temp_archive_path), str(final_archive_path))
 
         config = {
             "width": width,
@@ -171,10 +186,10 @@ class DigitalRFUtility(CaptureUtility):
             "capture_type": CaptureType.DigitalRF,
         }
 
-        # Submit the job with the ZIP file
+        # Submit the job with the archive file
         return request_job_submission(
             visualization_type="spectrogram",
             owner=user,
-            local_files=[str(zip_path)],
+            local_files=[archive_filename],
             config=config,
         )
