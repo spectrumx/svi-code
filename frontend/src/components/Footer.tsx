@@ -6,7 +6,7 @@ import spectrumxLogo from '../img/spectrumx-rev.svg';
 const Footer = () => {
   return (
     <footer className="site-footer">
-      <div className="container">
+      <div style={{ width: '100%', maxWidth: '100%', padding: '0 2rem' }}>
         <div className="footer-content">
           <div className="footer-logos">
             <Image src={nsfLogo} alt="NSF Logo" />
@@ -19,7 +19,9 @@ const Footer = () => {
               University of Notre Dame.
             </p>
           </div>
-          <p className="copyright">©2024 SpectrumX | All Rights Reserved</p>
+          <div className="copyright-container">
+            <p className="copyright">©2024 SpectrumX | All Rights Reserved</p>
+          </div>
         </div>
       </div>
     </footer>
