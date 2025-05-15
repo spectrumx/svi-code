@@ -2,11 +2,10 @@ import logging
 from datetime import UTC
 from datetime import datetime
 
-import requests
-from django.conf import settings
 from rest_framework.request import Request
 
 from spectrumx_visualization_platform.spx_vis.api.utils import calculate_end_time
+from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.users.models import User
 
 
@@ -15,19 +14,15 @@ def get_sds_captures(request: Request):
     user: User = request.user
 
     try:
-        token = user.sds_token
-        captures_response = requests.get(
-            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/",
-            headers={"Authorization": f"Api-Key: {token}"},
-            timeout=10,
-        )
-        captures = captures_response.json()["results"]
+        sds_client = user.sds_client()
+        captures_response = sds_client.captures.listing()
+        captures = [capture.model_dump() for capture in captures_response]
         formatted_captures = []
 
         for capture in captures:
-            if capture["capture_type"] == "rh":
+            if capture["capture_type"] == CaptureType.RadioHound:
                 formatted_capture = format_sds_rh_capture(capture, request.user.id)
-            elif capture["capture_type"] == "drf":
+            elif capture["capture_type"] == CaptureType.DigitalRF:
                 formatted_capture = format_sds_drf_capture(capture, request.user.id)
             formatted_captures.append(formatted_capture)
 
@@ -69,7 +64,7 @@ def format_sds_rh_capture(sds_capture: dict, user_id: int):
         "owner": owner_uuid,
         "name": sds_capture["scan_group"],
         "files": files,
-        "created_at": sds_capture["created_at"],
+        # "created_at": sds_capture["created_at"],
         "timestamp": timestamp,
         "type": sds_capture["capture_type"],
         "source": "sds",
@@ -118,7 +113,7 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
         "owner": owner_uuid,
         "name": sds_capture["channel"],
         "files": files,
-        "created_at": sds_capture["created_at"],
+        # "created_at": sds_capture["created_at"],
         "timestamp": timestamp,
         "type": sds_capture["capture_type"],
         "source": "sds",

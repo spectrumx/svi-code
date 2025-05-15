@@ -219,13 +219,13 @@ export const CaptureTable = ({
         sortingFn: (a, b) => -sortByDate(a, b, 'original.timestamp'),
         size: 200,
       }),
-      columnHelper.accessor('created_at', {
-        header: 'Created',
-        cell: (info) =>
-          info.getValue() ? new Date(info.getValue()).toLocaleString() : 'None',
-        sortingFn: (a, b) => -sortByDate(a, b, 'original.created_at'),
-        size: 200,
-      }),
+      // columnHelper.accessor('created_at', {
+      //   header: 'Created',
+      //   cell: (info) =>
+      //     info.getValue() ? new Date(info.getValue()).toLocaleString() : 'None',
+      //   sortingFn: (a, b) => -sortByDate(a, b, 'original.created_at'),
+      //   size: 200,
+      // }),
       columnHelper.accessor('type', {
         header: 'Type',
         cell: (info) =>
