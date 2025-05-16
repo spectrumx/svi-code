@@ -22,7 +22,7 @@ import {
 import {
   Capture,
   CAPTURE_TYPE_INFO,
-  CAPTURE_SOURCES,
+  // CAPTURE_SOURCES,
 } from '../apiClient/captureService';
 import { formatHertz, sortByDate } from '../utils/utils';
 
@@ -176,12 +176,12 @@ export const CaptureTable = ({
 
   const columns = useMemo<ColumnDef<Capture, any>[]>(() => {
     const baseColumns: ColumnDef<Capture, any>[] = [
-      columnHelper.accessor('source', {
-        header: 'Source',
-        cell: (info) =>
-          CAPTURE_SOURCES[info.getValue() as keyof typeof CAPTURE_SOURCES].name,
-        size: 120,
-      }),
+      // columnHelper.accessor('source', {
+      //   header: 'Source',
+      //   cell: (info) =>
+      //     CAPTURE_SOURCES[info.getValue() as keyof typeof CAPTURE_SOURCES].name,
+      //   size: 120,
+      // }),
       columnHelper.accessor('uuid', {
         header: 'ID',
         size: 80,
@@ -196,7 +196,8 @@ export const CaptureTable = ({
               placement="right"
               overlay={
                 <Tooltip id="name-header-tooltip">
-                  For SDS captures, this column shows the scan group ID
+                  For SDS captures, this column shows the scan group ID or
+                  channel name
                 </Tooltip>
               }
             >
@@ -218,13 +219,13 @@ export const CaptureTable = ({
         sortingFn: (a, b) => -sortByDate(a, b, 'original.timestamp'),
         size: 200,
       }),
-      columnHelper.accessor('created_at', {
-        header: 'Created',
-        cell: (info) =>
-          info.getValue() ? new Date(info.getValue()).toLocaleString() : 'None',
-        sortingFn: (a, b) => -sortByDate(a, b, 'original.created_at'),
-        size: 200,
-      }),
+      // columnHelper.accessor('created_at', {
+      //   header: 'Created',
+      //   cell: (info) =>
+      //     info.getValue() ? new Date(info.getValue()).toLocaleString() : 'None',
+      //   sortingFn: (a, b) => -sortByDate(a, b, 'original.created_at'),
+      //   size: 200,
+      // }),
       columnHelper.accessor('type', {
         header: 'Type',
         cell: (info) =>

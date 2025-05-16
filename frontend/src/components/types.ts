@@ -22,5 +22,4 @@ export type FilesWithContent = {
  */
 export interface VizContainerProps {
   visualizationRecord: VisualizationRecordDetail;
-  files: FilesWithContent;
 }

@@ -6,6 +6,8 @@ import { RadioHoundFile } from './types';
 import WaterfallControls from './WaterfallControls';
 import ScanDetailsTable from './ScanDetailsTable';
 import { VizContainerProps } from '../types';
+import { useVisualizationFiles } from '../../apiClient/visualizationService';
+import LoadingBlock from '../LoadingBlock';
 
 export interface WaterfallSettings {
   fileIndex: number;
@@ -15,13 +17,33 @@ export interface WaterfallSettings {
 
 export const WaterfallVizContainer = ({
   visualizationRecord,
-  files,
 }: VizContainerProps) => {
+  const { files, isLoading, error } =
+    useVisualizationFiles(visualizationRecord);
   const [settings, setSettings] = useState<WaterfallSettings>({
     fileIndex: 0,
     isPlaying: false,
     playbackSpeed: '1 fps',
   });
+
+  if (isLoading) {
+    return <LoadingBlock message="Getting visualization files..." />;
+  }
+
+  if (error) {
+    return (
+      <Alert variant="danger">Error loading visualization files: {error}</Alert>
+    );
+  }
+
+  if (Object.keys(files).length === 0) {
+    return (
+      <Alert variant="warning">
+        <Alert.Heading>No Data Found</Alert.Heading>
+        <p>No files found for this visualization</p>
+      </Alert>
+    );
+  }
 
   // We currently only support one capture per visualization, so grab the first
   // capture and use its files
@@ -31,15 +53,6 @@ export const WaterfallVizContainer = ({
       (a, b) =>
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     );
-
-  if (rhFiles.length === 0) {
-    return (
-      <Alert variant="warning">
-        <Alert.Heading>No RadioHound Data Found</Alert.Heading>
-        <p>No files found for this visualization</p>
-      </Alert>
-    );
-  }
 
   return (
     <div>
