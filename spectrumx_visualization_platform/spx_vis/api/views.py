@@ -385,12 +385,16 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             logging.info(f"Found capture: {capture.model_dump_json()}")
+            file_uuids = [file.uuid for file in capture.files]
 
             # Download to media root
-            local_path = Path(
+            user_path = Path(
                 settings.MEDIA_ROOT,
                 "sds",
                 str(user.uuid),
+            )
+            local_path = Path(
+                user_path,
                 str(datetime.now(UTC).timestamp()),
             )
             file_results = sds_client.download(
@@ -414,8 +418,20 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-            file_paths = [str(f.local_path) for f in downloaded_files]
-            logging.info(f"Downloaded file paths: {file_paths}")
+            matching_files = []
+            for f in downloaded_files:
+                if f.uuid in file_uuids:
+                    matching_files.append(f)
+                else:
+                    f.local_path.unlink()
+
+            file_paths = [str(f.local_path) for f in matching_files]
+            logging.info(
+                f"Files matching capture (expected): {len(file_paths)} ({len(file_uuids)})"
+            )
+            logging.info(
+                f"Files removed: {len(downloaded_files) - len(matching_files)}"
+            )
             common_path = os.path.commonpath(file_paths)
             logging.info(f"Common path: {common_path}")
 
@@ -442,7 +458,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 )
             finally:
                 # Clean up the temporary files
-                shutil.rmtree(local_path)
+                shutil.rmtree(user_path)
         except ValueError as e:
             return Response(
                 {"status": "error", "message": str(e)},
