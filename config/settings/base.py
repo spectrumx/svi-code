@@ -381,3 +381,10 @@ SVI_SERVER_URL: str = env("SVI_SERVER_URL", default="https://sds.crc.nd.edu")
 SDS_CLIENT_URL: str = env("SDS_CLIENT_URL", default="sds.crc.nd.edu")
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
+
+# Logout settings from environment variables
+ACCOUNT_LOGOUT_REDIRECT_URL = env(
+    "ACCOUNT_LOGOUT_REDIRECT_URL", default="http://localhost:3000/"
+)
+ACCOUNT_LOGOUT_ON_GET = env.bool("ACCOUNT_LOGOUT_ON_GET", default=True)
+LOGOUT_REDIRECT_URL = env("LOGOUT_REDIRECT_URL", default="http://localhost:3000/")
