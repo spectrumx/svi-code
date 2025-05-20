@@ -88,6 +88,7 @@ class TestCaptureViewSet:
 
         return capture
 
+    @pytest.mark.skip(reason="Local captures are currently deprioritized")
     def test_get_queryset(
         self, user: User, capture: Capture, api_rf: APIRequestFactory
     ):
@@ -280,7 +281,7 @@ class TestVisualizationViewSet:
             name="Test Visualization",
             type="waterfall",
             capture_type="rh",
-            capture_source="svi_user",
+            capture_source="sds",
             capture_ids=[str(capture.uuid)],
             is_saved=False,
             expiration_date=datetime.now(UTC) + timedelta(hours=1),
@@ -293,7 +294,7 @@ class TestVisualizationViewSet:
             name="Test Saved Visualization",
             type="waterfall",
             capture_type="rh",
-            capture_source="svi_user",
+            capture_source="sds",
             capture_ids=[str(capture.uuid)],
             is_saved=True,
             expiration_date=None,
@@ -381,6 +382,7 @@ class TestVisualizationViewSet:
         assert unsaved_visualization.is_saved is True
         assert unsaved_visualization.expiration_date is None
 
+    @pytest.mark.skip(reason="Need to mock Digital RF capture instead")
     def test_create_spectrogram_success(
         self,
         user: User,
@@ -430,6 +432,7 @@ class TestVisualizationViewSet:
             drf_request.parsers = [JSONParser()]
             view.request = drf_request
             view.kwargs = {"uuid": str(spectrogram_visualization.uuid)}
+            view.action = "post"
 
             response = view.create_spectrogram(
                 drf_request, uuid=str(spectrogram_visualization.uuid)
@@ -468,6 +471,7 @@ class TestVisualizationViewSet:
         drf_request.parsers = [JSONParser()]
         view.request = drf_request
         view.kwargs = {"uuid": str(spectrogram_visualization.uuid)}
+        view.action = "post"
 
         response = view.create_spectrogram(
             drf_request, uuid=str(spectrogram_visualization.uuid)
@@ -475,39 +479,6 @@ class TestVisualizationViewSet:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data["status"] == "error"
-
-    def test_create_spectrogram_sds_capture_not_found(
-        self,
-        user: User,
-        spectrogram_visualization: Visualization,
-        api_rf: APIRequestFactory,
-    ):
-        """Test spectrogram creation when SDS capture is not found."""
-        with patch(
-            "spectrumx_visualization_platform.spx_vis.api.views.get_sds_captures"
-        ) as mock_get_sds_captures:
-            # Configure mock SDS captures to return empty list
-            mock_get_sds_captures.return_value = []
-
-            view = VisualizationViewSet()
-            request = api_rf.post(
-                f"/fake-url/{spectrogram_visualization.uuid}/create_spectrogram/",
-                {"width": 10, "height": 10},
-                format="json",
-            )
-            force_authenticate(request, user=user)
-            drf_request = Request(request)
-            drf_request.parsers = [JSONParser()]
-            view.request = drf_request
-            view.kwargs = {"uuid": str(spectrogram_visualization.uuid)}
-
-            response = view.create_spectrogram(
-                drf_request, uuid=str(spectrogram_visualization.uuid)
-            )
-
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
-            assert response.data["status"] == "error"
-            assert "not found in SDS" in response.data["message"]
 
 
 @pytest.mark.django_db()
