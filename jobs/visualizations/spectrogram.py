@@ -17,16 +17,6 @@ from scipy.signal.windows import gaussian
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 
 
-def _raise_error(msg: str) -> None:
-    """Raise a ValueError with the given message and log it.
-
-    Args:
-        msg: Error message to raise and log
-    """
-    logging.error(msg)
-    raise ValueError(msg)
-
-
 def make_spectrogram(job_data, config, files_dir=""):
     """Generate a spectrogram from either SigMF or DigitalRF data.
 
@@ -53,6 +43,7 @@ def make_spectrogram(job_data, config, files_dir=""):
     raise ValueError(f"Unsupported capture type: {capture_type}")
 
 
+### SigMF ###
 def _make_sigmf_spectrogram(job_data, config, files_dir=""):
     """Generate a spectrogram from SigMF data.
 
@@ -108,6 +99,71 @@ def _make_sigmf_spectrogram(job_data, config, files_dir=""):
     return _generate_spectrogram(data_array, sample_rate, sample_count, config)
 
 
+def _generate_spectrogram(data_array, sample_rate, sample_count, config):
+    """Generate a spectrogram from complex data.
+
+    Args:
+        data_array: Complex data array
+        sample_rate: Sample rate in Hz
+        sample_count: Number of samples
+        config: Dictionary containing job configuration
+
+    Returns:
+        matplotlib.figure.Figure: The generated spectrogram figure
+    """
+    std_dev = 100  # standard deviation for Gaussian window in samples
+    gaussian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
+    fft_size = 1024
+    width = config["width"] or 1024
+    height = config["height"] or 768
+
+    short_time_fft = ShortTimeFFT(
+        gaussian_window,
+        hop=500,
+        fs=sample_rate,
+        mfft=fft_size,
+        fft_mode="centered",
+    )
+
+    spectrogram = short_time_fft.spectrogram(
+        data_array
+    )  # calculate absolute square of STFT
+
+    figure, axes = plt.subplots(figsize=(width, height))  # enlarge plot a bit
+    extent = short_time_fft.extent(sample_count)
+    time_min, time_max = extent[:2]  # time range of plot
+    axes.set_title(
+        rf"Spectrogram ({short_time_fft.m_num*short_time_fft.T:g}$\,s$ Gaussian "
+        rf"window, $\sigma_t={std_dev*short_time_fft.T:g}\,$s)",
+    )
+    axes.set(
+        xlabel=f"Time $t$ in seconds ({short_time_fft.p_num(sample_count)} slices, "
+        rf"$\Delta t = {short_time_fft.delta_t:g}\,$s)",
+        ylabel=f"Freq. $f$ in Hz ({short_time_fft.f_pts} bins, "
+        rf"$\Delta f = {short_time_fft.delta_f:g}\,$Hz)",
+        xlim=(time_min, time_max),
+    )
+    spectrogram_db_limited = 10 * np.log10(
+        np.fmax(spectrogram, 1e-4),
+    )  # limit range to -40 dB
+    image = axes.imshow(
+        spectrogram_db_limited,
+        origin="lower",
+        aspect="auto",
+        extent=extent,
+        cmap="magma",
+    )
+    figure.colorbar(
+        image,
+        label="Power Spectral Density " + r"$20\,\log_{10}|S_x(t, f)|$ in dB",
+    )
+    axes.legend()
+    figure.tight_layout()
+
+    return figure
+
+
+### DigitalRF ###
 def _make_digital_rf_spectrogram(job_data, config, files_dir=""):
     """Generate a spectrogram from Digital RF data.
 
@@ -238,68 +294,14 @@ def drf_specgram_plot(data, extent, log_scale, title, config):
     return fig
 
 
-def _generate_spectrogram(data_array, sample_rate, sample_count, config):
-    """Generate a spectrogram from complex data.
+def _raise_error(msg: str) -> None:
+    """Raise a ValueError with the given message and log it.
 
     Args:
-        data_array: Complex data array
-        sample_rate: Sample rate in Hz
-        sample_count: Number of samples
-        config: Dictionary containing job configuration
-
-    Returns:
-        matplotlib.figure.Figure: The generated spectrogram figure
+        msg: Error message to raise and log
     """
-    std_dev = 100  # standard deviation for Gaussian window in samples
-    gaussian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
-    fft_size = 1024
-    width = config["width"] or 1024
-    height = config["height"] or 768
-
-    short_time_fft = ShortTimeFFT(
-        gaussian_window,
-        hop=500,
-        fs=sample_rate,
-        mfft=fft_size,
-        fft_mode="centered",
-    )
-
-    spectrogram = short_time_fft.spectrogram(
-        data_array
-    )  # calculate absolute square of STFT
-
-    figure, axes = plt.subplots(figsize=(width, height))  # enlarge plot a bit
-    extent = short_time_fft.extent(sample_count)
-    time_min, time_max = extent[:2]  # time range of plot
-    axes.set_title(
-        rf"Spectrogram ({short_time_fft.m_num*short_time_fft.T:g}$\,s$ Gaussian "
-        rf"window, $\sigma_t={std_dev*short_time_fft.T:g}\,$s)",
-    )
-    axes.set(
-        xlabel=f"Time $t$ in seconds ({short_time_fft.p_num(sample_count)} slices, "
-        rf"$\Delta t = {short_time_fft.delta_t:g}\,$s)",
-        ylabel=f"Freq. $f$ in Hz ({short_time_fft.f_pts} bins, "
-        rf"$\Delta f = {short_time_fft.delta_f:g}\,$Hz)",
-        xlim=(time_min, time_max),
-    )
-    spectrogram_db_limited = 10 * np.log10(
-        np.fmax(spectrogram, 1e-4),
-    )  # limit range to -40 dB
-    image = axes.imshow(
-        spectrogram_db_limited,
-        origin="lower",
-        aspect="auto",
-        extent=extent,
-        cmap="magma",
-    )
-    figure.colorbar(
-        image,
-        label="Power Spectral Density " + r"$20\,\log_{10}|S_x(t, f)|$ in dB",
-    )
-    axes.legend()
-    figure.tight_layout()
-
-    return figure
+    logging.error(msg)
+    raise ValueError(msg)
 
 
 if __name__ == "__main__":

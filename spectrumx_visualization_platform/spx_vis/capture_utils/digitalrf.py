@@ -165,14 +165,8 @@ class DigitalRFUtility(CaptureUtility):
             with tarfile.open(temp_archive_path, "w:gz") as tf:
                 tf.add(parent_dir, arcname=parent_dir.split("/")[-1])
 
-            # Create the final destination directory
-            # final_archive_path = (
-            #     Path("/app/jobs/job_files/zip") / str(user.uuid) / archive_filename
-            # )
-            final_archive_path = Path(settings.MEDIA_ROOT)
-            # final_archive_path.parent.mkdir(exist_ok=True)
-
             # Move the archive file to its final location
+            final_archive_path = Path(settings.MEDIA_ROOT)
             logger.info(f"Moving tar archive to final location: {final_archive_path}")
             shutil.move(str(temp_archive_path), str(final_archive_path))
 

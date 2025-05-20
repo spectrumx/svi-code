@@ -132,54 +132,6 @@ class CaptureViewSet(viewsets.ModelViewSet):
         #     serializer.data, status=status.HTTP_201_CREATED, headers=headers
         # )
 
-    @action(detail=True, methods=["post"])
-    def create_spectrogram(self, request, uuid=None):
-        """
-        Create a spectrogram visualization job.
-
-        Args:
-            request: HTTP request containing width, height parameters
-            uuid: UUID of the Capture
-
-        Returns:
-            Response with job_id and status if successful
-
-        Raises:
-            400: If capture is not of a supported type or required files are missing
-        """
-        capture: Capture = self.get_object()
-
-        supported_capture_types: list[CaptureType] = [
-            CaptureType.SigMF,
-            CaptureType.DigitalRF,
-        ]
-
-        if capture.type not in supported_capture_types:
-            return Response(
-                {
-                    "status": "error",
-                    "message": f"Spectrogram generation is only supported for the following capture types: {supported_capture_types}",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        width = request.data.get("width", 10)
-        height = request.data.get("height", 10)
-
-        try:
-            job = SigMFUtility.submit_spectrogram_job(
-                request.user, capture.files, width, height
-            )
-            return Response(
-                {"job_id": job.id, "status": "submitted"},
-                status=status.HTTP_201_CREATED,
-            )
-        except ValueError as e:
-            return Response(
-                {"status": "error", "message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
 
 class FileViewSet(viewsets.ModelViewSet):
     """ViewSet for managing File objects.
@@ -384,7 +336,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            logging.info(f"Found capture: {capture.model_dump_json()}")
             file_uuids = [file.uuid for file in capture.files]
 
             # Download to media root
@@ -433,19 +384,15 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 f"Files removed: {len(downloaded_files) - len(matching_files)}"
             )
             common_path = os.path.commonpath(file_paths)
-            logging.info(f"Common path: {common_path}")
 
             # Move commonpath directory to local_path and delete the remaining empty directories
             shutil.move(common_path, local_path)
             sds_root = str(capture.files[0].directory).strip("/").split("/")[0]
-            logging.info(f"SDS root: {sds_root}")
             sds_root_path = local_path / sds_root
-            logging.info(f"SDS root path: {sds_root_path}")
             shutil.rmtree(sds_root_path)
             new_file_paths = [
                 str(path) for path in Path(local_path).glob("**/*") if path.is_file()
             ]
-            logging.info(f"New file paths: {new_file_paths}")
 
             try:
                 # Pass the downloaded file paths to the utility
@@ -459,15 +406,10 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             finally:
                 # Clean up the temporary files
                 shutil.rmtree(user_path)
-        except ValueError as e:
+        except Exception as e:
             return Response(
                 {"status": "error", "message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        except requests.RequestException as e:
-            return Response(
-                {"status": "error", "message": f"Failed to download SDS file: {e}"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     def _process_sds_file(

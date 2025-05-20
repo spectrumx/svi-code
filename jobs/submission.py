@@ -1,4 +1,3 @@
-import logging
 from typing import TYPE_CHECKING
 
 from kombu import Connection
@@ -30,7 +29,6 @@ def request_job_submission(
     )
 
     for local_file in local_files:
-        logging.info(f"Adding local file to job: {local_file}")
         JobLocalFile.objects.create(job=job, file=local_file)
 
     # does this job have a specific submission connection?
