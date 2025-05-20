@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
 
-from spectrumx_visualization_platform.spx_vis.capture_utils.digitalrf import (
+from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
     DigitalRFUtility,
 )
 from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (

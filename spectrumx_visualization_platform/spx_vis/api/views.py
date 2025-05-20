@@ -32,7 +32,7 @@ from spectrumx_visualization_platform.spx_vis.api.serializers import (
 )
 from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
-from spectrumx_visualization_platform.spx_vis.capture_utils.digitalrf import (
+from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
     DigitalRFUtility,
 )
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
