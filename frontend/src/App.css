@@ -261,7 +261,6 @@ body {
 
 .copyright {
   font-size: 0.875rem;
-  text-align: right;
 }
 
 /* Responsive Design */
@@ -282,10 +281,6 @@ body {
 
   .copyright-container {
     width: 100%;
-    text-align: left;
-  }
-
-  .copyright {
     text-align: left;
   }
 
