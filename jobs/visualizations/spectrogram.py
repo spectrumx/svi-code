@@ -1,17 +1,63 @@
 # import tarfile
 import argparse
 import json
+import logging
+import tarfile
+import tempfile
 from pathlib import Path
 
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+from digital_rf import DigitalRFReader
 from scipy.signal import ShortTimeFFT
 from scipy.signal.windows import gaussian
 
 # from sigmf import SigMFArchiveReader
+from spectrumx_visualization_platform.spx_vis.models import CaptureType
 
 
-def make_spectrogram(job_data, width, height, files_dir=""):
+def make_spectrogram(job_data, config, files_dir=""):
+    """Generate a spectrogram from either SigMF or DigitalRF data.
+
+    Args:
+        job_data: Dictionary containing job configuration and file information
+        config: Dictionary containing job configuration
+        files_dir: Directory containing the input files
+
+    Returns:
+        matplotlib.figure.Figure: The generated spectrogram figure
+
+    Raises:
+        ValueError: If required files are not found or data format is unsupported
+    """
+    capture_type = config.get("capture_type", CaptureType.SigMF)
+    config["width"] = config.get("width", 10)
+    config["height"] = config.get("height", 10)
+    logging.info(f"Capture type from job_data: {capture_type}")
+
+    if capture_type == CaptureType.SigMF:
+        return _make_sigmf_spectrogram(job_data, config, files_dir)
+    if capture_type == CaptureType.DigitalRF:
+        return _make_digital_rf_spectrogram(job_data, config, files_dir)
+    raise ValueError(f"Unsupported capture type: {capture_type}")
+
+
+### SigMF ###
+def _make_sigmf_spectrogram(job_data, config, files_dir=""):
+    """Generate a spectrogram from SigMF data.
+
+    Args:
+        job_data: Dictionary containing job configuration and file information
+        config: Dictionary containing job configuration
+        files_dir: Directory containing the input files
+
+    Returns:
+        matplotlib.figure.Figure: The generated spectrogram figure
+
+    Raises:
+        ValueError: If required files are not found
+    """
     # Get the data and metadata files by looking for the appropriate file extensions
     data_file = None
     metadata_file = None
@@ -50,9 +96,26 @@ def make_spectrogram(job_data, width, height, files_dir=""):
     data_array = np.fromfile(f"{files_dir}{data_file['name']}", dtype=np.complex64)
     sample_count = len(data_array)
 
+    return _generate_spectrogram(data_array, sample_rate, sample_count, config)
+
+
+def _generate_spectrogram(data_array, sample_rate, sample_count, config):
+    """Generate a spectrogram from complex data.
+
+    Args:
+        data_array: Complex data array
+        sample_rate: Sample rate in Hz
+        sample_count: Number of samples
+        config: Dictionary containing job configuration
+
+    Returns:
+        matplotlib.figure.Figure: The generated spectrogram figure
+    """
     std_dev = 100  # standard deviation for Gaussian window in samples
     gaussian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
     fft_size = 1024
+    width = config["width"] or 1024
+    height = config["height"] or 768
 
     short_time_fft = ShortTimeFFT(
         gaussian_window,
@@ -63,7 +126,7 @@ def make_spectrogram(job_data, width, height, files_dir=""):
     )
 
     spectrogram = short_time_fft.spectrogram(
-        data_array,
+        data_array
     )  # calculate absolute square of STFT
 
     figure, axes = plt.subplots(figsize=(width, height))  # enlarge plot a bit
@@ -100,18 +163,161 @@ def make_spectrogram(job_data, width, height, files_dir=""):
     return figure
 
 
+### DigitalRF ###
+def _make_digital_rf_spectrogram(job_data, config, files_dir=""):
+    """Generate a spectrogram from Digital RF data.
+
+    Args:
+        job_data: Dictionary containing job configuration and file information
+        config: Dictionary containing job configuration
+        files_dir: Directory containing the input files
+
+    Returns:
+        matplotlib.figure.Figure: The generated spectrogram figure
+
+    Raises:
+        ValueError: If required files are not found
+    """
+    # Find the tar.gz file
+    tar_file = None
+    for f in job_data["data"]["local_files"]:
+        if f["name"].endswith(".tar.gz"):
+            tar_file = f"{files_dir}{f['name']}"
+            break
+
+    if not tar_file:
+        msg = "tar.gz file not found in job data"
+        logging.error(msg)
+        raise ValueError(msg)
+
+    # Create a temporary directory to extract the tar.gz file
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            # Extract the tar.gz file
+            with tarfile.open(tar_file, "r:gz") as tf:
+                for member in tf.getmembers():
+                    if member.name.startswith(("/", "..")):
+                        continue
+                    tf.extract(member, temp_dir)
+
+            # Initialize DigitalRF reader with the extracted directory
+            reader = DigitalRFReader(temp_dir)
+            channels = reader.get_channels()
+
+            if not channels:
+                _raise_error("No channels found in DigitalRF data")
+
+            # For now, we'll use the first channel
+            channel = channels[0]
+            start_sample, end_sample = reader.get_bounds(channel)
+
+            # Get sample rate from metadata
+            with h5py.File(f"{temp_dir}/{channel}/drf_properties.h5", "r") as f:
+                sample_rate = (
+                    f.attrs["sample_rate_numerator"]
+                    / f.attrs["sample_rate_denominator"]
+                )
+
+            num_samples = end_sample - start_sample
+            rf_data = reader.read_vector(start_sample, num_samples, channel)
+
+            # Compute spectrogram
+            window = gaussian(1000, std=100, sym=True)
+            fft_size = 1024
+            stfft = ShortTimeFFT(
+                window, hop=500, fs=sample_rate, mfft=fft_size, fft_mode="centered"
+            )
+            spectrogram = stfft.spectrogram(rf_data)
+
+            # Create extent for plotting
+            extent = stfft.extent(num_samples)
+
+            return drf_specgram_plot(
+                data=spectrogram,
+                extent=extent,
+                log_scale=True,
+                title=f"Spectrogram - {channel}",
+                config=config,
+            )
+
+        except Exception as e:
+            logging.error(f"Error processing DigitalRF data: {e}")
+            raise
+
+
+def drf_specgram_plot(data, extent, log_scale, title, config):
+    """Plot a specgram from the data for a given fft size.
+
+    Adapted from
+    https://github.com/MITHaystack/digital_rf/blob/master/python/tools/drf_plot.py
+    """
+    print("specgram")
+
+    # set to log scaling
+    pss = 10.0 * np.log10(data + 1e-12) if log_scale else data
+
+    # scale for zero centered kilohertz
+    # determine image x-y extent
+
+    # determine image color extent in log scale units
+    # Auto compute zscale
+    # Convert to dB
+    spectrogram_db = 10.0 * np.log10(data + 1e-12)
+    pss_ma = np.ma.masked_invalid(spectrogram_db)
+
+    zscale_low = np.median(pss_ma.min())
+    zscale_high = np.median(pss_ma.max())
+    if log_scale:
+        zscale_low -= 3.0
+        zscale_high += 10.0
+
+    fig = plt.figure(figsize=(config["width"], config["height"]))
+    ax = fig.add_subplot(1, 1, 1)
+    img = ax.imshow(
+        pss,
+        extent=extent,
+        vmin=zscale_low,
+        vmax=zscale_high,
+        origin="lower",
+        interpolation="none",
+        aspect="auto",
+    )
+    cb = fig.colorbar(img, ax=ax)
+    ax.set_xlabel("time (seconds)")
+    ax.set_ylabel("frequency (MHz)", fontsize=12)
+    if log_scale:
+        cb.set_label("power (dB)")
+    else:
+        cb.set_label("power")
+    ax.set_title(title)
+
+    return fig
+
+
+def _raise_error(msg: str) -> None:
+    """Raise a ValueError with the given message and log it.
+
+    Args:
+        msg: Error message to raise and log
+    """
+    logging.error(msg)
+    raise ValueError(msg)
+
+
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
         description=(
-            "Make a spectrogram from SigMF data and metadata files. "
+            "Make a spectrogram from SigMF or DigitalRF data. "
             "Figure is saved to 'spectrogram.png'."
         ),
     )
+    arg_parser.add_argument("--type", type=str, required=True, choices=["sigmf", "drf"])
     arg_parser.add_argument("--data", type=str, required=True)
     arg_parser.add_argument("--meta", type=str, required=True)
     args = arg_parser.parse_args()
 
     job_data = {
+        "capture_type": args.type,
         "data": {"local_files": [{"name": args.data}, {"name": args.meta}]},
     }
     fig = make_spectrogram(job_data)

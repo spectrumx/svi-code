@@ -93,7 +93,9 @@ class SigMFUtility(CaptureUtility):
         """Get the SigMF data and metadata files needed for spectrogram generation.
 
         Args:
-            capture_files: QuerySet of File objects associated with the capture
+            capture_files: List of file paths
+            width: Width of the spectrogram in inches
+            height: Height of the spectrogram in inches
 
         Returns:
             Job: The submitted job
@@ -101,8 +103,8 @@ class SigMFUtility(CaptureUtility):
         Raises:
             ValueError: If the required SigMF files are not found
         """
-        data_file = capture_files.filter(name__endswith=".sigmf-data").first()
-        meta_file = capture_files.filter(name__endswith=".sigmf-meta").first()
+        data_file = next((f for f in capture_files if f.endswith(".sigmf-data")), None)
+        meta_file = next((f for f in capture_files if f.endswith(".sigmf-meta")), None)
 
         if not data_file or not meta_file:
             error_message = "Required SigMF files (data and/or metadata) not found"
@@ -114,6 +116,6 @@ class SigMFUtility(CaptureUtility):
         return request_job_submission(
             visualization_type="spectrogram",
             owner=user,
-            local_files=[data_file.file.name, meta_file.file.name],
+            local_files=[data_file, meta_file],
             config=dimensions,
         )

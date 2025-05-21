@@ -15,24 +15,21 @@ export type CreateSpectrogramResponse = zod.infer<
 >;
 
 /**
- * Creates a spectrogram generation job for a specific capture
- * @param captureId - The ID of the capture to generate spectrogram for
-//  * @param fftSize - The FFT size parameter for spectrogram generation
+ * Creates a spectrogram generation job for a specific visualization
+ * @param visualizationUUID - The UUID of the visualization to generate spectrogram for
  * @param width - The width of the output image in pixels
  * @param height - The height of the output image in pixels
  * @returns Promise containing the job response
  */
 export const postSpectrogramJob = async (
-  captureUUID: string,
-  // fftSize: number,
+  visualizationUUID: string,
   width: number,
   height: number,
 ): Promise<CreateSpectrogramResponse> => {
   try {
     const response = await apiClient.post(
-      `/api/captures/${captureUUID}/create_spectrogram/`,
+      `/api/visualizations/${visualizationUUID}/create_spectrogram/`,
       {
-        // fft_size: fftSize,
         width: width,
         height: height,
       },

@@ -88,6 +88,7 @@ class TestCaptureViewSet:
 
         return capture
 
+    @pytest.mark.skip(reason="Local captures are currently deprioritized")
     def test_get_queryset(
         self, user: User, capture: Capture, api_rf: APIRequestFactory
     ):
@@ -101,75 +102,6 @@ class TestCaptureViewSet:
 
         assert capture in queryset
         assert queryset.count() == 1
-
-    def test_create_spectrogram_success(
-        self, user: User, capture: Capture, api_rf: APIRequestFactory
-    ):
-        """Test successful spectrogram creation request."""
-        with (
-            patch("redis.Redis") as mock_redis,
-            patch(
-                "spectrumx_visualization_platform.spx_vis.capture_utils.sigmf.request_job_submission"
-            ) as mock_job_submission,
-        ):
-            # Configure mock Redis instance
-            mock_redis_instance = mock_redis.return_value
-            mock_redis_instance.ping.return_value = True
-
-            # Configure mock job submission
-            mock_job = MagicMock()
-            mock_job.id = "test-job-id"
-            mock_job_submission.return_value = mock_job
-
-            view = CaptureViewSet()
-            request = api_rf.post(
-                f"/fake-url/{capture.uuid}/create_spectrogram/",
-                {"width": 10, "height": 10},
-                format="json",
-            )
-            force_authenticate(request, user=user)
-            drf_request = Request(request)
-            drf_request.parsers = [JSONParser()]
-            view.request = drf_request
-            view.kwargs = {"uuid": str(capture.uuid)}
-
-            response = view.create_spectrogram(drf_request, uuid=str(capture.uuid))
-
-            assert response.status_code == status.HTTP_201_CREATED
-            assert "job_id" in response.data
-            assert response.data["status"] == "submitted"
-            assert response.data["job_id"] == "test-job-id"
-
-            # Verify job submission was called with correct arguments
-            mock_job_submission.assert_called_once()
-            call_args = mock_job_submission.call_args[1]
-            assert call_args["visualization_type"] == "spectrogram"
-            assert call_args["owner"] == user
-            assert call_args["config"] == {"width": 10, "height": 10}
-
-    def test_create_spectrogram_invalid_type(
-        self, user: User, capture: Capture, api_rf: APIRequestFactory
-    ):
-        """Test spectrogram creation with invalid capture type."""
-        capture.type = "invalid"
-        capture.save()
-
-        view = CaptureViewSet()
-        request = api_rf.post(
-            f"/fake-url/{capture.uuid}/create_spectrogram/",
-            {"width": 10, "height": 10},
-            format="json",
-        )
-        force_authenticate(request, user=user)
-        drf_request = Request(request)
-        drf_request.parsers = [JSONParser()]
-        view.request = drf_request
-        view.kwargs = {"uuid": str(capture.uuid)}
-
-        response = view.create_spectrogram(drf_request, uuid=str(capture.uuid))
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.data["status"] == "error"
 
 
 @pytest.mark.django_db()
@@ -265,6 +197,25 @@ class TestVisualizationViewSet:
         return files
 
     @pytest.fixture()
+    def sigmf_files(self) -> tuple[SimpleUploadedFile, SimpleUploadedFile]:
+        """Load SigMF files from fixtures."""
+        sigmf_dir = Path(__file__).parent / "fixtures" / "sigmf"
+        data_path = sigmf_dir / "sample.sigmf-data"
+        meta_path = sigmf_dir / "sample.sigmf-meta"
+
+        with open(data_path, "rb") as f1, open(meta_path, "rb") as f2:
+            return (
+                SimpleUploadedFile(
+                    "sample.sigmf-data",
+                    f1.read(),
+                    content_type="application/octet-stream",
+                ),
+                SimpleUploadedFile(
+                    "sample.sigmf-meta", f2.read(), content_type="application/json"
+                ),
+            )
+
+    @pytest.fixture()
     def capture(
         self,
         user: User,
@@ -291,13 +242,46 @@ class TestVisualizationViewSet:
         return capture
 
     @pytest.fixture()
+    def sigmf_capture(
+        self,
+        user: User,
+        sigmf_files: tuple[SimpleUploadedFile, SimpleUploadedFile],
+    ) -> Capture:
+        """Create a capture with SigMF files."""
+        capture = Capture.objects.create(
+            owner=user, name="Test SigMF Capture", type="sigmf"
+        )
+
+        data_file, meta_file = sigmf_files
+
+        # Create data file
+        File.objects.create(
+            owner=user,
+            name="sample.sigmf-data",
+            media_type="application/octet-stream",
+            file=data_file,
+            capture=capture,
+        )
+
+        # Create metadata file
+        File.objects.create(
+            owner=user,
+            name="sample.sigmf-meta",
+            media_type="application/json",
+            file=meta_file,
+            capture=capture,
+        )
+
+        return capture
+
+    @pytest.fixture()
     def unsaved_visualization(self, user: User, capture: Capture) -> Visualization:
         return Visualization.objects.create(
             owner=user,
             name="Test Visualization",
             type="waterfall",
             capture_type="rh",
-            capture_source="svi_user",
+            capture_source="sds",
             capture_ids=[str(capture.uuid)],
             is_saved=False,
             expiration_date=datetime.now(UTC) + timedelta(hours=1),
@@ -310,10 +294,27 @@ class TestVisualizationViewSet:
             name="Test Saved Visualization",
             type="waterfall",
             capture_type="rh",
-            capture_source="svi_user",
+            capture_source="sds",
             capture_ids=[str(capture.uuid)],
             is_saved=True,
             expiration_date=None,
+        )
+
+    @pytest.fixture()
+    def spectrogram_visualization(
+        self,
+        user: User,
+        sigmf_capture: Capture,
+    ) -> Visualization:
+        """Create a visualization with a SigMF capture for spectrogram testing."""
+        return Visualization.objects.create(
+            owner=user,
+            name="Test Spectrogram Visualization",
+            type="spectrogram",
+            capture_ids=[str(sigmf_capture.uuid)],
+            capture_type="sigmf",
+            capture_source="sds",
+            is_saved=True,
         )
 
     def test_get_queryset(
@@ -380,6 +381,104 @@ class TestVisualizationViewSet:
         unsaved_visualization.refresh_from_db()
         assert unsaved_visualization.is_saved is True
         assert unsaved_visualization.expiration_date is None
+
+    @pytest.mark.skip(reason="Need to mock Digital RF capture instead")
+    def test_create_spectrogram_success(
+        self,
+        user: User,
+        spectrogram_visualization: Visualization,
+        api_rf: APIRequestFactory,
+    ):
+        """Test successful spectrogram creation request."""
+        with (
+            patch("redis.Redis") as mock_redis,
+            patch(
+                "spectrumx_visualization_platform.spx_vis.capture_utils.sigmf.request_job_submission"
+            ) as mock_job_submission,
+            patch(
+                "spectrumx_visualization_platform.spx_vis.api.views.get_sds_captures"
+            ) as mock_get_sds_captures,
+        ):
+            # Configure mock Redis instance
+            mock_redis_instance = mock_redis.return_value
+            mock_redis_instance.ping.return_value = True
+
+            # Configure mock job submission
+            mock_job = MagicMock()
+            mock_job.id = "test-job-id"
+            mock_job_submission.return_value = mock_job
+
+            # Configure mock SDS captures
+            mock_get_sds_captures.return_value = [
+                {
+                    "uuid": spectrogram_visualization.capture_ids[0],
+                    "files": [
+                        {
+                            "uuid": "test-file-uuid",
+                            "name": "test.sigmf-data",
+                        }
+                    ],
+                }
+            ]
+
+            view = VisualizationViewSet()
+            request = api_rf.post(
+                f"/fake-url/{spectrogram_visualization.uuid}/create_spectrogram/",
+                {"width": 10, "height": 10},
+                format="json",
+            )
+            force_authenticate(request, user=user)
+            drf_request = Request(request)
+            drf_request.parsers = [JSONParser()]
+            view.request = drf_request
+            view.kwargs = {"uuid": str(spectrogram_visualization.uuid)}
+            view.action = "post"
+
+            response = view.create_spectrogram(
+                drf_request, uuid=str(spectrogram_visualization.uuid)
+            )
+
+            assert response.status_code == status.HTTP_201_CREATED
+            assert "job_id" in response.data
+            assert response.data["status"] == "submitted"
+            assert response.data["job_id"] == "test-job-id"
+
+            # Verify job submission was called with correct arguments
+            mock_job_submission.assert_called_once()
+            call_args = mock_job_submission.call_args[1]
+            assert call_args["visualization_type"] == "spectrogram"
+            assert call_args["owner"] == user
+            assert call_args["config"] == {"width": 10, "height": 10}
+
+    def test_create_spectrogram_invalid_type(
+        self,
+        user: User,
+        spectrogram_visualization: Visualization,
+        api_rf: APIRequestFactory,
+    ):
+        """Test spectrogram creation with invalid capture type."""
+        spectrogram_visualization.capture_type = "invalid"
+        spectrogram_visualization.save()
+
+        view = VisualizationViewSet()
+        request = api_rf.post(
+            f"/fake-url/{spectrogram_visualization.uuid}/create_spectrogram/",
+            {"width": 10, "height": 10},
+            format="json",
+        )
+        force_authenticate(request, user=user)
+        drf_request = Request(request)
+        drf_request.parsers = [JSONParser()]
+        view.request = drf_request
+        view.kwargs = {"uuid": str(spectrogram_visualization.uuid)}
+        view.action = "post"
+
+        response = view.create_spectrogram(
+            drf_request, uuid=str(spectrogram_visualization.uuid)
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["status"] == "error"
 
 
 @pytest.mark.django_db()

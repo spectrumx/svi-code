@@ -5,10 +5,10 @@ import _ from 'lodash';
 import CaptureTable, { CaptureTableProps } from '../components/CaptureTable';
 import {
   CAPTURE_TYPE_INFO,
-  CAPTURE_SOURCES,
+  // CAPTURE_SOURCES,
   Capture,
   CaptureType,
-  CaptureSource,
+  // CaptureSource,
 } from '../apiClient/captureService';
 
 interface CaptureSearchProps {
@@ -35,9 +35,9 @@ export const CaptureSearch = ({
   const [selectedTypes, setSelectedTypes] = useState<Set<CaptureType>>(
     new Set(),
   );
-  const [selectedSources, setSelectedSources] = useState<Set<CaptureSource>>(
-    new Set(),
-  );
+  // const [selectedSources, setSelectedSources] = useState<Set<CaptureSource>>(
+  //   new Set(),
+  // );
   const [startDatetime, setStartDatetime] = useState<string>('');
   const [endDatetime, setEndDatetime] = useState<string>('');
 
@@ -66,8 +66,9 @@ export const CaptureSearch = ({
       const matchesType =
         selectedTypes.size === 0 || selectedTypes.has(capture.type);
 
-      const matchesSource =
-        selectedSources.size === 0 || selectedSources.has(capture.source);
+      // const matchesSource =
+      //   selectedSources.size === 0 || selectedSources.has(capture.source);
+      const matchesSource = true;
 
       const captureDate = new Date(capture.timestamp).getTime();
       const matchesTimeRange =
@@ -76,14 +77,7 @@ export const CaptureSearch = ({
 
       return matchesSearch && matchesType && matchesSource && matchesTimeRange;
     });
-  }, [
-    captures,
-    searchQuery,
-    selectedTypes,
-    selectedSources,
-    startDatetime,
-    endDatetime,
-  ]);
+  }, [captures, searchQuery, selectedTypes, startDatetime, endDatetime]);
 
   // Unselect captures that are filtered out
   useEffect(() => {
@@ -120,18 +114,18 @@ export const CaptureSearch = ({
     });
   };
 
-  // Handle checkbox changes for source filters
-  const handleSourceChange = (source: CaptureSource) => {
-    setSelectedSources((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(source)) {
-        newSet.delete(source);
-      } else {
-        newSet.add(source);
-      }
-      return newSet;
-    });
-  };
+  // // Handle checkbox changes for source filters
+  // const handleSourceChange = (source: CaptureSource) => {
+  //   setSelectedSources((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(source)) {
+  //       newSet.delete(source);
+  //     } else {
+  //       newSet.add(source);
+  //     }
+  //     return newSet;
+  //   });
+  // };
 
   const numHiddenCaptures = captures.length - filteredCaptures.length;
 
@@ -241,7 +235,7 @@ export const CaptureSearch = ({
                   ))}
                 </Form.Group>
               )}
-              <Form.Group className="mb-3">
+              {/* <Form.Group className="mb-3">
                 <h6>Source</h6>
                 {Object.entries(CAPTURE_SOURCES).map(([id, info]) => (
                   <Form.Check
@@ -254,7 +248,7 @@ export const CaptureSearch = ({
                     aria-label={`${info.name} filter checkbox`}
                   />
                 ))}
-              </Form.Group>
+              </Form.Group> */}
             </Form>
           </aside>
         </div>

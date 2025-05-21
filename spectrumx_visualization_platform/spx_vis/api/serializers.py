@@ -7,6 +7,9 @@ from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
 
+from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
+    DigitalRFUtility,
+)
 from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
     RadioHoundUtility,
 )
@@ -116,8 +119,8 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
         ]
         read_only_fields = ["uuid", "owner", "created_at", "timestamp", "source"]
 
-    def create(self, validated_data: dict) -> Capture | list[Capture]:
-        """Create one or more Captures with associated File objects.
+    def create(self, validated_data: dict) -> Capture:
+        """Create a Capture with associated File objects.
 
         Args:
             validated_data: Validated data including uploaded files
@@ -132,6 +135,8 @@ class CaptureSerializer(serializers.ModelSerializer[Capture]):
             capture_utility = RadioHoundUtility
         elif capture_type == CaptureType.SigMF:
             capture_utility = SigMFUtility
+        elif capture_type == CaptureType.DigitalRF:
+            capture_utility = DigitalRFUtility
         else:
             error_message = f"Unsupported capture type: {capture_type}"
             logger.error(error_message)
@@ -222,7 +227,10 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
 
     # Define supported capture types for each visualization type
     SUPPORTED_CAPTURE_TYPES = {
-        VisualizationType.Spectrogram: [CaptureType.SigMF],
+        VisualizationType.Spectrogram: [
+            CaptureType.SigMF,
+            CaptureType.DigitalRF,
+        ],
         VisualizationType.Waterfall: [CaptureType.RadioHound],
     }
 
@@ -252,52 +260,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "expiration_date",
         ]
 
-    def _migrate_capture_ids(self, obj: Visualization) -> None:
-        """Migrate capture IDs from integers to UUIDs if needed.
-
-        This method checks if any capture IDs in the visualization are still using
-        integer IDs and updates them to use UUIDs instead. The migration happens
-        incrementally as visualizations are accessed.
-
-        Only applies to local captures (capture_source="svi_user").
-
-        Args:
-            obj: The Visualization instance to migrate
-        """
-        if not obj.capture_ids or obj.capture_source != CaptureSource.SVI_User:
-            return
-
-        # Check if any IDs are still integers
-        has_integer_ids = any(
-            isinstance(capture_id, int) or capture_id.isdigit()
-            for capture_id in obj.capture_ids
-        )
-        if not has_integer_ids:
-            return
-
-        # Get the UUIDs for the integer IDs
-        int_ids = [
-            int(capture_id)
-            for capture_id in obj.capture_ids
-            if isinstance(capture_id, int) or capture_id.isdigit()
-        ]
-        captures = Capture.objects.filter(id__in=int_ids, owner=obj.owner)
-        uuid_map = {str(capture.id): str(capture.uuid) for capture in captures}
-
-        # Update the capture_ids with UUIDs
-        new_capture_ids = []
-        for capture_id in obj.capture_ids:
-            if isinstance(capture_id, int) or capture_id.isdigit():
-                new_capture_ids.append(uuid_map.get(str(capture_id), capture_id))
-            else:
-                new_capture_ids.append(capture_id)
-
-        # Update the visualization if any IDs were changed
-        if new_capture_ids != obj.capture_ids:
-            obj.capture_ids = new_capture_ids
-            obj.save(update_fields=["capture_ids"])
-            logger.info(f"Migrated capture IDs for visualization {obj.uuid}")
-
     def get_captures(self, obj: Visualization) -> list[dict]:
         """Get the full capture information including files for each capture.
 
@@ -307,10 +269,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         Returns:
             list[dict]: List of capture data including files.
         """
-        # Migrate capture IDs if needed (only for local captures)
-        if obj.capture_source == CaptureSource.SVI_User:
-            self._migrate_capture_ids(obj)
-
         request = self.context.get("request")
         if not request:
             return []
@@ -450,6 +408,12 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         Raises:
             serializers.ValidationError: If validation fails
         """
+        if "capture_source" in data:
+            if data["capture_source"] != CaptureSource.SDS:
+                error_message = "SVI-hosted captures are not currently supported"
+                logger.error(error_message)
+                raise serializers.ValidationError(error_message)
+
         # Only validate type-related fields if type is being updated
         if "type" in data:
             # Validate that the capture type is supported for this visualization type
@@ -481,10 +445,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
         return data
 
     def create(self, validated_data: dict) -> Visualization:
-        """Create a new Visualization instance or return an existing matching one.
-
-        Checks if a visualization with identical configuration already exists for the user.
-        If found, returns the existing visualization instead of creating a new one.
+        """Create a new Visualization instance.
 
         Args:
             validated_data: The validated data for creating the visualization

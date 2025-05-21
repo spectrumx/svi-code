@@ -25,7 +25,9 @@ const LandingPage = () => {
             <Card className="hero-box">
               <Card.Body>
                 <Card.Title>My Data</Card.Title>
-                <Card.Text>Upload your own spectrum data to the SVI</Card.Text>
+                <Card.Text>
+                  See a list of spectrum captures you've uploaded
+                </Card.Text>
               </Card.Body>
               <Card.Footer>
                 <Link
@@ -40,7 +42,7 @@ const LandingPage = () => {
             <Card className="hero-box">
               <Card.Body>
                 <Card.Title>Workspace</Card.Title>
-                <Card.Text>Visualize recordings that you've uploaded</Card.Text>
+                <Card.Text>Visualize your uploaded spectrum data</Card.Text>
               </Card.Body>
               <Card.Footer>
                 <Link
