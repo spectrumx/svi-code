@@ -5,7 +5,7 @@ FROM quay.io/jupyterhub/jupyterhub:$JUPYTERHUB_VERSION
 
 
 # Install Python packages from requirements.txt
-COPY ./compose/local/jupyter/requirements.txt /tmp/requirements.txt
+COPY ./compose/production/jupyter/requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
 
 CMD ["jupyterhub", "-f", "/srv/jupyterhub/jupyterhub_config.py"]

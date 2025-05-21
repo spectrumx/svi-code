@@ -132,11 +132,6 @@ services:
       - spectrumx_network
 
 networks:
+  # run ./compose/create-network.sh first to create this network
   spectrumx_network:
-    driver: bridge
-    name: spectrumx_network
-    external: false
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.28.0.0/16
+    external: true

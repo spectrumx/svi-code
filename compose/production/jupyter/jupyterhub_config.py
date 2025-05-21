@@ -1,6 +1,8 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
+# API reference: https://jupyterhub-dockerspawner.readthedocs.io/en/latest/api/index.html
+
 # Configuration file for JupyterHub
 import os
 
@@ -110,4 +112,4 @@ c.DockerSpawner.extra_host_config = {
 }
 
 # Replace with a proper shell command that handles errors
-c.DockerSpawner.post_start_cmd = "pip install spectrumx"
+c.DockerSpawner.post_start_cmd = "pip install ipywidgets spectrumx"
