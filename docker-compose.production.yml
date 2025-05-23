@@ -155,9 +155,6 @@ services:
       - ./.envs/.production/.jupyterhub
 
 networks:
+  # run ./compose/create-network.sh first to create this network
   spectrumx_network:
-    driver: bridge
-    name: spectrumx_network
-    # Add these configurations to ensure the network is properly created
-    external: false
-    attachable: true
+    external: true
