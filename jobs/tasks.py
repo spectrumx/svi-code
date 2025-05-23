@@ -53,10 +53,8 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
         with Path.open(f"jobs/job_files/{f['name']}", "wb") as new_file:
             new_file.write(data)
 
-    # DO CODE TO MAKE VIZ HERE
     Path("jobs/job_results").mkdir(parents=True, exist_ok=True)
-    # print(f"config from job data: {job_data['data']['config']['width']}")
-    # print(f"job_data['data']: {job_data.get('data', 'data key is missing')}")
+
     if job_data["data"]["type"] == "spectrogram":
         try:
             figure = make_spectrogram(

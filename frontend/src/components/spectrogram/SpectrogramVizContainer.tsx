@@ -46,6 +46,7 @@ const SpectrogramVizContainer = ({
         visualizationRecord.uuid,
         width,
         height,
+        spectrogramSettings,
       );
       setJobInfo({
         job_id: response.job_id ?? null,

@@ -313,6 +313,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
 
         width = request.data.get("width", 10)
         height = request.data.get("height", 10)
+        config = request.data.get("config", {})
 
         try:
             # Get SDS captures
@@ -397,7 +398,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             try:
                 # Pass the downloaded file paths to the utility
                 job = capture_utility.submit_spectrogram_job(
-                    user, new_file_paths, width, height
+                    user, new_file_paths, width, height, config
                 )
                 return Response(
                     {"job_id": job.id, "status": "submitted"},

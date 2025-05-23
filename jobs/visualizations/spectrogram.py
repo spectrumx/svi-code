@@ -34,7 +34,6 @@ def make_spectrogram(job_data, config, files_dir=""):
     capture_type = config.get("capture_type", CaptureType.SigMF)
     config["width"] = config.get("width", 10)
     config["height"] = config.get("height", 10)
-    logging.info(f"Capture type from job_data: {capture_type}")
 
     if capture_type == CaptureType.SigMF:
         return _make_sigmf_spectrogram(job_data, config, files_dir)
@@ -112,10 +111,12 @@ def _generate_spectrogram(data_array, sample_rate, sample_count, config):
         matplotlib.figure.Figure: The generated spectrogram figure
     """
     std_dev = 100  # standard deviation for Gaussian window in samples
-    gaussian_window = gaussian(1000, std=std_dev, sym=True)  # symmetric Gaussian window
-    fft_size = 1024
-    width = config["width"] or 1024
-    height = config["height"] or 768
+    fft_size = config.get("fftSize", 1024)
+    gaussian_window = gaussian(
+        fft_size, std=std_dev, sym=True
+    )  # symmetric Gaussian window
+    width = config["width"]
+    height = config["height"]
 
     short_time_fft = ShortTimeFFT(
         gaussian_window,
@@ -163,7 +164,7 @@ def _generate_spectrogram(data_array, sample_rate, sample_count, config):
     return figure
 
 
-### DigitalRF ###
+### Digital RF ###
 def _make_digital_rf_spectrogram(job_data, config, files_dir=""):
     """Generate a spectrogram from Digital RF data.
 
@@ -222,8 +223,8 @@ def _make_digital_rf_spectrogram(job_data, config, files_dir=""):
             rf_data = reader.read_vector(start_sample, num_samples, channel)
 
             # Compute spectrogram
-            window = gaussian(1000, std=100, sym=True)
-            fft_size = 1024
+            fft_size = config.get("fftSize", 1024)
+            window = gaussian(fft_size, std=100, sym=True)
             stfft = ShortTimeFFT(
                 window, hop=500, fs=sample_rate, mfft=fft_size, fft_mode="centered"
             )
@@ -236,7 +237,7 @@ def _make_digital_rf_spectrogram(job_data, config, files_dir=""):
                 data=spectrogram,
                 extent=extent,
                 log_scale=True,
-                title=f"Spectrogram - {channel}",
+                title=f"{channel} - FFT Size: {fft_size}",
                 config=config,
             )
 
@@ -251,8 +252,6 @@ def drf_specgram_plot(data, extent, log_scale, title, config):
     Adapted from
     https://github.com/MITHaystack/digital_rf/blob/master/python/tools/drf_plot.py
     """
-    print("specgram")
-
     # set to log scaling
     pss = 10.0 * np.log10(data + 1e-12) if log_scale else data
 
