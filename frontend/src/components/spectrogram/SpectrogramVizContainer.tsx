@@ -13,6 +13,11 @@ import { VizContainerProps } from '../types';
 
 export interface SpectrogramSettings {
   fftSize: number;
+  stdDev: number;
+  hopSize: number;
+  colormap: string;
+  width: number;
+  height: number;
 }
 
 export interface JobInfo {
@@ -28,6 +33,11 @@ const SpectrogramVizContainer = ({
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
+      stdDev: 100,
+      hopSize: 500,
+      colormap: 'magma',
+      width: 10,
+      height: 10,
     });
   const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
   const [jobInfo, setJobInfo] = useState<JobInfo>({
