@@ -2,12 +2,12 @@ import logging
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from unittest.mock import Mock
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
 from rest_framework import serializers
-from unittest.mock import Mock
-from unittest.mock import patch
 
 from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
     DigitalRFUtility,
@@ -476,8 +476,10 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
 
         return super().create(validated_data)
 
-def test_create_visualization_sets_defaults(self, user: User, visualization_detail_serializer: VisualizationDetailSerializer):
 
+def test_create_visualization_sets_defaults(
+    self, user: User, visualization_detail_serializer: VisualizationDetailSerializer
+):
     validated_data = {
         "type": "spectrogram",  # assuming keys match internal enum or choice
         "capture_ids": ["c3", "c1", "c2"],
@@ -504,6 +506,8 @@ def test_create_visualization_sets_defaults(self, user: User, visualization_deta
         assert passed_data["name"] == "Unnamed Spectrogram"  # default name
         assert passed_data["is_saved"] is False
         assert isinstance(passed_data["expiration_date"], datetime)
-        assert abs(passed_data["expiration_date"] - (datetime.now(UTC) + timedelta(hours=12))) < timedelta(seconds=5)
+        assert abs(
+            passed_data["expiration_date"] - (datetime.now(UTC) + timedelta(hours=12))
+        ) < timedelta(seconds=5)
 
         assert result == mock_create.return_value
