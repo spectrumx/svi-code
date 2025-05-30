@@ -15,6 +15,7 @@ CELERY_FLOWER_PASSWORD=LLyi0nNBGIxkewRK5UumxzdFLt6LtJXUaG5Ox0v5mlc4lNQK7DvTM2rW0
 
 # Auth0
 AUTH0_DOMAIN=http://localhost:8000
+AUTH0_DOMAIN=https://dev-umvfnybaltoz3wpf.us.auth0.com
 
 # Logout
 ACCOUNT_LOGOUT_REDIRECT_URL=http://localhost:3000/
@@ -24,6 +25,6 @@ LOGOUT_REDIRECT_URL=http://localhost:3000/
 # SpectrumX Visualization Interface Authentication Tokens
 # (this is needed by the SVI to communicate with the SDS to pull user's SDK API tokens)
 # limit to 40 characters
-SVI_SERVER_API_KEY=
+SVI_SERVER_API_KEY=9PYsz8iHkPd9vD2TwErFiWLS0EzPR5haWJCeoUsb
 # SDS user API key to use on a dev server only
-SDS_USER_API_KEY=
+SDS_USER_API_KEY=LJKSMJVH.mlw5bBxtMKf3TJcfuxbtsMUyuohXYdyw
