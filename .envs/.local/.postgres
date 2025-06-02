@@ -1,7 +1,0 @@
-# PostgreSQL
-# ------------------------------------------------------------------------------
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_DB=spectrumx_visualization_platform
-POSTGRES_USER=kinRaOGFTioGwclTGdLfVwTYwCQFzftF
-POSTGRES_PASSWORD=LzRqMUJg4xQVBHJ8hgNNI6he6UEw1uhUswIDILByeSd11jXmZrH1fThYF9ZDsZhM
