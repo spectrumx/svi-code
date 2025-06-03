@@ -7,9 +7,50 @@ Visualization platform for the SpectrumX project
 
 License: MIT
 
-## Settings
+## Deployment
 
-Moved to [settings](http://cookiecutter-django.readthedocs.io/en/latest/settings.html).
+Docker Compose is the recommended deployment method for this project.
+
+### Create secrets
+
+If using the production deployment, create the secrets files:
+
+```bash
+rsync -aP .envs/.local/ .envs/.production/
+```
+
+Then set the secrets that will be used by the SVI services in these files.
+
+### Creating the network
+
+This will create an external network so that jupyter containers not in the compose files
+can reattach to when the services are restarted.
+
+```bash
+./compose/create-network.sh
+```
+
+### Switching environments
+
+To select the environment, set the `COMPOSE_FILE` environment variable to the desired
+docker-compose file, i.e.:
+
+```bash
+# for development:
+export COMPOSE_FILE=docker-compose.local.yml
+
+# for production:
+export COMPOSE_FILE=docker-compose.production.yml
+```
+
+Then proceed with other compose commands.
+
+```bash
+docker compose build
+docker compose up
+docker compose down
+docker compose logs -f
+```
 
 ## Basic Commands
 
@@ -19,7 +60,9 @@ Moved to [settings](http://cookiecutter-django.readthedocs.io/en/latest/settings
 
 - To create a **superuser account**, use this command:
 
-      $ python manage.py createsuperuser
+```bash
+python manage.py createsuperuser
+```
 
 For convenience, you can keep your normal user logged in on Chrome and your superuser logged in on Firefox (or similar), so that you can see how the site behaves for both kinds of users.
 
@@ -27,19 +70,25 @@ For convenience, you can keep your normal user logged in on Chrome and your supe
 
 Running type checks with mypy:
 
-    $ mypy spectrumx_visualization_platform
+```bash
+mypy spectrumx_visualization_platform
+```
 
 ### Test coverage
 
 To run the tests, check your test coverage, and generate an HTML coverage report:
 
-    $ coverage run -m pytest
-    $ coverage html
-    $ open htmlcov/index.html
+```bash
+coverage run -m pytest
+coverage html
+open htmlcov/index.html
+```
 
 #### Running tests with pytest
 
-    $ pytest
+```bash
+pytest
+```
 
 ### Live reloading and Sass CSS compilation
 
@@ -72,14 +121,6 @@ cd spectrumx_visualization_platform
 celery -A config.celery_app worker -B -l info
 ```
 
-## Deployment
-
-The following details how to deploy this application.
-
-### Docker
-
-See detailed [cookiecutter-django Docker documentation](http://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html).
-
 ## Auth0
 
 See detailed [Auth0 documentation](https://auth0.com/docs).
@@ -88,22 +129,21 @@ See detailed [Auth0 documentation](https://auth0.com/docs).
 
 1. Modify the `requirements/base.txt` to include `socialaccount` in `django-allauth`
 
-```
+```ini
 django-allauth[socialaccount]==65.0.2  # https://github.com/pennersr/django-allauth
 fido2==1.1.3  # https://github.com/Yubico/python-fido2
 ```
 
 2. Add Environment Variables to `.envs/.local/.django`
 
-```
-
+```bash
 # Auth0
 AUTH0_DOMAIN=https://[DOMAIN].us.auth0.com
 ```
 
 3. Add Auth0 to `config/settings/base.py`
 
-```
+```py
 # Auth0 Configuration
 SOCIALACCOUNT_PROVIDERS = {
     "auth0": {

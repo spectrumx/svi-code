@@ -41,6 +41,30 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
+      - name: Create the docker network
+        run: ./compose/create-network.sh
+
+      - name: Create environment files
+        run: |
+          # Create .django file
+          cat > .envs/.local/.django << EOL
+          USE_DOCKER=yes
+          REDIS_URL=redis://redis:6379/0
+          AUTH0_DOMAIN=
+          EOL
+
+          # Create empty .jupyterhub file
+          touch .envs/.local/.jupyterhub
+
+          # Create .postgres file
+          cat > .envs/.local/.postgres << EOL
+          POSTGRES_HOST=postgres
+          POSTGRES_PORT=5432
+          POSTGRES_DB=spectrumx_visualization_platform
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          EOL
+
       - name: Build the Stack
         run: docker compose -f docker-compose.local.yml build django
 
