@@ -189,7 +189,8 @@ def _generate_spectrogram(
     Returns:
         matplotlib.figure.Figure: The generated spectrogram figure
     """
-    std_dev = 100  # standard deviation for Gaussian window in samples
+    # Standard deviation for Gaussian window in samples
+    std_dev = config.get("stdDev", 100)
     fft_size = config.get("fftSize", 1024)
     gaussian_window = gaussian(fft_size, std=std_dev, sym=True)
     width = config["width"]
@@ -197,7 +198,7 @@ def _generate_spectrogram(
 
     short_time_fft = ShortTimeFFT(
         gaussian_window,
-        hop=500,
+        hop=config.get("hopSize", 500),
         fs=spectrogram_data.sample_rate,
         mfft=fft_size,
         fft_mode="centered",
@@ -233,7 +234,7 @@ def _generate_spectrogram(
         origin="lower",
         aspect="auto",
         extent=extent,
-        cmap="magma",
+        cmap=config.get("colormap", "magma"),
     )
 
     # Add colorbar
