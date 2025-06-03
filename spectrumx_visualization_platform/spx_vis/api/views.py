@@ -489,20 +489,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         token = request.user.sds_token
 
         for capture_id in visualization.capture_ids:
-            # capture = None
-
-            # for c in sds_captures:
-            #    print("--------------------------------")
-            #    print("c.uuid is ", c["uuid"])
-            #    print("type(c.uuid) is ", type(c["uuid"]))
-            #    print("capture_id is ", capture_id)
-            #    print("type(capture_id) is ", type(capture_id))
-            #    print("c.uuid == capture_id is ", c["uuid"] == capture_id)
-            #    print("--------------------------------")
-            #    if str(capture_id) == str(c["uuid"]):
-            #        capture = c
-            #        break
-            # print("--------------------------------")
             capture = next(
                 (c for c in sds_captures if str(c["uuid"]) == str(capture_id)), None
             )
