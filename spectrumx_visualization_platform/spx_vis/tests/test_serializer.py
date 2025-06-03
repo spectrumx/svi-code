@@ -4,7 +4,6 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
-from uuid import UUID
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -88,44 +87,11 @@ class TestVisualizationDetailSerializer:
     ) -> VisualizationDetailSerializer:
         return VisualizationDetailSerializer(context={"request": api_request_factory})
 
-    @pytest.mark.skip(reason="This method is not needed anymore.")
-    def test_migrate_capture_ids_from_integers_to_uuids(
-        self, user: User, capture: Capture, api_request_factory: APIRequestFactory
-    ):
-        # Set up a visualization with integer capture ID instead of UUID
-        unsaved_visualization = Visualization.objects.create(
-            owner=user,
-            name="Test Visualization",
-            type="waterfall",
-            capture_type="rh",
-            capture_source="svi_user",
-            capture_ids=[str(capture.uuid)],
-            is_saved=False,
-            expiration_date=datetime.now(UTC) + timedelta(hours=1),
-        )
-        visualization = unsaved_visualization
-        visualization.capture_ids = [capture.id]
-        print(
-            "message from test_migrate_capture_ids_from_integers_to_uuids"
-        )  # Set integer ID
-        print("capture.id is ", capture.id)
-        print("visualization.capture_ids are ", visualization.capture_ids)
-        visualization.save(update_fields=["capture_ids"])
-
-        # Sanity check: it should be an integer ID in the DB
-        assert isinstance(visualization.capture_ids[0], int)
-
-        # Create an instance of the serializer and call the migration method
-        serializer = VisualizationDetailSerializer()
-        serializer._migrate_capture_ids(visualization)  # noqa: SLF001
-
-        # Fetch updated visualization
-        visualization.refresh_from_db()
-
-        # Check that capture_ids has been converted to a UUID string
-        assert visualization.capture_ids == [str(capture.uuid)]
-        # Optional: also check that it is a valid UUID string
-        assert isinstance(UUID(visualization.capture_ids[0]), UUID)
+    @staticmethod
+    def make_capture(uuid):
+        capture = Mock()
+        capture.uuid = uuid
+        return capture
 
     def test_get_captures_returns_serialized_local_captures(
         self,
@@ -220,9 +186,7 @@ class TestVisualizationDetailSerializer:
 
         mock_get_sds_captures.assert_called_once_with(request)
 
-    def test_validate_capture_ids_loop(
-        self, user: User, api_request_factory: APIRequestFactory
-    ):
+    def test_validate_capture_ids_loop(self, api_request_factory: APIRequestFactory):
         test_cases = [
             (
                 "notalist",
@@ -259,7 +223,7 @@ class TestVisualizationDetailSerializer:
                 assert serializer.validate_capture_ids(input_value) == input_value
 
     def test_validate_valid_data(
-        self, user: User, visualization_detail_serializer: VisualizationDetailSerializer
+        self, visualization_detail_serializer: VisualizationDetailSerializer
     ):
         serializer = visualization_detail_serializer
         serializer.instance = Mock(
@@ -282,7 +246,7 @@ class TestVisualizationDetailSerializer:
             assert validated == data
 
     def test_validate_unsupported_capture_type(
-        self, user: User, visualization_detail_serializer: VisualizationDetailSerializer
+        self, visualization_detail_serializer: VisualizationDetailSerializer
     ):
         serializer = visualization_detail_serializer
         serializer.instance = Mock()
@@ -298,7 +262,7 @@ class TestVisualizationDetailSerializer:
         assert "Spectrogram visualizations only support" in str(exc_info.value)
 
     def test_validate_non_sds_source_raises_error(
-        self, user: User, visualization_detail_serializer: VisualizationDetailSerializer
+        self, visualization_detail_serializer: VisualizationDetailSerializer
     ):
         serializer = visualization_detail_serializer
         serializer.instance = Mock()
@@ -309,12 +273,6 @@ class TestVisualizationDetailSerializer:
             serializer.validate(data)
 
         assert "SVI-hosted captures are not currently supported" in str(exc_info.value)
-
-    @staticmethod
-    def make_capture(uuid):
-        capture = Mock()
-        capture.uuid = uuid
-        return capture
 
     @patch("spectrumx_visualization_platform.spx_vis.api.serializers.User.sds_client")
     def test_check_captures_sds_all_found(
@@ -396,3 +354,41 @@ class TestVisualizationDetailSerializer:
             )
 
         assert "Invalid capture source" in str(exc_info.value)
+
+    def test_create_visualization_sets_defaults(
+        self, user: User, visualization_detail_serializer: VisualizationDetailSerializer
+    ):
+        validated_data = {
+            "type": "spectrogram",  # assuming keys match internal enum or choice
+            "capture_ids": ["c3", "c1", "c2"],
+            "capture_source": "sds",
+            "capture_type": "SigMF",
+            # omit "name" and "is_saved" to test defaults
+        }
+
+        serializer = visualization_detail_serializer
+
+        # Patch the super().create call to return a fake Visualization
+        with patch(
+            "spectrumx_visualization_platform.spx_vis.api.serializers.super"
+        ) as mock_super:
+            mock_create = mock_super().create
+            mock_create.return_value = Mock(spec=Visualization)
+
+            result = serializer.create(validated_data.copy())
+
+            # Ensure super().create was called with the correct modified data
+            args, _ = mock_create.call_args
+            passed_data = args[0]
+
+            assert passed_data["owner"] == user
+            assert passed_data["capture_ids"] == ["c1", "c2", "c3"]  # sorted
+            assert passed_data["name"] == "Unnamed Spectrogram"  # default name
+            assert passed_data["is_saved"] is False
+            assert isinstance(passed_data["expiration_date"], datetime)
+            assert abs(
+                passed_data["expiration_date"]
+                - (datetime.now(UTC) + timedelta(hours=12))
+            ) < timedelta(seconds=5)
+
+            assert result == mock_create.return_value

@@ -2,8 +2,6 @@ import logging
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from unittest.mock import Mock
-from unittest.mock import patch
 
 from django.core.files.uploadedfile import UploadedFile
 from django.urls import reverse
@@ -475,39 +473,3 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             validated_data["expiration_date"] = datetime.now(UTC) + timedelta(hours=12)
 
         return super().create(validated_data)
-
-
-def test_create_visualization_sets_defaults(
-    self, user: User, visualization_detail_serializer: VisualizationDetailSerializer
-):
-    validated_data = {
-        "type": "spectrogram",  # assuming keys match internal enum or choice
-        "capture_ids": ["c3", "c1", "c2"],
-        "capture_source": "sds",
-        "capture_type": "SigMF",
-        # omit "name" and "is_saved" to test defaults
-    }
-
-    serializer = visualization_detail_serializer()
-
-    # Patch the super().create call to return a fake Visualization
-    with patch("myapp.serializers.super") as mock_super:
-        mock_create = mock_super().create
-        mock_create.return_value = Mock(spec=Visualization)
-
-        result = serializer.create(validated_data.copy())
-
-        # Ensure super().create was called with the correct modified data
-        args, _ = mock_create.call_args
-        passed_data = args[0]
-
-        assert passed_data["owner"] == user
-        assert passed_data["capture_ids"] == ["c1", "c2", "c3"]  # sorted
-        assert passed_data["name"] == "Unnamed Spectrogram"  # default name
-        assert passed_data["is_saved"] is False
-        assert isinstance(passed_data["expiration_date"], datetime)
-        assert abs(
-            passed_data["expiration_date"] - (datetime.now(UTC) + timedelta(hours=12))
-        ) < timedelta(seconds=5)
-
-        assert result == mock_create.return_value

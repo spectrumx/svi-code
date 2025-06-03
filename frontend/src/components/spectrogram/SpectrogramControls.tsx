@@ -1,5 +1,6 @@
 import { Form } from 'react-bootstrap';
 import { SpectrogramSettings } from './SpectrogramVizContainer';
+
 // Powers of 2 from 64 to 65536
 const fftSizeOptions = Array.from({ length: 11 }, (_, i) => Math.pow(2, i + 6));
 
