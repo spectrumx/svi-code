@@ -58,9 +58,9 @@ def make_spectrogram(
 
     # Load data based on capture type
     if capture_type == CaptureType.SigMF:
-        spectrogram_data = _load_sigmf_data(job_data, files_dir)
+        spectrogram_data = _load_sigmf_data(job_data, files_dir, config)
     elif capture_type == CaptureType.DigitalRF:
-        spectrogram_data = _load_digital_rf_data(job_data, files_dir)
+        spectrogram_data = _load_digital_rf_data(job_data, files_dir, config)
     else:
         raise ValueError(f"Unsupported capture type: {capture_type}")
 
@@ -68,7 +68,9 @@ def make_spectrogram(
     return _generate_spectrogram(spectrogram_data, config)
 
 
-def _load_sigmf_data(job_data: dict[str, Any], files_dir: str) -> SpectrogramData:
+def _load_sigmf_data(
+    job_data: dict[str, Any], files_dir: str, config: dict[str, Any]
+) -> SpectrogramData:
     """Load data from SigMF format.
 
     Args:
@@ -109,7 +111,9 @@ def _load_sigmf_data(job_data: dict[str, Any], files_dir: str) -> SpectrogramDat
     )
 
 
-def _load_digital_rf_data(job_data: dict[str, Any], files_dir: str) -> SpectrogramData:
+def _load_digital_rf_data(
+    job_data: dict[str, Any], files_dir: str, config: dict[str, Any]
+) -> SpectrogramData:
     """Load data from DigitalRF format.
 
     Args:
@@ -153,6 +157,7 @@ def _load_digital_rf_data(job_data: dict[str, Any], files_dir: str) -> Spectrogr
 
             # Use the first channel
             channel = channels[0]
+            subchannel = config.get("subchannel", 0)
             start_sample, end_sample = reader.get_bounds(channel)
 
             # Get sample rate from metadata
@@ -163,7 +168,9 @@ def _load_digital_rf_data(job_data: dict[str, Any], files_dir: str) -> Spectrogr
                 )
 
             num_samples = end_sample - start_sample
-            data_array = reader.read_vector(start_sample, num_samples, channel)
+            data_array = reader.read_vector(
+                start_sample, num_samples, channel, subchannel
+            )
 
             return SpectrogramData(
                 data_array=data_array,

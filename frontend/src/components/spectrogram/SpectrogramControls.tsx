@@ -22,11 +22,13 @@ const colormapOptions = [
 interface SpectrogramControlsProps {
   settings: SpectrogramSettings;
   setSettings: (settings: SpectrogramSettings) => void;
+  numSubchannels?: number;
 }
 
 const SpectrogramControls = ({
   settings,
   setSettings,
+  numSubchannels,
 }: SpectrogramControlsProps) => {
   // Separate handlers for different input types
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -47,6 +49,40 @@ const SpectrogramControls = ({
 
   return (
     <Form>
+      {numSubchannels && numSubchannels > 1 && (
+        <Form.Group className="mb-3">
+          <Form.Label>
+            <div className="d-flex align-items-center gap-1">
+              Subchannel
+              <OverlayTrigger
+                placement="right"
+                overlay={
+                  <Tooltip id="subchannel-tooltip">
+                    Select which subchannel to visualize in the spectrogram
+                  </Tooltip>
+                }
+              >
+                <i
+                  className="bi bi-info-circle text-muted"
+                  aria-hidden="true"
+                />
+              </OverlayTrigger>
+            </div>
+          </Form.Label>
+          <Form.Select
+            name="subchannel"
+            value={settings.subchannel}
+            onChange={handleSelectChange}
+          >
+            {Array.from({ length: numSubchannels }, (_, i) => (
+              <option key={i} value={i}>
+                {i}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+      )}
+
       <Form.Group className="mb-3">
         <Form.Label>
           <div className="d-flex align-items-center gap-1">

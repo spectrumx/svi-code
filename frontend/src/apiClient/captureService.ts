@@ -66,6 +66,7 @@ export const CaptureSchema = zod.object({
   max_freq: zod.number().optional().nullable(),
   scan_time: zod.number().optional().nullable(),
   end_time: zod.string().optional().nullable(),
+  subchannels: zod.number().optional().nullable(),
 });
 export type Capture = zod.infer<typeof CaptureSchema>;
 
