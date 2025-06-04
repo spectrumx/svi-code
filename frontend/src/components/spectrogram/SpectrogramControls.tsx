@@ -1,4 +1,4 @@
-import { Form, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import { SpectrogramSettings } from './SpectrogramVizContainer';
 import _ from 'lodash';
 
@@ -51,24 +51,7 @@ const SpectrogramControls = ({
     <Form>
       {numSubchannels && numSubchannels > 1 && (
         <Form.Group className="mb-3">
-          <Form.Label>
-            <div className="d-flex align-items-center gap-1">
-              Subchannel
-              <OverlayTrigger
-                placement="right"
-                overlay={
-                  <Tooltip id="subchannel-tooltip">
-                    Select which subchannel to visualize in the spectrogram
-                  </Tooltip>
-                }
-              >
-                <i
-                  className="bi bi-info-circle text-muted"
-                  aria-hidden="true"
-                />
-              </OverlayTrigger>
-            </div>
-          </Form.Label>
+          <Form.Label>Subchannel</Form.Label>
           <Form.Select
             name="subchannel"
             value={settings.subchannel}
@@ -84,22 +67,7 @@ const SpectrogramControls = ({
       )}
 
       <Form.Group className="mb-3">
-        <Form.Label>
-          <div className="d-flex align-items-center gap-1">
-            FFT Size
-            <OverlayTrigger
-              placement="right"
-              overlay={
-                <Tooltip id="fft-size-tooltip">
-                  Larger values provide better frequency resolution but lower
-                  time resolution
-                </Tooltip>
-              }
-            >
-              <i className="bi bi-info-circle text-muted" aria-hidden="true" />
-            </OverlayTrigger>
-          </div>
-        </Form.Label>
+        <Form.Label>FFT Size</Form.Label>
         <Form.Select
           name="fftSize"
           value={settings.fftSize}
@@ -114,22 +82,7 @@ const SpectrogramControls = ({
       </Form.Group>
 
       <Form.Group className="mb-3">
-        <Form.Label>
-          <div className="d-flex align-items-center gap-1">
-            Window Standard Deviation (samples)
-            <OverlayTrigger
-              placement="right"
-              overlay={
-                <Tooltip id="std-dev-tooltip">
-                  Controls the width of the Gaussian window. Larger values
-                  provide better frequency resolution but lower time resolution
-                </Tooltip>
-              }
-            >
-              <i className="bi bi-info-circle text-muted" aria-hidden="true" />
-            </OverlayTrigger>
-          </div>
-        </Form.Label>
+        <Form.Label>Window Standard Deviation (samples)</Form.Label>
         <Form.Control
           type="number"
           name="stdDev"
@@ -141,22 +94,7 @@ const SpectrogramControls = ({
       </Form.Group>
 
       <Form.Group className="mb-3">
-        <Form.Label>
-          <div className="d-flex align-items-center gap-1">
-            Hop Size (samples)
-            <OverlayTrigger
-              placement="right"
-              overlay={
-                <Tooltip id="hop-size-tooltip">
-                  Controls the time step between consecutive FFTs. Smaller
-                  values provide better time resolution
-                </Tooltip>
-              }
-            >
-              <i className="bi bi-info-circle text-muted" aria-hidden="true" />
-            </OverlayTrigger>
-          </div>
-        </Form.Label>
+        <Form.Label>Hop Size (samples)</Form.Label>
         <Form.Control
           type="number"
           name="hopSize"
@@ -168,21 +106,7 @@ const SpectrogramControls = ({
       </Form.Group>
 
       <Form.Group className="mb-3">
-        <Form.Label>
-          <div className="d-flex align-items-center gap-1">
-            Colormap
-            <OverlayTrigger
-              placement="right"
-              overlay={
-                <Tooltip id="colormap-tooltip">
-                  Choose a color scheme for the spectrogram visualization
-                </Tooltip>
-              }
-            >
-              <i className="bi bi-info-circle text-muted" aria-hidden="true" />
-            </OverlayTrigger>
-          </div>
-        </Form.Label>
+        <Form.Label>Colormap</Form.Label>
         <Form.Select
           name="colormap"
           value={settings.colormap}
