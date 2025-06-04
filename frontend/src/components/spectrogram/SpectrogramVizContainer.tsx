@@ -35,7 +35,6 @@ const SpectrogramVizContainer = ({
       stdDev: 100,
       hopSize: 500,
       colormap: 'magma',
-      subchannel: 0,
     });
   const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
   const [jobInfo, setJobInfo] = useState<JobInfo>({
