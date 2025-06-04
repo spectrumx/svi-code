@@ -274,8 +274,8 @@ jobs/job_results/
 .pytest_cache/
 .ipython/
 .env
-.envs/*
-.envs/.local/*
+.envs/*/*
+!.envs/*/*.sample
 
 # we'll use the data directory for storing the RadioHound JSON files locally
 data/

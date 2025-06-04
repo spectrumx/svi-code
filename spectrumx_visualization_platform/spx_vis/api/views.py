@@ -489,7 +489,10 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         token = request.user.sds_token
 
         for capture_id in visualization.capture_ids:
-            capture = next((c for c in sds_captures if c["uuid"] == capture_id), None)
+            capture = next(
+                (c for c in sds_captures if str(c["uuid"]) == str(capture_id)), None
+            )
+
             if capture is None:
                 raise ValueError(f"Capture ID {capture_id} not found in SDS")
 
