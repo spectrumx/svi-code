@@ -89,13 +89,14 @@ class SigMFUtility(CaptureUtility):
         return ".".join(meta_file.name.split(".")[:-1])
 
     @staticmethod
-    def submit_spectrogram_job(user, capture_files, width=10, height=10):
+    def submit_spectrogram_job(user, capture_files, width=10, height=10, config=None):
         """Get the SigMF data and metadata files needed for spectrogram generation.
 
         Args:
             capture_files: List of file paths
             width: Width of the spectrogram in inches
             height: Height of the spectrogram in inches
+            config: The configuration for the spectrogram job
 
         Returns:
             Job: The submitted job
@@ -111,11 +112,13 @@ class SigMFUtility(CaptureUtility):
             logger.error(error_message)
             raise ValueError(error_message)
 
-        dimensions = {"width": width, "height": height}
+        final_config = {"width": width, "height": height}
+        if config:
+            final_config.update(config)
 
         return request_job_submission(
             visualization_type="spectrogram",
             owner=user,
             local_files=[data_file, meta_file],
-            config=dimensions,
+            config=final_config,
         )

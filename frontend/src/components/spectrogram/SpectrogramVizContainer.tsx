@@ -13,6 +13,10 @@ import { VizContainerProps } from '../types';
 
 export interface SpectrogramSettings {
   fftSize: number;
+  stdDev: number;
+  hopSize: number;
+  colormap: string;
+  subchannel?: number;
 }
 
 export interface JobInfo {
@@ -28,6 +32,9 @@ const SpectrogramVizContainer = ({
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
+      stdDev: 100,
+      hopSize: 500,
+      colormap: 'magma',
     });
   const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
   const [jobInfo, setJobInfo] = useState<JobInfo>({
@@ -46,6 +53,7 @@ const SpectrogramVizContainer = ({
         visualizationRecord.uuid,
         width,
         height,
+        spectrogramSettings,
       );
       setJobInfo({
         job_id: response.job_id ?? null,
@@ -162,6 +170,9 @@ const SpectrogramVizContainer = ({
             <SpectrogramControls
               settings={spectrogramSettings}
               setSettings={setSpectrogramSettings}
+              numSubchannels={
+                visualizationRecord.captures?.[0]?.subchannels ?? undefined
+              }
             />
             <Button onClick={createSpectrogramJob} disabled={isSubmitting}>
               Generate Spectrogram
