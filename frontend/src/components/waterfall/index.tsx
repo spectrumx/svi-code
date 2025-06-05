@@ -10,10 +10,9 @@ import {
   DataPoint,
   FloatArray,
   ScanState,
-  WaterfallType,
-  RadioHoundFile,
+  ScanWaterfallType,
+  WaterfallFile,
   Display,
-  ApplicationType,
 } from './types';
 import { formatHertz } from '../../utils/utils';
 
@@ -135,17 +134,16 @@ const initialScan: ScanState = {
 export const WATERFALL_MAX_ROWS = 80;
 
 interface WaterfallVisualizationProps {
-  rhFiles: RadioHoundFile[];
+  waterfallFiles: WaterfallFile[];
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
 }
 
 const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
-  rhFiles,
+  waterfallFiles,
   settings,
   setSettings,
 }: WaterfallVisualizationProps) => {
-  const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as ApplicationType[];
   const [displayedFileIndex, setDisplayedFileIndex] = useState(
     settings.fileIndex,
   );
@@ -169,7 +167,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       resetScale,
     }));
   };
-  const setWaterfall = (waterfall: WaterfallType) => {
+  const setScanWaterfall = (waterfall: ScanWaterfallType) => {
     const localScaleMin = waterfall.scaleMin ?? scan.scaleMin;
     const localScaleMax = waterfall.scaleMax ?? scan.scaleMax;
     const tmpData = _.cloneDeep(waterfall.allData ?? scan.allData);
@@ -192,19 +190,22 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
   };
 
-  // Process all RadioHound files once and store the results
+  // Process all files once and store the results
   const processedData = useMemo(() => {
-    return rhFiles.map((rhFile) => {
+    return waterfallFiles.map((waterfallFile) => {
       let floatArray: FloatArray | number[] | undefined;
 
-      if (typeof rhFile.data === 'string') {
-        if (rhFile.data.slice(0, 8) === 'AAAAAAAA') {
+      if (typeof waterfallFile.data === 'string') {
+        if (waterfallFile.data.slice(0, 8) === 'AAAAAAAA') {
           return { floatArray: undefined, dbValues: undefined };
         }
-        floatArray = binaryStringToFloatArray(rhFile.data, rhFile.type);
+        floatArray = binaryStringToFloatArray(
+          waterfallFile.data,
+          waterfallFile.data_type,
+        );
       } else {
         // Old RH data
-        floatArray = rhFile.data;
+        floatArray = waterfallFile.data;
       }
 
       if (!floatArray) {
@@ -217,7 +218,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
       return { floatArray, dbValues };
     });
-  }, [rhFiles]);
+  }, [waterfallFiles]);
 
   const globalYAxisRange = useMemo(() => {
     let globalMin = Infinity;
@@ -243,28 +244,24 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
    * Processes a single file for the periodogram display
    */
   const processPeriodogramData = (
-    rhFile: RadioHoundFile,
+    waterfallFile: WaterfallFile,
     processedValues: (typeof processedData)[number],
   ) => {
     let fMin: number;
     let fMax: number;
 
-    const requested =
-      rhFile.custom_fields?.requested ?? rhFile.requested ?? undefined;
+    const requested = waterfallFile.custom_fields?.requested;
 
     // Multiple branches to handle both new and old RH data
-    if (requested && requested.fmin && requested.fmax) {
-      fMin = requested.fmin;
-      fMax = requested.fmax;
-    } else if (rhFile.metadata.fmin && rhFile.metadata.fmax) {
-      fMin = rhFile.metadata.fmin;
-      fMax = rhFile.metadata.fmax;
-    } else if (rhFile.metadata.xstart && rhFile.metadata.xstop) {
-      fMin = rhFile.metadata.xstart;
-      fMax = rhFile.metadata.xstop;
-    } else if (rhFile.center_frequency) {
-      fMin = rhFile.center_frequency - rhFile.sample_rate / 2;
-      fMax = rhFile.center_frequency + rhFile.sample_rate / 2;
+    if (requested && requested.min_frequency && requested.max_frequency) {
+      fMin = requested.min_frequency;
+      fMax = requested.max_frequency;
+    } else if (waterfallFile.min_frequency && waterfallFile.max_frequency) {
+      fMin = waterfallFile.min_frequency;
+      fMax = waterfallFile.max_frequency;
+    } else if (waterfallFile.center_frequency) {
+      fMin = waterfallFile.center_frequency - waterfallFile.sample_rate / 2;
+      fMax = waterfallFile.center_frequency + waterfallFile.sample_rate / 2;
     } else {
       throw new Error('No frequency range found');
     }
@@ -273,14 +270,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let centerFreq: number;
 
     // Multiple branches to handle both new and old RH data
-    if (rhFile.center_frequency) {
-      freqStep = rhFile.sample_rate / rhFile.metadata.nfft;
-      centerFreq = rhFile.center_frequency;
-    } else if (rhFile.metadata.xcount) {
-      freqStep = (fMax - fMin) / rhFile.metadata.xcount;
-      centerFreq = (fMax + fMin) / 2;
+    if (waterfallFile.center_frequency) {
+      freqStep = waterfallFile.sample_rate / waterfallFile.nfft;
+      centerFreq = waterfallFile.center_frequency;
     } else {
-      freqStep = rhFile.sample_rate / rhFile.metadata.nfft;
+      freqStep = waterfallFile.sample_rate / waterfallFile.nfft;
       centerFreq = (fMax + fMin) / 2;
     }
 
@@ -289,32 +283,21 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let m4sMean: FloatArray | undefined;
     let m4sMedian: FloatArray | undefined;
 
-    if (
-      rhFile.m4s_min &&
-      rhFile.m4s_max &&
-      rhFile.m4s_mean &&
-      rhFile.m4s_median
-    ) {
-      m4sMin = binaryStringToFloatArray(rhFile.m4s_min, rhFile.type);
-      m4sMax = binaryStringToFloatArray(rhFile.m4s_max, rhFile.type);
-      m4sMean = binaryStringToFloatArray(rhFile.m4s_mean, rhFile.type);
-      m4sMedian = binaryStringToFloatArray(rhFile.m4s_median, rhFile.type);
-    }
-
     const tmpDisplay = _.cloneDeep(display);
 
     // Use pre-processed data
     const dataArray = processedValues.floatArray;
 
     if (
-      display.maxHoldValues[rhFile.mac_address] === undefined ||
-      dataArray?.length !== display.maxHoldValues[rhFile.mac_address].length
+      display.maxHoldValues[waterfallFile.mac_address] === undefined ||
+      dataArray?.length !==
+        display.maxHoldValues[waterfallFile.mac_address].length
     ) {
-      tmpDisplay.maxHoldValues[rhFile.mac_address] = [];
+      tmpDisplay.maxHoldValues[waterfallFile.mac_address] = [];
     }
 
     const yValues = processedValues.dbValues;
-    const arrayLength = dataArray?.length ?? rhFile.metadata.xcount;
+    const arrayLength = dataArray?.length;
     const pointArr: DataPoint[] = [];
     const minArray: DataPoint[] = [];
     const maxArray: DataPoint[] = [];
@@ -331,17 +314,19 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           pointArr.push({ x: xValue, y: yValue });
 
           if (display.max_hold) {
-            if (tmpDisplay.maxHoldValues[rhFile.mac_address].length <= i) {
-              tmpDisplay.maxHoldValues[rhFile.mac_address].push({
+            if (
+              tmpDisplay.maxHoldValues[waterfallFile.mac_address].length <= i
+            ) {
+              tmpDisplay.maxHoldValues[waterfallFile.mac_address].push({
                 x: xValue,
                 y: yValue,
               });
             } else {
               const maxHoldValuesY =
-                tmpDisplay.maxHoldValues[rhFile.mac_address][i].y;
+                tmpDisplay.maxHoldValues[waterfallFile.mac_address][i].y;
 
               if (maxHoldValuesY && yValue > maxHoldValuesY) {
-                tmpDisplay.maxHoldValues[rhFile.mac_address][i] = {
+                tmpDisplay.maxHoldValues[waterfallFile.mac_address][i] = {
                   x: xValue,
                   y: yValue,
                 };
@@ -349,7 +334,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             }
           }
 
-          if ('m4s_min' in rhFile) {
+          if ('m4s_min' in waterfallFile) {
             minArray.push({ x: xValue, y: m4sMin?.[i] });
             maxArray.push({ x: xValue, y: m4sMax?.[i] });
             meanArray.push({ x: xValue, y: m4sMean?.[i] });
@@ -369,7 +354,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     } else {
       //Find index for this node
       nextIndex = tmpChart.data.findIndex(
-        (element) => element._id === rhFile.mac_address,
+        (element) => element._id === waterfallFile.mac_address,
       );
       if (nextIndex === -1) {
         nextIndex = tmpChart.data.length;
@@ -383,12 +368,14 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       axisXType: 'secondary',
       showInLegend: true,
       name:
-        rhFile.short_name +
+        waterfallFile.device_name +
         ' (' +
-        rhFile.mac_address.substring(rhFile.mac_address.length - 4) +
+        waterfallFile.mac_address.substring(
+          waterfallFile.mac_address.length - 4,
+        ) +
         ')',
-      toolTipContent: rhFile.short_name + ': {x}, {y}',
-      _id: rhFile.mac_address,
+      toolTipContent: waterfallFile.device_name + ': {x}, {y}',
+      _id: waterfallFile.mac_address,
     };
 
     // Ensure axisX exists and isn't an array.
@@ -400,14 +387,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     tmpChart.axisX2!.title =
       'Frequency ' + (centerFreq ? formatHertz(centerFreq) : '');
-    if (rhFile.requested) {
-      tmpChart.axisX2!.title += rhFile.requested.rbw
-        ? ', RBW ' + formatHertz(rhFile.requested.rbw)
-        : '';
-      tmpChart.axisX2!.title += rhFile.requested.span
-        ? ', Span ' + formatHertz(rhFile.requested.span)
-        : '';
-    }
 
     // if (CurrentApplication === DEFS.APPLICATION_PERIODOGRAM_MULTI)
     // {
@@ -420,18 +399,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     //     + " (" + input.mac_address.substring(input.mac_address.length - 4) + ')';
     // }
 
-    if (_.isEqual(currentApplication, ['WATERFALL'])) {
-      tmpChart.axisX2!.title = '';
-      tmpChart.data[nextIndex].showInLegend = false;
-      tmpChart.data[nextIndex].name = rhFile.short_name;
-    }
-
     if (
       display.max_hold &&
-      display.maxHoldValues[rhFile.mac_address].length > 0
+      display.maxHoldValues[waterfallFile.mac_address].length > 0
     ) {
       nextIndex = tmpChart.data.findIndex(
-        (element) => element._id === 'maxhold_' + rhFile.mac_address,
+        (element) => element._id === 'maxhold_' + waterfallFile.mac_address,
       );
       if (nextIndex === -1) {
         nextIndex = tmpChart.data.length;
@@ -441,10 +414,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         ..._.cloneDeep(tmpChart.data[nextIndex - 1]),
         name:
           'Max Hold (' +
-          rhFile.mac_address.substring(rhFile.mac_address.length - 4) +
+          waterfallFile.mac_address.substring(
+            waterfallFile.mac_address.length - 4,
+          ) +
           ')',
-        _id: 'maxhold_' + rhFile.mac_address,
-        dataPoints: tmpDisplay.maxHoldValues[rhFile.mac_address],
+        _id: 'maxhold_' + waterfallFile.mac_address,
+        dataPoints: tmpDisplay.maxHoldValues[waterfallFile.mac_address],
         toolTipContent: 'Max : {x}, {y}',
       };
 
@@ -453,7 +428,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       }
     }
 
-    if ('m4s_min' in rhFile) {
+    if ('m4s_min' in waterfallFile) {
       nextIndex += 1;
       tmpChart.data[nextIndex] = _.cloneDeep(tmpChart.data[nextIndex - 1]);
       tmpChart.data[nextIndex].name = 'M4S Min';
@@ -524,13 +499,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpChart.axisY!.interval = display.ref_interval;
     }
 
-    if (currentApplication.includes('PERIODOGRAM')) {
-      tmpChart.axisX2!.minimum = fMin / 1e6;
-      tmpChart.axisX2!.maximum = fMax / 1e6;
-    } else {
-      delete tmpChart.axisX2!.minimum;
-      delete tmpChart.axisX2!.maximum;
-    }
+    tmpChart.axisX2!.minimum = fMin / 1e6;
+    tmpChart.axisX2!.maximum = fMax / 1e6;
 
     // Move dummy series to the end of the data array to maintain correct data
     // series colors
@@ -549,7 +519,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
    * Processes multiple files for the waterfall display
    */
   const processWaterfallData = (
-    rhFiles: RadioHoundFile[],
+    waterfallFiles: WaterfallFile[],
     processedValues: typeof processedData,
   ) => {
     const processedWaterfallData: number[][] = [];
@@ -558,7 +528,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let xMin = Infinity;
     let xMax = -Infinity;
 
-    rhFiles.forEach((rhFile, index) => {
+    waterfallFiles.forEach((waterfallFile, index) => {
       const processedFile = processedValues[index];
       const yValues = processedFile.dbValues;
 
@@ -579,12 +549,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       // Update x range
       let currentXMin = Infinity;
       let currentXMax = -Infinity;
-      if (rhFile.metadata.xstart && rhFile.metadata.xstop) {
-        currentXMin = rhFile.metadata.xstart;
-        currentXMax = rhFile.metadata.xstop;
-      } else if (rhFile.center_frequency && rhFile.sample_rate) {
-        currentXMin = rhFile.center_frequency - rhFile.sample_rate / 2;
-        currentXMax = rhFile.center_frequency + rhFile.sample_rate / 2;
+      if (waterfallFile.center_frequency && waterfallFile.sample_rate) {
+        currentXMin =
+          waterfallFile.center_frequency - waterfallFile.sample_rate / 2;
+        currentXMax =
+          waterfallFile.center_frequency + waterfallFile.sample_rate / 2;
       }
       xMin = Math.min(xMin, currentXMin);
       xMax = Math.max(xMax, currentXMax);
@@ -600,7 +569,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }));
 
     // Update waterfall state
-    const newWaterfall: WaterfallType = {
+    const newWaterfall: ScanWaterfallType = {
       allData: processedWaterfallData,
       xMin: xMin / 1e6,
       xMax: xMax / 1e6,
@@ -610,16 +579,16 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       scaleMax: globalMaxValue,
     };
 
-    setWaterfall(newWaterfall);
+    setScanWaterfall(newWaterfall);
   };
 
   useEffect(() => {
     // Process single file for periodogram
     processPeriodogramData(
-      rhFiles[settings.fileIndex],
+      waterfallFiles[settings.fileIndex],
       processedData[settings.fileIndex],
     );
-  }, [rhFiles, processedData, settings.fileIndex]);
+  }, [waterfallFiles, processedData, settings.fileIndex]);
 
   useEffect(() => {
     const pageSize = WATERFALL_MAX_ROWS;
@@ -633,16 +602,19 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       // Calculate new start index only when moving outside current window
       const idealStartIndex =
         Math.floor(settings.fileIndex / pageSize) * pageSize;
-      const lastPossibleStartIndex = Math.max(0, rhFiles.length - pageSize);
+      const lastPossibleStartIndex = Math.max(
+        0,
+        waterfallFiles.length - pageSize,
+      );
       const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
-      const endIndex = Math.min(rhFiles.length, startIndex + pageSize);
+      const endIndex = Math.min(waterfallFiles.length, startIndex + pageSize);
 
       // Only reprocess waterfall if the range has changed
       if (
         startIndex !== waterfallRange.startIndex ||
         endIndex !== waterfallRange.endIndex
       ) {
-        const relevantFiles = rhFiles.slice(startIndex, endIndex);
+        const relevantFiles = waterfallFiles.slice(startIndex, endIndex);
         const relevantProcessedValues = processedData.slice(
           startIndex,
           endIndex,
@@ -651,15 +623,15 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         setWaterfallRange({ startIndex, endIndex });
       }
     }
-  }, [rhFiles, processedData, settings.fileIndex, waterfallRange]);
+  }, [waterfallFiles, processedData, settings.fileIndex, waterfallRange]);
 
   // Handle realtime playback
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
 
     // Pre-compute timestamps for all files
-    const timestamps = rhFiles.map((rhFile) =>
-      rhFile.timestamp ? Date.parse(rhFile.timestamp) : 0,
+    const timestamps = waterfallFiles.map((waterfallFile) =>
+      waterfallFile.timestamp ? Date.parse(waterfallFile.timestamp) : 0,
     );
 
     // Store the start time and reference points
@@ -683,7 +655,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           return {
             ...prev,
             fileIndex: targetIndex,
-            isPlaying: targetIndex < rhFiles.length - 1,
+            isPlaying: targetIndex < waterfallFiles.length - 1,
           };
         }
         return prev;
@@ -691,7 +663,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }, 20);
 
     return () => clearInterval(realtimeInterval);
-  }, [settings.isPlaying, settings.playbackSpeed, rhFiles.length, setSettings]);
+  }, [
+    settings.isPlaying,
+    settings.playbackSpeed,
+    waterfallFiles.length,
+    setSettings,
+  ]);
 
   // Handle constant FPS playback
   useEffect(() => {
@@ -706,7 +683,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       setSettings((prev) => {
         const nextIndex = prev.fileIndex + 1;
         // Stop playback at the end
-        if (nextIndex >= rhFiles.length) {
+        if (nextIndex >= waterfallFiles.length) {
           return { ...prev, isPlaying: false };
         }
         return { ...prev, fileIndex: nextIndex };
@@ -714,7 +691,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }, intervalTime);
 
     return () => clearInterval(playbackInterval);
-  }, [settings.isPlaying, settings.playbackSpeed, rhFiles.length, setSettings]);
+  }, [
+    settings.isPlaying,
+    settings.playbackSpeed,
+    waterfallFiles.length,
+    setSettings,
+  ]);
 
   const handleRowSelect = (index: number) => {
     // Update the settings with the new file index
@@ -728,7 +710,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   return (
     <div>
       <h5>
-        Scan {displayedFileIndex + 1} ({rhFiles[displayedFileIndex].timestamp})
+        Scan {displayedFileIndex + 1} (
+        {waterfallFiles[displayedFileIndex].timestamp})
       </h5>
       <Periodogram
         chartOptions={chart}
@@ -756,13 +739,13 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       <WaterfallPlot
         scan={scan}
         display={display}
-        setWaterfall={setWaterfall}
+        setWaterfall={setScanWaterfall}
         setScaleChanged={setScaleChanged}
         setResetScale={setResetScale}
         currentFileIndex={settings.fileIndex}
         onRowSelect={handleRowSelect}
         fileRange={waterfallRange}
-        totalFiles={rhFiles.length}
+        totalFiles={waterfallFiles.length}
         colorLegendWidth={PLOTS_LEFT_MARGIN}
         indexLegendWidth={PLOTS_RIGHT_MARGIN}
       />

@@ -136,3 +136,105 @@ class RadioHoundUtility(CaptureUtility):
 
         # Use the file name (without extension) as the capture name
         return ".".join(files[0].name.split(".")[:-1])
+
+    @staticmethod
+    def to_waterfall_file(rh_data: dict) -> dict:
+        """Convert RadioHound data to WaterfallFile format.
+
+        Args:
+            rh_data: Dictionary containing RadioHound file data
+
+        Returns:
+            dict: Data in WaterfallFile format
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        try:
+            metadata = rh_data.get("metadata", {})
+
+            waterfall_file = RadioHoundUtility._get_required_waterfall_fields(
+                rh_data, metadata
+            )
+            waterfall_file.update(
+                RadioHoundUtility._get_extra_waterfall_fields(rh_data, metadata)
+            )
+
+            return waterfall_file
+
+        except Exception as e:
+            error_message = (
+                f"Error converting RadioHound data to WaterfallFile format: {e}"
+            )
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+    @staticmethod
+    def _get_required_waterfall_fields(rh_data: dict, metadata: dict) -> dict:
+        """Extract required fields from RadioHound data.
+
+        Args:
+            rh_data: Dictionary containing RadioHound file data
+            metadata: Dictionary containing RadioHound metadata
+
+        Returns:
+            dict: Required fields in WaterfallFile format
+        """
+        required_fields = {
+            "data": rh_data.get("data", ""),
+            "data_type": rh_data.get("type", ""),
+            "timestamp": rh_data.get("timestamp", ""),
+            "min_frequency": metadata.get("fmin"),
+            "max_frequency": metadata.get("fmax"),
+            "nfft": metadata.get("nfft"),
+            "sample_rate": rh_data.get("sample_rate"),
+            "mac_address": rh_data.get("mac_address", ""),
+        }
+        missing_fields = []
+        for field, value in required_fields.items():
+            if value is None or value == "":
+                missing_fields.append(field)
+
+        if missing_fields:
+            raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
+
+        return required_fields
+
+    @staticmethod
+    def _get_extra_waterfall_fields(rh_data: dict, metadata: dict) -> dict:
+        """Extract optional and custom fields from RadioHound data.
+
+        Args:
+            rh_data: Dictionary containing RadioHound file data
+            metadata: Dictionary containing RadioHound metadata
+
+        Returns:
+            dict: Additional fields in WaterfallFile format
+        """
+        additional_fields = {}
+        requested = rh_data.get("requested", {})
+
+        # Optional fields
+        if "center_frequency" in rh_data:
+            additional_fields["center_frequency"] = rh_data["center_frequency"]
+        if "short_name" in rh_data:
+            additional_fields["device_name"] = rh_data["short_name"]
+
+        # Custom fields
+        custom_fields = {}
+        if "fmin" in requested or "fmax" in requested:
+            custom_fields["requested"] = {}
+            if "fmin" in requested:
+                custom_fields["requested"]["min_frequency"] = requested["fmin"]
+            if "fmax" in requested:
+                custom_fields["requested"]["max_frequency"] = requested["fmax"]
+
+        for field in ["scan_time", "gain", "gps_lock", "name", "comments"]:
+            if field in metadata:
+                key = "job_name" if field == "name" else field
+                custom_fields[key] = metadata[field]
+
+        if custom_fields:
+            additional_fields["custom_fields"] = custom_fields
+
+        return additional_fields

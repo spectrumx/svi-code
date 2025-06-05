@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 import os
 import shutil
@@ -34,6 +35,9 @@ from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
 from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
     DigitalRFUtility,
+)
+from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
+    RadioHoundUtility,
 )
 from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
@@ -486,7 +490,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         logging.info("Getting SDS captures")
         sds_captures = get_sds_captures(request)
-        logging.info(f"Got {len(sds_captures)} SDS captures")
+        logging.info(f"Found {len(sds_captures)} SDS captures")
         token = request.user.sds_token
 
         for capture_id in visualization.capture_ids:
@@ -497,9 +501,14 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             if capture is None:
                 raise ValueError(f"Capture ID {capture_id} not found in SDS")
 
+            files = capture.get("files", [])
+            if not files:
+                raise ValueError(f"No files found for capture ID {capture_id}")
+
             seen_filenames: set[str] = set()
 
-            for file in capture.get("files", []):
+            for i, file in enumerate(files):
+                logging.info(f"Downloading file {i + 1} of {len(files)}")
                 try:
                     self._process_sds_file(
                         file, capture_id, token, seen_filenames, zip_file
@@ -624,3 +633,91 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(visualization)
 
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def get_waterfall_data(self, request: Request, uuid=None) -> Response:
+        """Get waterfall data for a visualization.
+
+        This endpoint retrieves files from the visualization's SDS captures and converts them
+        to the WaterfallFile format expected by the frontend. Currently supports RadioHound
+        captures from SDS sources.
+
+        Args:
+            request: The HTTP request
+            uuid: The UUID of the visualization
+
+        Returns:
+            Response: A list of WaterfallFile objects
+
+        Raises:
+            Response: 400 if the visualization type is not supported
+            Response: 400 if there's an error processing the files
+        """
+        visualization: Visualization = self.get_object()
+
+        # Currently only support RadioHound captures
+        if visualization.capture_type != CaptureType.RadioHound:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Only RadioHound captures are currently supported for waterfall visualization",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only support SDS captures
+        if visualization.capture_source != "sds":
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Only SDS captures are currently supported",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            waterfall_files = []
+
+            # Create a BytesIO object to store the ZIP file
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                self._handle_sds_captures(visualization, request, zip_file)
+
+            # Reset buffer position to start
+            zip_buffer.seek(0)
+
+            # Process the ZIP file
+            with zipfile.ZipFile(zip_buffer, "r") as zip_file:
+                for capture_id in visualization.capture_ids:
+                    capture_dir = f"{capture_id}/"
+                    for file_info in zip_file.infolist():
+                        if file_info.filename.startswith(
+                            capture_dir
+                        ) and file_info.filename.endswith(".json"):
+                            with zip_file.open(file_info) as f:
+                                try:
+                                    rh_data = json.load(f)
+                                    waterfall_file = (
+                                        RadioHoundUtility.to_waterfall_file(rh_data)
+                                    )
+                                    waterfall_files.append(waterfall_file)
+                                except json.JSONDecodeError as e:
+                                    logging.error(
+                                        f"Failed to parse JSON from file {file_info.filename}: {e}"
+                                    )
+                                    continue
+                                except ValueError as e:
+                                    logging.error(
+                                        f"Failed to convert file {file_info.filename} to waterfall format: {e}"
+                                    )
+                                    continue
+
+            return Response(waterfall_files)
+
+        except Exception as e:
+            logging.exception("Error processing waterfall data")
+            return Response(
+                {"error": f"Failed to process waterfall data: {e}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )

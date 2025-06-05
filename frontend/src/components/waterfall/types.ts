@@ -109,73 +109,36 @@ export interface Display {
   errors?: ScanOptionsType['errors'];
 }
 
-/**
- * RadioHound format (.rh/.rh.json) capture for periodograms
- *
- * Schema definition:
- * https://github.com/spectrumx/schema-definitions/tree/master/definitions/sds/metadata-formats/radiohound
- */
-const RequestedSchema = zod.object({
-  fmin: zod.number().optional(),
-  fmax: zod.number().optional(),
-  span: zod.number().optional(),
-  rbw: zod.number().optional(),
-  samples: zod.number().optional(),
-  gain: zod.number().optional(),
-});
-
-const RadioHoundMetadataSchema = zod.object({
-  data_type: zod.string(),
-  fmax: zod.number(),
-  fmin: zod.number(),
-  gps_lock: zod.boolean(),
-  nfft: zod.number(),
-  scan_time: zod.number(),
-  archive_result: zod.boolean().optional(),
-  // Deprecated fields
-  xcount: zod.number().optional(),
-  xstart: zod.number().optional(),
-  xstop: zod.number().optional(),
-  suggested_gain: zod.number().optional(),
-  uncertainty: zod.number().optional(),
-  archiveResult: zod.boolean().optional(),
-});
-
-const RadioHoundCustomFieldsSchema = zod
+const WaterfallCustomFieldsSchema = zod
   .object({
-    requested: RequestedSchema,
+    requested: zod
+      .object({
+        min_frequency: zod.number().optional(),
+        max_frequency: zod.number().optional(),
+      })
+      .optional(),
+    scan_time: zod.number().optional(),
+    gain: zod.number().optional(),
+    gps_lock: zod.boolean().optional(),
+    job_name: zod.string().optional(),
+    comments: zod.string().optional(),
   })
   .catchall(zod.unknown());
 
-export const RadioHoundFileSchema = zod.object({
+export const WaterfallFileSchema = zod.object({
   data: zod.string(),
-  gain: zod.number(),
-  latitude: zod.number(),
-  longitude: zod.number(),
-  mac_address: zod.string(),
-  metadata: RadioHoundMetadataSchema,
-  sample_rate: zod.number(),
-  short_name: zod.string(),
+  data_type: zod.string(),
   timestamp: zod.string(),
-  type: zod.string(),
-  version: zod.string(),
-  altitude: zod.number().optional(),
+  min_frequency: zod.number(),
+  max_frequency: zod.number(),
+  nfft: zod.number(),
+  sample_rate: zod.number(),
+  mac_address: zod.string(),
+  device_name: zod.string().optional(),
   center_frequency: zod.number().optional(),
-  custom_fields: RadioHoundCustomFieldsSchema.optional(),
-  hardware_board_id: zod.string().optional(),
-  hardware_version: zod.string().optional(),
-  scan_group: zod.string().optional(),
-  software_version: zod.string().optional(),
-  // Deprecated fields
-  batch: zod.number().optional(),
-  m4s_min: zod.string().optional(),
-  m4s_max: zod.string().optional(),
-  m4s_mean: zod.string().optional(),
-  m4s_median: zod.string().optional(),
-  requested: RequestedSchema.optional(),
+  custom_fields: WaterfallCustomFieldsSchema.optional(),
 });
-
-export type RadioHoundFile = zod.infer<typeof RadioHoundFileSchema>;
+export type WaterfallFile = zod.infer<typeof WaterfallFileSchema>;
 
 export type FloatArray = Float32Array | Float64Array;
 
@@ -190,20 +153,14 @@ export interface ScanState {
   xMin?: number;
   xMax?: number;
   spinner: boolean;
-  periodogram?: RadioHoundFile | number[];
+  periodogram?: WaterfallFile | number[];
   heatmapData: Data[];
   scaleMin: number | undefined;
   scaleMax: number | undefined;
 }
 
-export interface WaterfallType
+export interface ScanWaterfallType
   extends Pick<ScanState, 'periodogram' | 'xMin' | 'xMax'>,
     Partial<
       Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax' | 'allData'>
     > {}
-
-export type ApplicationType =
-  | 'WATERFALL'
-  | 'PERIODOGRAM'
-  | 'PERIODOGRAM_SINGLE'
-  | 'PERIODOGRAM_MULTI';
