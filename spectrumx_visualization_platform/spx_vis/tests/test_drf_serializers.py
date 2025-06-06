@@ -140,26 +140,31 @@ class TestVisualizationDetailSerializer:
         fake_uuid_1 = "11111111-1111-1111-1111-111111111111"
         fake_uuid_2 = "22222222-2222-2222-2222-222222222222"
 
-        mock_get_sds_captures.return_value = [
-            {
-                "uuid": fake_uuid_1,
-                "owner": user.uuid,
-                "name": "Test SDS Capture 1",
-                "files": radiohound_files,
-                "timestamp": 0,
-                "type": "rh",
-                "source": "sds",
-            },
-            {
-                "uuid": fake_uuid_2,
-                "owner": user.uuid,
-                "name": "Test SDS Capture 2",
-                "files": radiohound_files,
-                "timestamp": 1,
-                "type": "rh",
-                "source": "sds",
-            },
-        ]
+        mock_get_sds_captures.return_value = (
+            # Captures
+            [
+                {
+                    "uuid": fake_uuid_1,
+                    "owner": user.uuid,
+                    "name": "Test SDS Capture 1",
+                    "files": radiohound_files,
+                    "timestamp": 0,
+                    "type": "rh",
+                    "source": "sds",
+                },
+                {
+                    "uuid": fake_uuid_2,
+                    "owner": user.uuid,
+                    "name": "Test SDS Capture 2",
+                    "files": radiohound_files,
+                    "timestamp": 1,
+                    "type": "rh",
+                    "source": "sds",
+                },
+            ],
+            # Errors
+            [],
+        )
 
         visualization = Visualization.objects.create(
             owner=user,
