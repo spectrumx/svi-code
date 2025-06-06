@@ -278,11 +278,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       centerFreq = (fMax + fMin) / 2;
     }
 
-    let m4sMin: FloatArray | undefined;
-    let m4sMax: FloatArray | undefined;
-    let m4sMean: FloatArray | undefined;
-    let m4sMedian: FloatArray | undefined;
-
     const tmpDisplay = _.cloneDeep(display);
 
     // Use pre-processed data
@@ -299,10 +294,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const yValues = processedValues.dbValues;
     const arrayLength = dataArray?.length;
     const pointArr: DataPoint[] = [];
-    const minArray: DataPoint[] = [];
-    const maxArray: DataPoint[] = [];
-    const meanArray: DataPoint[] = [];
-    const medianArray: DataPoint[] = [];
     let yValue: number | undefined;
     let xValue: number;
 
@@ -332,13 +323,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
                 };
               }
             }
-          }
-
-          if ('m4s_min' in waterfallFile) {
-            minArray.push({ x: xValue, y: m4sMin?.[i] });
-            maxArray.push({ x: xValue, y: m4sMax?.[i] });
-            meanArray.push({ x: xValue, y: m4sMean?.[i] });
-            medianArray.push({ x: xValue, y: m4sMedian?.[i] });
           }
         }
       }
@@ -426,32 +410,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       if (!_.isEqual(display, tmpDisplay)) {
         setDisplay(tmpDisplay);
       }
-    }
-
-    if ('m4s_min' in waterfallFile) {
-      nextIndex += 1;
-      tmpChart.data[nextIndex] = _.cloneDeep(tmpChart.data[nextIndex - 1]);
-      tmpChart.data[nextIndex].name = 'M4S Min';
-      tmpChart.data[nextIndex].dataPoints = minArray;
-      tmpChart.data[nextIndex].toolTipContent = 'Min : {x}, {y}';
-
-      nextIndex += 1;
-      tmpChart.data[nextIndex] = _.cloneDeep(tmpChart.data[nextIndex - 1]);
-      tmpChart.data[nextIndex].name = 'M4S Max';
-      tmpChart.data[nextIndex].dataPoints = maxArray;
-      tmpChart.data[nextIndex].toolTipContent = 'Max : {x}, {y}';
-
-      nextIndex += 1;
-      tmpChart.data[nextIndex] = _.cloneDeep(tmpChart.data[nextIndex - 1]);
-      tmpChart.data[nextIndex].name = 'M4S Mean';
-      tmpChart.data[nextIndex].dataPoints = meanArray;
-      tmpChart.data[nextIndex].toolTipContent = 'Mean : {x}, {y}';
-
-      nextIndex += 1;
-      tmpChart.data[nextIndex] = _.cloneDeep(tmpChart.data[nextIndex - 1]);
-      tmpChart.data[nextIndex].name = 'M4S Median';
-      tmpChart.data[nextIndex].dataPoints = medianArray;
-      tmpChart.data[nextIndex].toolTipContent = 'Median : {x}, {y}';
     }
 
     // Hide legend if there is only one data series to show in the legend
