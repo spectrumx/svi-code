@@ -9,28 +9,47 @@ from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.users.models import User
 
 
-def get_sds_captures(request: Request):
-    """Get SDS captures for the current user."""
+def get_sds_captures(request: Request) -> tuple[list[dict], list[str]]:
+    """Get SDS captures for the current user.
+
+    Args:
+        request: The HTTP request containing user information
+
+    Returns:
+        tuple: A tuple containing:
+            - List of successfully formatted captures
+            - List of error messages if any error occurred
+    """
     user: User = request.user
+    formatted_captures = []
+    error_messages = []
 
     try:
         sds_client = user.sds_client()
         captures_response = sds_client.captures.listing()
         captures = [capture.model_dump() for capture in captures_response]
-        formatted_captures = []
 
         for capture in captures:
-            if capture["capture_type"] == CaptureType.RadioHound:
-                formatted_capture = format_sds_rh_capture(capture, request.user.id)
-            elif capture["capture_type"] == CaptureType.DigitalRF:
-                formatted_capture = format_sds_drf_capture(capture, request.user.id)
-            formatted_captures.append(formatted_capture)
+            try:
+                logging.info(f"Processing capture: {capture}")
+                if capture["capture_type"] == CaptureType.RadioHound:
+                    formatted_capture = format_sds_rh_capture(capture, request.user.id)
+                elif capture["capture_type"] == CaptureType.DigitalRF:
+                    formatted_capture = format_sds_drf_capture(capture, request.user.id)
+                formatted_captures.append(formatted_capture)
+            except Exception as e:
+                logging.exception(
+                    f"Error processing capture {capture.get('uuid', 'unknown')}"
+                )
+                error_messages.append(
+                    f"Error processing capture {capture.get('uuid', 'unknown')}: {e!s}"
+                )
 
-    except Exception:
+    except Exception as e:
         logging.exception("Error fetching SDS captures")
-        return []
+        error_messages.append(f"Error fetching SDS captures: {e!s}")
 
-    return formatted_captures
+    return formatted_captures, error_messages
 
 
 def format_sds_rh_capture(sds_capture: dict, user_id: int):

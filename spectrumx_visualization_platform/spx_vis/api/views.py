@@ -49,20 +49,23 @@ if TYPE_CHECKING:
 
 @api_view(["GET"])
 def capture_list(request: Request) -> Response:
-    """Get the list of captures for the current user."""
-    # Get captures from the two sources
+    """Get the list of captures for the current user.
+
+    Returns:
+        Response: A response containing:
+            - List of captures
+            - Optional error message if any errors occurred
+    """
     source_filter = request.query_params.get("source", "")
+    sds_captures = []
+    error_messages = []
+
     if not source_filter or "sds" in source_filter:
-        sds_captures = get_sds_captures(request)
-    else:
-        sds_captures = []
-    # if not source_filter or "svi" in source_filter:
-    #     local_captures = get_local_captures(request)
-    # else:
-    #     local_captures = []
+        sds_captures, sds_error = get_sds_captures(request)
+        if sds_error:
+            error_messages.extend(sds_error)
 
     # Combine captures
-    # combined_capture_list = sds_captures + local_captures
     combined_capture_list = sds_captures
 
     # Get filter parameters
@@ -92,7 +95,14 @@ def capture_list(request: Request) -> Response:
             )
         )
 
-    return Response(combined_capture_list)
+    response_data = {
+        "captures": combined_capture_list,
+    }
+
+    if error_messages:
+        response_data["error"] = error_messages
+
+    return Response(response_data)
 
 
 class CaptureViewSet(viewsets.ModelViewSet):
@@ -485,7 +495,9 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             ValueError: If any capture processing fails
         """
         logging.info("Getting SDS captures")
-        sds_captures = get_sds_captures(request)
+        sds_captures, sds_errors = get_sds_captures(request)
+        if sds_errors:
+            raise ValueError(f"Error getting SDS captures: {sds_errors}")
         logging.info(f"Got {len(sds_captures)} SDS captures")
         token = request.user.sds_token
 
