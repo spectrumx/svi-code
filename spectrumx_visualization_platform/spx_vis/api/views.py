@@ -448,7 +448,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             ValueError: If duplicate filename is found or file download fails
         """
         file_uuid = file["uuid"]
-        logging.info(f"Downloading file with ID {file_uuid}")
 
         response = requests.get(
             f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_uuid}/download",
@@ -457,7 +456,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             stream=True,
         )
         response.raise_for_status()
-        logging.info(f"File with ID {file_uuid} downloaded")
 
         # Get filename from Content-Disposition header or use file ID
         content_disposition = response.headers.get("Content-Disposition", "")
