@@ -260,6 +260,20 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "expiration_date",
         ]
 
+    def _handle_sds_errors(self, sds_errors: list[str]) -> None:
+        """Handle SDS capture errors by raising a ValidationError.
+
+        Args:
+            sds_errors: List of error messages from SDS
+
+        Raises:
+            serializers.ValidationError: If there are any SDS errors
+        """
+        if sds_errors:
+            raise serializers.ValidationError(
+                f"Error getting SDS captures: {sds_errors}"
+            )
+
     def get_captures(self, obj: Visualization) -> list[dict]:
         """Get the full capture information including files for each capture.
 
@@ -277,7 +291,8 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
 
         if obj.capture_source == CaptureSource.SDS:
             try:
-                sds_captures = get_sds_captures(request)
+                sds_captures, sds_errors = get_sds_captures(request)
+                self._handle_sds_errors(sds_errors)
                 captures = [
                     capture
                     for capture in sds_captures
