@@ -100,7 +100,7 @@ export const getCapturesWithFilters = async (filters?: {
     );
     const { captures, error } = CapturesResponseSchema.parse(response.data);
     if (error) {
-      console.warn('Server error fetching captures:', error);
+      console.error('Server error fetching captures:', error);
     }
     const sortedCaptures = captures.sort((a, b) =>
       sortByDate(a, b, 'timestamp'),

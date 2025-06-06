@@ -31,7 +31,6 @@ def get_sds_captures(request: Request) -> tuple[list[dict], list[str]]:
 
         for capture in captures:
             try:
-                logging.info(f"Processing capture: {capture}")
                 if capture["capture_type"] == CaptureType.RadioHound:
                     formatted_capture = format_sds_rh_capture(capture, request.user.id)
                 elif capture["capture_type"] == CaptureType.DigitalRF:
@@ -114,9 +113,17 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
     end_time = datetime.fromtimestamp(end_bound, tz=UTC).isoformat()
 
     center_freq: int = capture_props["center_freq"]
-    bandwidth: int = capture_props["bandwidth"]
-    fmin = center_freq - bandwidth / 2
-    fmax = center_freq + bandwidth / 2
+    bandwidth: int | None = capture_props.get("bandwidth", None)
+    if not bandwidth:
+        bandwidth = capture_props.get("samples_per_second", None)
+
+    if bandwidth:
+        fmin = center_freq - bandwidth / 2
+        fmax = center_freq + bandwidth / 2
+    else:
+        raise ValueError(
+            f"No bandwidth or sample rate found for capture {sds_capture['uuid']}"
+        )
 
     files = [
         {
