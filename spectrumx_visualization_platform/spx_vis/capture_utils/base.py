@@ -72,3 +72,15 @@ class CaptureUtility(ABC):
         Returns:
             The submitted job
         """
+
+    @staticmethod
+    @abstractmethod
+    def to_waterfall_file(file: UploadedFile) -> dict:
+        """Convert a capture file to the WaterfallFile format.
+
+        Args:
+            file: The uploaded capture file
+
+        Returns:
+            dict: The converted WaterfallFile
+        """
