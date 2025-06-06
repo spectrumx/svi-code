@@ -271,10 +271,10 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     // Multiple branches to handle both new and old RH data
     if (waterfallFile.center_frequency) {
-      freqStep = waterfallFile.sample_rate / waterfallFile.nfft;
+      freqStep = waterfallFile.sample_rate / waterfallFile.num_samples;
       centerFreq = waterfallFile.center_frequency;
     } else {
-      freqStep = waterfallFile.sample_rate / waterfallFile.nfft;
+      freqStep = waterfallFile.sample_rate / waterfallFile.num_samples;
       centerFreq = (fMax + fMin) / 2;
     }
 

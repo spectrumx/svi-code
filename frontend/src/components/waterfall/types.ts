@@ -131,7 +131,7 @@ export const WaterfallFileSchema = zod.object({
   timestamp: zod.string(),
   min_frequency: zod.number(),
   max_frequency: zod.number(),
-  nfft: zod.number(),
+  num_samples: zod.number(),
   sample_rate: zod.number(),
   mac_address: zod.string(),
   device_name: zod.string().optional(),

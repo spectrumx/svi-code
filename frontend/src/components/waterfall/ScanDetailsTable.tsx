@@ -96,8 +96,8 @@ export function ScanDetails({ waterfallFile }: ScanDetailsProps): JSX.Element {
           <DetailRow
             label="Number of Samples"
             value={
-              typeof getScanValue('nfft') === 'number'
-                ? (getScanValue('nfft') as number).toLocaleString()
+              typeof getScanValue('num_samples') === 'number'
+                ? (getScanValue('num_samples') as number).toLocaleString()
                 : undefined
             }
           />

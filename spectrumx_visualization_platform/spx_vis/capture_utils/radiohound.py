@@ -186,7 +186,7 @@ class RadioHoundUtility(CaptureUtility):
             "timestamp": rh_data.get("timestamp", ""),
             "min_frequency": metadata.get("fmin"),
             "max_frequency": metadata.get("fmax"),
-            "nfft": metadata.get("nfft"),
+            "num_samples": metadata.get("nfft"),
             "sample_rate": rh_data.get("sample_rate"),
             "mac_address": rh_data.get("mac_address", ""),
         }
