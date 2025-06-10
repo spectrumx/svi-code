@@ -1,15 +1,13 @@
 import io
 import json
 import logging
-import os
-import shutil
 import zipfile
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import requests
+import spectrumx
 from django.conf import settings
 from django.http import FileResponse
 from rest_framework import filters
@@ -23,6 +21,7 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from jobs.submission import request_job_submission
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import FileSerializer
 from spectrumx_visualization_platform.spx_vis.api.serializers import (
@@ -33,13 +32,9 @@ from spectrumx_visualization_platform.spx_vis.api.serializers import (
 )
 from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
-from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
-    DigitalRFUtility,
-)
 from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
     RadioHoundUtility,
 )
-from spectrumx_visualization_platform.spx_vis.capture_utils.sigmf import SigMFUtility
 from spectrumx_visualization_platform.spx_vis.models import Capture
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.spx_vis.models import File
@@ -49,6 +44,9 @@ from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_ca
 
 if TYPE_CHECKING:
     from spectrumx_visualization_platform.users.models import User
+
+
+spectrumx.enable_logging()
 
 
 @api_view(["GET"])
@@ -65,7 +63,7 @@ def capture_list(request: Request) -> Response:
     error_messages = []
 
     if not source_filter or "sds" in source_filter:
-        sds_captures, sds_error = get_sds_captures(request)
+        sds_captures, sds_error = get_sds_captures(request.user)
         if sds_error:
             error_messages.extend(sds_error)
 
@@ -315,11 +313,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 },
             )
 
-        if visualization.capture_type == CaptureType.SigMF:
-            capture_utility = SigMFUtility
-        elif visualization.capture_type == CaptureType.DigitalRF:
-            capture_utility = DigitalRFUtility
-        else:
+        if visualization.capture_type not in [CaptureType.SigMF, CaptureType.DigitalRF]:
             return Response(
                 {"status": "error", "message": "Unsupported capture type"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -351,76 +345,27 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            file_uuids = [file.uuid for file in capture.files]
 
-            # Download to media root
-            user_path = Path(
-                settings.MEDIA_ROOT,
-                "sds",
-                str(user.uuid),
+            # Create job with metadata
+            final_config = {
+                "width": width,
+                "height": height,
+                "capture_type": visualization.capture_type,
+                "capture_ids": visualization.capture_ids,
+            }
+            if config:
+                final_config.update(config)
+
+            job = request_job_submission(
+                visualization_type="spectrogram",
+                owner=user,
+                local_files=[],
+                config=final_config,
             )
-            local_path = Path(
-                user_path,
-                str(datetime.now(UTC).timestamp()),
+            return Response(
+                {"job_id": job.id, "status": "submitted"},
+                status=status.HTTP_201_CREATED,
             )
-            file_results = sds_client.download(
-                from_sds_path=capture.top_level_dir,
-                to_local_path=local_path,
-                skip_contents=False,
-                overwrite=True,
-                verbose=True,
-            )
-            downloaded_files = [result() for result in file_results if result]
-            download_errors = [
-                result.error_info for result in file_results if not result
-            ]
-
-            if download_errors:
-                return Response(
-                    {
-                        "status": "error",
-                        "message": f"Failed to download SDS files: {download_errors}",
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
-            matching_files = []
-            for f in downloaded_files:
-                if f.uuid in file_uuids:
-                    matching_files.append(f)
-                else:
-                    f.local_path.unlink()
-
-            file_paths = [str(f.local_path) for f in matching_files]
-            logging.info(
-                f"Files matching capture (expected): {len(file_paths)} ({len(file_uuids)})"
-            )
-            logging.info(
-                f"Files removed: {len(downloaded_files) - len(matching_files)}"
-            )
-            common_path = os.path.commonpath(file_paths)
-
-            # Move commonpath directory to local_path and delete the remaining empty directories
-            shutil.move(common_path, local_path)
-            sds_root = str(capture.files[0].directory).strip("/").split("/")[0]
-            sds_root_path = local_path / sds_root
-            shutil.rmtree(sds_root_path)
-            new_file_paths = [
-                str(path) for path in Path(local_path).glob("**/*") if path.is_file()
-            ]
-
-            try:
-                # Pass the downloaded file paths to the utility
-                job = capture_utility.submit_spectrogram_job(
-                    user, new_file_paths, width, height, config
-                )
-                return Response(
-                    {"job_id": job.id, "status": "submitted"},
-                    status=status.HTTP_201_CREATED,
-                )
-            finally:
-                # Clean up the temporary files
-                shutil.rmtree(user_path)
         except Exception as e:
             return Response(
                 {"status": "error", "message": str(e)},
@@ -497,7 +442,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             ValueError: If any capture processing fails
         """
         logging.info("Getting SDS captures")
-        sds_captures, sds_errors = get_sds_captures(request)
+        sds_captures, sds_errors = get_sds_captures(request.user)
         if sds_errors:
             raise ValueError(f"Error getting SDS captures: {sds_errors}")
         logging.info(f"Found {len(sds_captures)} SDS captures")

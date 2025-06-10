@@ -1,9 +1,6 @@
-# import tarfile
 import argparse
 import json
 import logging
-import tarfile
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -37,12 +34,12 @@ class SpectrogramData:
 
 
 def make_spectrogram(
-    job_data: dict[str, Any], config: dict[str, Any], files_dir: str = ""
+    job_metadata: dict[str, Any], config: dict[str, Any], files_dir: str = ""
 ) -> plt.Figure:
     """Generate a spectrogram from either SigMF or DigitalRF data.
 
     Args:
-        job_data: Dictionary containing job configuration and file information
+        job_metadata: Dictionary containing job configuration and file information
         config: Dictionary containing job configuration
         files_dir: Directory containing the input files
 
@@ -58,9 +55,9 @@ def make_spectrogram(
 
     # Load data based on capture type
     if capture_type == CaptureType.SigMF:
-        spectrogram_data = _load_sigmf_data(job_data, files_dir, config)
+        spectrogram_data = _load_sigmf_data(job_metadata, files_dir, config)
     elif capture_type == CaptureType.DigitalRF:
-        spectrogram_data = _load_digital_rf_data(job_data, files_dir, config)
+        spectrogram_data = _load_digital_rf_data(job_metadata, files_dir, config)
     else:
         raise ValueError(f"Unsupported capture type: {capture_type}")
 
@@ -69,13 +66,14 @@ def make_spectrogram(
 
 
 def _load_sigmf_data(
-    job_data: dict[str, Any], files_dir: str, config: dict[str, Any]
+    job_metadata: dict[str, Any], files_dir: str, config: dict[str, Any]
 ) -> SpectrogramData:
     """Load data from SigMF format.
 
     Args:
-        job_data: Dictionary containing job configuration and file information
+        job_metadata: Dictionary containing job configuration and file information
         files_dir: Directory containing the input files
+        config: Dictionary containing job configuration
 
     Returns:
         SpectrogramData: Container with loaded data and metadata
@@ -83,27 +81,29 @@ def _load_sigmf_data(
     Raises:
         ValueError: If required files are not found
     """
-    # Get the data and metadata files
-    data_file = None
-    metadata_file = None
+    # Find the SigMF files in the capture directory
+    capture_id = config.get("capture_ids", [""])[0]
+    capture_dir = Path(files_dir) / str(capture_id)
 
-    for f in job_data["data"]["local_files"]:
-        if f["name"].endswith(".sigmf-data"):
-            data_file = f
-        elif f["name"].endswith(".sigmf-meta"):
-            metadata_file = f
+    if not capture_dir.exists():
+        msg = f"Capture directory {capture_id} not found"
+        raise ValueError(msg)
+
+    # Find the data and metadata files
+    data_file = next(capture_dir.glob("*.sigmf-data"), None)
+    metadata_file = next(capture_dir.glob("*.sigmf-meta"), None)
 
     if not data_file or not metadata_file:
-        msg = "Data or metadata file not found in job data"
+        msg = "Data or metadata file not found in capture directory"
         raise ValueError(msg)
 
     # Get sample rate from metadata file
-    with Path.open(f"{files_dir}{metadata_file['name']}") as f:
+    with metadata_file.open() as f:
         metadata = json.load(f)
     sample_rate = metadata["global"]["core:sample_rate"]
 
     # Load data array
-    data_array = np.fromfile(f"{files_dir}{data_file['name']}", dtype=np.complex64)
+    data_array = np.fromfile(data_file, dtype=np.complex64)
     sample_count = len(data_array)
 
     return SpectrogramData(
@@ -112,13 +112,14 @@ def _load_sigmf_data(
 
 
 def _load_digital_rf_data(
-    job_data: dict[str, Any], files_dir: str, config: dict[str, Any]
+    job_metadata: dict[str, Any], files_dir: str, config: dict[str, Any]
 ) -> SpectrogramData:
     """Load data from DigitalRF format.
 
     Args:
-        job_data: Dictionary containing job configuration and file information
+        job_metadata: Dictionary containing job configuration and file information
         files_dir: Directory containing the input files
+        config: Dictionary containing job configuration
 
     Returns:
         SpectrogramData: Container with loaded data and metadata
@@ -126,62 +127,51 @@ def _load_digital_rf_data(
     Raises:
         ValueError: If required files are not found
     """
-    # Find the tar.gz file
-    tar_file = None
-    for f in job_data["data"]["local_files"]:
-        if f["name"].endswith(".tar.gz"):
-            tar_file = f"{files_dir}{f['name']}"
+    # Find the DigitalRF directory
+    drf_dir = None
+    for capture_id in config.get("capture_ids", []):
+        capture_dir = Path(files_dir) / str(job_metadata["job_id"]) / capture_id
+        if capture_dir.exists():
+            drf_dir = str(capture_dir)
             break
 
-    if not tar_file:
-        msg = "tar.gz file not found in job data"
+    if not drf_dir:
+        msg = "DigitalRF directory not found in job files"
         raise ValueError(msg)
 
-    # Create a temporary directory to extract the tar.gz file
-    with tempfile.TemporaryDirectory() as temp_dir:
-        try:
-            # Extract the tar.gz file
-            with tarfile.open(tar_file, "r:gz") as tf:
-                for member in tf.getmembers():
-                    if member.name.startswith(("/", "..")):
-                        continue
-                    tf.extract(member, temp_dir)
+    try:
+        # Initialize DigitalRF reader
+        reader = DigitalRFReader(drf_dir)
+        channels = reader.get_channels()
 
-            # Initialize DigitalRF reader
-            reader = DigitalRFReader(temp_dir)
-            channels = reader.get_channels()
+        if not channels:
+            msg = "No channels found in DigitalRF data"
+            _raise_error(msg)
 
-            if not channels:
-                msg = "No channels found in DigitalRF data"
-                _raise_error(msg)
+        # Use the first channel
+        channel = channels[0]
+        subchannel = config.get("subchannel", 0)
+        start_sample, end_sample = reader.get_bounds(channel)
 
-            # Use the first channel
-            channel = channels[0]
-            subchannel = config.get("subchannel", 0)
-            start_sample, end_sample = reader.get_bounds(channel)
-
-            # Get sample rate from metadata
-            with h5py.File(f"{temp_dir}/{channel}/drf_properties.h5", "r") as f:
-                sample_rate = (
-                    f.attrs["sample_rate_numerator"]
-                    / f.attrs["sample_rate_denominator"]
-                )
-
-            num_samples = end_sample - start_sample
-            data_array = reader.read_vector(
-                start_sample, num_samples, channel, subchannel
+        # Get sample rate from metadata
+        with h5py.File(f"{drf_dir}/{channel}/drf_properties.h5", "r") as f:
+            sample_rate = (
+                f.attrs["sample_rate_numerator"] / f.attrs["sample_rate_denominator"]
             )
 
-            return SpectrogramData(
-                data_array=data_array,
-                sample_rate=sample_rate,
-                sample_count=num_samples,
-                channel_name=channel,
-            )
+        num_samples = end_sample - start_sample
+        data_array = reader.read_vector(start_sample, num_samples, channel, subchannel)
 
-        except Exception as e:
-            logging.error(f"Error processing DigitalRF data: {e}")
-            raise
+        return SpectrogramData(
+            data_array=data_array,
+            sample_rate=sample_rate,
+            sample_count=num_samples,
+            channel_name=channel,
+        )
+
+    except Exception as e:
+        logging.error(f"Error processing DigitalRF data: {e}")
+        raise
 
 
 def _generate_spectrogram(
