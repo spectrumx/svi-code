@@ -138,12 +138,14 @@ interface WaterfallVisualizationProps {
   rhFiles: RadioHoundFile[];
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
+  onSave?: () => void;
 }
 
 const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   rhFiles,
   settings,
   setSettings,
+  onSave,
 }: WaterfallVisualizationProps) => {
   const currentApplication = ['PERIODOGRAM', 'WATERFALL'] as ApplicationType[];
   const [displayedFileIndex, setDisplayedFileIndex] = useState(
@@ -727,45 +729,45 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
   return (
     <div>
-      <h5>
-        Scan {displayedFileIndex + 1} ({rhFiles[displayedFileIndex].timestamp})
-      </h5>
-      <Periodogram
-        chartOptions={chart}
-        chartContainerStyle={{
-          height: 200,
-          paddingRight: PLOTS_RIGHT_MARGIN - CANVASJS_RIGHT_MARGIN,
-          paddingTop: 0,
-          paddingBottom: 0,
-        }}
-        yAxisTitle="dBm per bin"
-      />
-      {/* Div to test left plot margins */}
-      {/* <div
-        style={{ width: PLOTS_LEFT_MARGIN, height: 30, backgroundColor: 'red' }}
-      /> */}
-      {/* Div to test right plot margins */}
-      {/* <div
-        style={{
-          width: PLOTS_RIGHT_MARGIN,
-          height: 30,
-          backgroundColor: 'blue',
-          float: 'right',
-        }}
-      /> */}
-      <WaterfallPlot
-        scan={scan}
-        display={display}
-        setWaterfall={setWaterfall}
-        setScaleChanged={setScaleChanged}
-        setResetScale={setResetScale}
-        currentFileIndex={settings.fileIndex}
-        onRowSelect={handleRowSelect}
-        fileRange={waterfallRange}
-        totalFiles={rhFiles.length}
-        colorLegendWidth={PLOTS_LEFT_MARGIN}
-        indexLegendWidth={PLOTS_RIGHT_MARGIN}
-      />
+      {onSave && (
+        <div className="d-flex justify-content-end mb-3">
+          <button
+            className="btn btn-primary"
+            onClick={onSave}
+            aria-label="Export Waterfall"
+          >
+            <i className="bi bi-download me-2" />
+            Export
+          </button>
+        </div>
+      )}
+      <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <Periodogram
+            chartOptions={chart}
+            chartContainerStyle={{
+              height: 200,
+              paddingRight: PLOTS_RIGHT_MARGIN - CANVASJS_RIGHT_MARGIN,
+              paddingTop: 0,
+              paddingBottom: 0,
+            }}
+            yAxisTitle="dBm per bin"
+          />
+          <WaterfallPlot
+            scan={scan}
+            display={display}
+            setWaterfall={setWaterfall}
+            setScaleChanged={setScaleChanged}
+            setResetScale={setResetScale}
+            currentFileIndex={settings.fileIndex}
+            onRowSelect={handleRowSelect}
+            fileRange={waterfallRange}
+            totalFiles={rhFiles.length}
+            colorLegendWidth={PLOTS_LEFT_MARGIN}
+            indexLegendWidth={PLOTS_RIGHT_MARGIN}
+          />
+        </div>
+      </div>
     </div>
   );
 };

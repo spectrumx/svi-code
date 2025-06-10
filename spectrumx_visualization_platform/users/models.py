@@ -45,6 +45,7 @@ class User(AbstractUser):
             host=settings.SDS_CLIENT_URL,
             env_config={"SDS_SECRET_TOKEN": self.sds_token},
         )
+        print(f"sds user token is: {self.sds_token}")
         sds.dry_run = False
         sds.authenticate()
         return sds
