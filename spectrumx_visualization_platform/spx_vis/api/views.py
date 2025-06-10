@@ -45,8 +45,8 @@ from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_ca
 if TYPE_CHECKING:
     from spectrumx_visualization_platform.users.models import User
 
-
-spectrumx.enable_logging()
+if settings.DEBUG:
+    spectrumx.enable_logging()
 
 
 @api_view(["GET"])

@@ -197,7 +197,6 @@ def download_sds_files(
                 f.local_path.unlink()
 
         file_paths = [str(f.local_path) for f in matching_files]
-        logging.info(f"File paths: {file_paths}")
         logging.info(
             f"Files matching capture (expected): {len(file_paths)} ({len(file_uuids)})"
         )
@@ -213,9 +212,7 @@ def download_sds_files(
         if capture_type == CaptureType.DigitalRF:
             # For DigitalRF, maintain the directory structure
             common_path = os.path.commonpath(file_paths)
-            logging.info(f"Common path: {common_path}")
             shutil.move(common_path, local_path)
-            logging.info(f"Capture dir tree: {list(local_path.glob('*'))}")
             sds_root = str(capture.files[0].directory).strip("/").split("/")[0]
             sds_root_path = local_path / sds_root
             if sds_root_path.exists():
