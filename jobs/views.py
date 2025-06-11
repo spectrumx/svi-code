@@ -99,7 +99,7 @@ class LocalFile(TypedDict):
 
 
 class JobMetadata(TypedDict):
-    user: str
+    user_id: str
     type: str
     status: Literal["submitted", "running", "completed", "failed"]
     created_at: datetime
@@ -165,7 +165,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
                 "status": "success",
                 "job_id": job_id,
                 "data": {
-                    "user": job.owner.uuid,
+                    "user_id": job.owner.uuid,
                     "type": job.type,
                     "status": job.status,
                     "created_at": job.created_at,

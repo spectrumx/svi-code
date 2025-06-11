@@ -397,7 +397,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         response = requests.get(
             f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_uuid}/download",
             headers={"Authorization": f"Api-Key: {token}"},
-            timeout=10,
+            timeout=60,
             stream=True,
         )
         response.raise_for_status()
