@@ -86,4 +86,4 @@ c.DockerSpawner.cmd = ["start-notebook.sh"]
 c.DockerSpawner.args = ["--NotebookApp.allow_origin='*'"]
 
 # Add pip install command to be run when container starts
-c.DockerSpawner.post_start_cmd = "pip install spectrumx"
+c.DockerSpawner.post_start_cmd = "pip install spectrumx digital-rf"
