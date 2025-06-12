@@ -2,7 +2,7 @@ import { Table } from 'react-bootstrap';
 import _ from 'lodash';
 
 import { formatHertz } from '../../utils/utils';
-import { RadioHoundFile } from './types';
+import { WaterfallFile } from './types';
 
 interface DetailRowProps {
   label: string;
@@ -19,10 +19,10 @@ function DetailRow({ label, value }: DetailRowProps): JSX.Element {
 }
 
 interface ScanDetailsProps {
-  rhFile: RadioHoundFile;
+  waterfallFile: WaterfallFile;
 }
 
-export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
+export function ScanDetails({ waterfallFile }: ScanDetailsProps): JSX.Element {
   // const downloadUrl = useMemo(() => {
   //   const blob = new Blob([JSON.stringify(capture, null, 4)], {
   //     type: 'application/json',
@@ -47,7 +47,7 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
 
   // Helper function to safely get nested values
   const getScanValue = <T,>(path: string, defaultValue?: T): T | undefined => {
-    return _.get(rhFile, path, defaultValue) as T;
+    return _.get(waterfallFile, path, defaultValue) as T;
   };
 
   return (
@@ -57,7 +57,7 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
         <tbody>
           <DetailRow
             label="Node"
-            value={`${getScanValue('short_name')}${
+            value={`${getScanValue('device_name')}${
               getScanValue('mac_address')
                 ? ` (${getScanValue('mac_address')})`
                 : ''
@@ -66,10 +66,10 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
           <DetailRow
             label="Scan Time"
             value={
-              getScanValue('metadata.scan_time')
+              getScanValue('custom_fields.scan_time')
                 ? `${
                     Math.round(
-                      Number(getScanValue('metadata.scan_time')) * 1000,
+                      Number(getScanValue('custom_fields.scan_time')) * 1000,
                     ) / 1000
                   }s`
                 : undefined
@@ -80,24 +80,24 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
           <DetailRow
             label="Frequency Minimum"
             value={
-              getScanValue('metadata.fmin')
-                ? formatHertz(getScanValue('metadata.fmin') as number)
+              getScanValue('min_frequency')
+                ? formatHertz(getScanValue('min_frequency') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Frequency Maximum"
             value={
-              getScanValue('metadata.fmax')
-                ? formatHertz(getScanValue('metadata.fmax') as number)
+              getScanValue('max_frequency')
+                ? formatHertz(getScanValue('max_frequency') as number)
                 : undefined
             }
           />
           <DetailRow
             label="Number of Samples"
             value={
-              typeof getScanValue('metadata.xcount') === 'number'
-                ? (getScanValue('metadata.xcount') as number).toLocaleString()
+              typeof getScanValue('num_samples') === 'number'
+                ? (getScanValue('num_samples') as number).toLocaleString()
                 : undefined
             }
           />
@@ -112,17 +112,20 @@ export function ScanDetails({ rhFile }: ScanDetailsProps): JSX.Element {
           <DetailRow
             label="GPS Lock"
             value={
-              getScanValue('metadata.gps_lock') !== undefined
-                ? getScanValue('metadata.gps_lock')
+              getScanValue('custom_fields.gps_lock') !== undefined
+                ? getScanValue('custom_fields.gps_lock')
                   ? 'True'
                   : 'False'
                 : undefined
             }
           />
-          <DetailRow label="Job" value={getScanValue('metadata.name')} />
+          <DetailRow
+            label="Job"
+            value={getScanValue('custom_fields.job_name')}
+          />
           <DetailRow
             label="Comments"
-            value={getScanValue('metadata.comments')}
+            value={getScanValue('custom_fields.comments')}
           />
         </tbody>
       </Table>

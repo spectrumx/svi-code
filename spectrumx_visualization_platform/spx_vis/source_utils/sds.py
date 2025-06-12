@@ -2,25 +2,22 @@ import logging
 from datetime import UTC
 from datetime import datetime
 
-from rest_framework.request import Request
-
 from spectrumx_visualization_platform.spx_vis.api.utils import calculate_end_time
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.users.models import User
 
 
-def get_sds_captures(request: Request) -> tuple[list[dict], list[str]]:
+def get_sds_captures(user: User) -> tuple[list[dict], list[str]]:
     """Get SDS captures for the current user.
 
     Args:
-        request: The HTTP request containing user information
+        user: The user object
 
     Returns:
         tuple: A tuple containing:
             - List of successfully formatted captures
             - List of error messages if any error occurred
     """
-    user: User = request.user
     formatted_captures = []
     error_messages = []
 
@@ -32,9 +29,9 @@ def get_sds_captures(request: Request) -> tuple[list[dict], list[str]]:
         for capture in captures:
             try:
                 if capture["capture_type"] == CaptureType.RadioHound:
-                    formatted_capture = format_sds_rh_capture(capture, request.user.id)
+                    formatted_capture = format_sds_rh_capture(capture, user.id)
                 elif capture["capture_type"] == CaptureType.DigitalRF:
-                    formatted_capture = format_sds_drf_capture(capture, request.user.id)
+                    formatted_capture = format_sds_drf_capture(capture, user.id)
                 formatted_captures.append(formatted_capture)
             except Exception as e:
                 logging.exception(
