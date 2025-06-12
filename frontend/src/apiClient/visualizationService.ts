@@ -10,7 +10,10 @@ import {
   CaptureSourceSchema,
   CaptureSchema,
 } from './captureService';
-import { RadioHoundFileSchema } from '../components/waterfall/types';
+import {
+  WaterfallFileSchema,
+  WaterfallFile,
+} from '../components/waterfall/types';
 import { FilesWithContent } from '../components/types';
 import JSZip from 'jszip';
 
@@ -211,20 +214,6 @@ export const useVisualizationFiles = (vizRecord: VisualizationRecordDetail) => {
             let parsedContent: unknown = content;
             let isValid: boolean | undefined;
 
-            // Validate RadioHound files
-            if (vizRecord.capture_type === 'rh') {
-              parsedContent = JSON.parse(await content.text());
-              const validationResult =
-                RadioHoundFileSchema.safeParse(parsedContent);
-              isValid = validationResult.success;
-
-              if (!isValid) {
-                console.warn(
-                  `Invalid RadioHound file content for ${file.name}: ${validationResult.error}`,
-                );
-              }
-            }
-
             // Add the file to our files object
             files[file.uuid] = {
               uuid: file.uuid,
@@ -247,4 +236,48 @@ export const useVisualizationFiles = (vizRecord: VisualizationRecordDetail) => {
   }, [vizRecord]);
 
   return { files, isLoading, error };
+};
+
+/**
+ * Fetches waterfall data for a visualization from the backend.
+ * @param id - The ID of the visualization
+ * @returns An array of WaterfallFile objects containing the waterfall data
+ * @throws Error if the request fails or the response data is invalid
+ */
+export const getWaterfallData = async (
+  id: string,
+): Promise<WaterfallFile[]> => {
+  try {
+    const response = await apiClient.get(
+      `/api/visualizations/${id}/get_waterfall_data/`,
+    );
+    return zod.array(WaterfallFileSchema).parse(response.data);
+  } catch (error) {
+    console.error('Error fetching waterfall data:', error);
+    throw error;
+  }
+};
+
+export const useWaterfallData = (id: string) => {
+  const [waterfallData, setWaterfallData] = useState<WaterfallFile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchWaterfallData = async () => {
+      setIsLoading(true);
+      try {
+        const data = await getWaterfallData(id);
+        setWaterfallData(data);
+      } catch (error) {
+        console.error('Error fetching waterfall data:', error);
+        setError('Failed to fetch waterfall data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchWaterfallData();
+  }, [id]);
+
+  return { waterfallData, isLoading, error };
 };
