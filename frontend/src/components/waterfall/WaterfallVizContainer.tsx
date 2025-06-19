@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { Alert, Row, Col } from 'react-bootstrap';
 
 import { WaterfallVisualization } from '.';
-import { RadioHoundFile } from './types';
 import WaterfallControls from './WaterfallControls';
 import ScanDetailsTable from './ScanDetailsTable';
 import { VizContainerProps } from '../types';
-import { useVisualizationFiles } from '../../apiClient/visualizationService';
+import { useWaterfallData } from '../../apiClient/visualizationService';
 import LoadingBlock from '../LoadingBlock';
 
 export interface WaterfallSettings {
@@ -18,8 +17,9 @@ export interface WaterfallSettings {
 export const WaterfallVizContainer = ({
   visualizationRecord,
 }: VizContainerProps) => {
-  const { files, isLoading, error } =
-    useVisualizationFiles(visualizationRecord);
+  const { waterfallData, isLoading, error } = useWaterfallData(
+    visualizationRecord.uuid,
+  );
   const [settings, setSettings] = useState<WaterfallSettings>({
     fileIndex: 0,
     isPlaying: false,
@@ -36,7 +36,7 @@ export const WaterfallVizContainer = ({
     );
   }
 
-  if (Object.keys(files).length === 0) {
+  if (waterfallData.length === 0) {
     return (
       <Alert variant="warning">
         <Alert.Heading>No Data Found</Alert.Heading>
@@ -47,12 +47,9 @@ export const WaterfallVizContainer = ({
 
   // We currently only support one capture per visualization, so grab the first
   // capture and use its files
-  const rhFiles = visualizationRecord.captures[0].files
-    .map((file) => files[file.uuid].fileContent as RadioHoundFile)
-    .sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
+  const waterfallFiles = waterfallData.sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
 
   const handleSaveWaterfall = async () => {
     try {
@@ -152,21 +149,23 @@ export const WaterfallVizContainer = ({
             <WaterfallControls
               settings={settings}
               setSettings={setSettings}
-              numFiles={rhFiles.length}
+              numFiles={waterfallFiles.length}
             />
           </div>
         </Col>
         <Col>
           <Row>
             <WaterfallVisualization
-              rhFiles={rhFiles}
+              waterfallFiles={waterfallFiles}
               settings={settings}
               setSettings={setSettings}
               onSave={handleSaveWaterfall}
             />
           </Row>
           <Row>
-            <ScanDetailsTable rhFile={rhFiles[settings.fileIndex]} />
+            <ScanDetailsTable
+              waterfallFile={waterfallFiles[settings.fileIndex]}
+            />
           </Row>
         </Col>
       </Row>
