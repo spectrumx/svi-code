@@ -702,7 +702,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             currentFileIndex={settings.fileIndex}
             onRowSelect={handleRowSelect}
             fileRange={waterfallRange}
-            totalFiles={rhFiles.length}
+            totalFiles={waterfallFiles.length}
             colorLegendWidth={PLOTS_LEFT_MARGIN}
             indexLegendWidth={PLOTS_RIGHT_MARGIN}
           />
