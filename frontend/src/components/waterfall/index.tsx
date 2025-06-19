@@ -696,7 +696,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           <WaterfallPlot
             scan={scan}
             display={display}
-            setWaterfall={setWaterfall}
+            setWaterfall={setScanWaterfall}
             setScaleChanged={setScaleChanged}
             setResetScale={setResetScale}
             currentFileIndex={settings.fileIndex}
