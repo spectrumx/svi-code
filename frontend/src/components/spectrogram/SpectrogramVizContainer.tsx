@@ -11,6 +11,9 @@ import {
 } from '../../apiClient/jobService';
 import { VizContainerProps } from '../types';
 
+// How long to wait between job status polls to the server
+const POLL_INTERVAL = 3000;
+
 export interface SpectrogramSettings {
   fftSize: number;
   stdDev: number;
@@ -140,7 +143,7 @@ const SpectrogramVizContainer = ({
             message: error instanceof Error ? error.message : 'Unknown error',
           }));
         }
-      }, 2000);
+      }, POLL_INTERVAL);
     }
 
     return () => {
