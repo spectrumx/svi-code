@@ -12,7 +12,7 @@ import {
   ScanState,
   ScanWaterfallType,
   WaterfallFile,
-  Display
+  Display,
 } from './types';
 import { formatHertz } from '../../utils/utils';
 
