@@ -187,9 +187,7 @@ class TestVisualizationDetailSerializer:
         assert result[0]["uuid"] == fake_uuid_2
         assert result[0]["name"] == "Test SDS Capture 2"
 
-        request = api_request_factory
-
-        mock_get_sds_captures.assert_called_once_with(request)
+        mock_get_sds_captures.assert_called_once_with(user)
 
     def test_validate_capture_ids_loop(self, api_request_factory: APIRequestFactory):
         test_cases = [
