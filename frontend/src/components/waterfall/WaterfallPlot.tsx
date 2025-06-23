@@ -581,7 +581,10 @@ export function WaterfallPlot({
           />
         )}
       </div>
-      <div style={{ position: 'relative', height: `${WATERFALL_HEIGHT}px` }}>
+      <div
+        className="waterfall-plot"
+        style={{ position: 'relative', height: `${WATERFALL_HEIGHT}px` }}
+      >
         <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
         <canvas
           ref={overlayCanvasRef}

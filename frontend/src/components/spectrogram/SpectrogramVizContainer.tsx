@@ -94,6 +94,38 @@ const SpectrogramVizContainer = ({
     }
   };
 
+  const handleSaveSpectrogram = async () => {
+    if (!spectrogramUrl) return;
+
+    try {
+      // Fetch the image blob
+      const response = await fetch(spectrogramUrl);
+      const blob = await response.blob();
+
+      // Create a download link
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+
+      // Generate filename based on timestamp and visualization UUID
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `spectrogram-${visualizationRecord.uuid}-${timestamp}.png`;
+
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error saving spectrogram:', error);
+      setJobInfo((prevStatus) => ({
+        ...prevStatus,
+        status: 'error',
+        message: 'Failed to save spectrogram',
+      }));
+    }
+  };
+
   /**
    * Once a job is created, periodically poll the server to check its status
    */
@@ -187,6 +219,7 @@ const SpectrogramVizContainer = ({
           <SpectrogramVisualization
             imageUrl={spectrogramUrl}
             hasError={jobInfo.status === 'failed' || jobInfo.status === 'error'}
+            onSave={handleSaveSpectrogram}
           />
         </Col>
       </Row>
