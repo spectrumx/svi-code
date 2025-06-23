@@ -123,11 +123,7 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
         raise ValueError(error_msg)
 
     # Clean up job files
-    try:
-        shutil.rmtree("jobs/job_files")
-        shutil.rmtree("jobs/job_results")
-    except Exception as e:
-        logging.warning(f"Error cleaning up job files: {e}")
+    cleanup_job_files(job_id)
 
     # Update the job as complete
     info = {
@@ -253,3 +249,36 @@ def safe_sds_client_download(
         # Account for a bug in the SDS client
         logging.warning("Caught StopIteration error--continuing.")
     return file_results
+
+
+def cleanup_job_files(job_id: int) -> None:
+    """Clean up files and directories created for a specific job.
+
+    Args:
+        job_id: The ID of the job whose files should be cleaned up
+
+    Note:
+        This function only removes files and directories specific to the given job_id,
+        preserving the main job_files and job_results directories for other jobs.
+    """
+    try:
+        # Remove job-specific directories and files
+        job_files_dir = Path("jobs/job_files")
+        job_results_dir = Path("jobs/job_results")
+
+        # Remove job-specific subdirectories in job_files
+        if job_files_dir.exists():
+            for item in job_files_dir.iterdir():
+                if item.is_dir() and item.name == str(job_id):
+                    shutil.rmtree(item)
+                elif item.is_file():
+                    # Remove individual files that were created for this job
+                    item.unlink()
+
+        # Remove job-specific result file
+        result_file = job_results_dir / f"{job_id}.png"
+        if result_file.exists():
+            result_file.unlink()
+
+    except Exception as e:
+        logging.warning(f"Error cleaning up job files: {e}")
