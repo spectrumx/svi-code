@@ -1,4 +1,3 @@
-from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
@@ -37,19 +36,43 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
 
 @api_view(["GET"])
 def get_session_info(request):
+    """
+    Get session information for the authenticated user.
+
+    Note: CSRF tokens are automatically handled by Django's middleware via HTTP-only cookies.
+    Auth tokens are only created when explicitly requested.
+    """
     if request.user.is_authenticated:
-        auth_token = Token.objects.get_or_create(user=request.user)[0]
-        csrf_token = get_token(request)
+        # Get existing auth token if it exists, don't create new ones unnecessarily
+        auth_token = Token.objects.filter(user=request.user).first()
 
         return Response(
             {
-                "auth_token": str(auth_token),
-                "csrf_token": csrf_token,
+                "auth_token": str(auth_token) if auth_token else None,
                 "user": {
                     "id": request.user.id,
                     "username": request.user.username,
                 },
             },
+        )
+    return Response({"error": "User not authenticated"}, status=401)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_auth_token(request):
+    """
+    Create a new authentication token for the user.
+    This endpoint should be called when the user needs a token for API access.
+    """
+    if request.user.is_authenticated:
+        auth_token = Token.objects.get_or_create(user=request.user)[0]
+        return Response(
+            {
+                "auth_token": str(auth_token),
+                "message": "Authentication token created successfully",
+            },
+            status=status.HTTP_201_CREATED,
         )
     return Response({"error": "User not authenticated"}, status=401)
 
