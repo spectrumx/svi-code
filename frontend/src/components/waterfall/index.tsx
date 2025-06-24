@@ -138,6 +138,11 @@ interface WaterfallVisualizationProps {
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
   onSave?: () => void;
+  onWaterfallRangeChange?: (range: {
+    startIndex: number;
+    endIndex: number;
+  }) => void;
+  totalSlices?: number; // For DigitalRF captures
 }
 
 const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
@@ -145,6 +150,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   settings,
   setSettings,
   onSave,
+  onWaterfallRangeChange,
+  totalSlices,
 }: WaterfallVisualizationProps) => {
   const [displayedFileIndex, setDisplayedFileIndex] = useState(
     settings.fileIndex,
@@ -552,6 +559,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
   useEffect(() => {
     const pageSize = WATERFALL_MAX_ROWS;
+    const totalFiles = totalSlices || waterfallFiles.length;
 
     // Check if the requested index is outside current window
     const isOutsideCurrentWindow =
@@ -562,12 +570,9 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       // Calculate new start index only when moving outside current window
       const idealStartIndex =
         Math.floor(settings.fileIndex / pageSize) * pageSize;
-      const lastPossibleStartIndex = Math.max(
-        0,
-        waterfallFiles.length - pageSize,
-      );
+      const lastPossibleStartIndex = Math.max(0, totalFiles - pageSize);
       const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
-      const endIndex = Math.min(waterfallFiles.length, startIndex + pageSize);
+      const endIndex = Math.min(totalFiles, startIndex + pageSize);
 
       // Only reprocess waterfall if the range has changed
       if (
@@ -581,13 +586,25 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         );
         processWaterfallData(relevantFiles, relevantProcessedValues);
         setWaterfallRange({ startIndex, endIndex });
+        if (onWaterfallRangeChange) {
+          onWaterfallRangeChange({ startIndex, endIndex });
+        }
       }
     }
-  }, [waterfallFiles, processedData, settings.fileIndex, waterfallRange]);
+  }, [
+    waterfallFiles,
+    processedData,
+    settings.fileIndex,
+    waterfallRange,
+    onWaterfallRangeChange,
+    totalSlices,
+  ]);
 
   // Handle realtime playback
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
+
+    const totalFiles = totalSlices || waterfallFiles.length;
 
     // Pre-compute timestamps for all files
     const timestamps = waterfallFiles.map((waterfallFile) =>
@@ -615,7 +632,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           return {
             ...prev,
             fileIndex: targetIndex,
-            isPlaying: targetIndex < waterfallFiles.length - 1,
+            isPlaying: targetIndex < totalFiles - 1,
           };
         }
         return prev;
@@ -627,12 +644,15 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     settings.isPlaying,
     settings.playbackSpeed,
     waterfallFiles.length,
+    totalSlices,
     setSettings,
   ]);
 
   // Handle constant FPS playback
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed === 'realtime') return;
+
+    const totalFiles = totalSlices || waterfallFiles.length;
 
     // Calculate interval time based on playback speed
     const speed = Number(settings.playbackSpeed.replace(' fps', ''));
@@ -643,7 +663,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       setSettings((prev) => {
         const nextIndex = prev.fileIndex + 1;
         // Stop playback at the end
-        if (nextIndex >= waterfallFiles.length) {
+        if (nextIndex >= totalFiles) {
           return { ...prev, isPlaying: false };
         }
         return { ...prev, fileIndex: nextIndex };
@@ -655,6 +675,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     settings.isPlaying,
     settings.playbackSpeed,
     waterfallFiles.length,
+    totalSlices,
     setSettings,
   ]);
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Alert, Row, Col } from 'react-bootstrap';
 
 import { WaterfallVisualization } from '.';
@@ -12,19 +12,44 @@ export interface WaterfallSettings {
   fileIndex: number;
   isPlaying: boolean;
   playbackSpeed: string;
+  subchannel?: number;
 }
 
 export const WaterfallVizContainer = ({
   visualizationRecord,
 }: VizContainerProps) => {
-  const { waterfallData, isLoading, error } = useWaterfallData(
-    visualizationRecord.uuid,
-  );
   const [settings, setSettings] = useState<WaterfallSettings>({
     fileIndex: 0,
     isPlaying: false,
     playbackSpeed: '1 fps',
+    subchannel: 0,
   });
+
+  // Track the current window range for DigitalRF captures (from WaterfallVisualization)
+  const [waterfallRange, setWaterfallRange] = useState({
+    startIndex: 0,
+    endIndex: 80, // WATERFALL_MAX_ROWS
+  });
+
+  // Determine if this is a DigitalRF visualization
+  const isDigitalRF = visualizationRecord.capture_type === 'drf';
+
+  const { waterfallData, isLoading, error } = useWaterfallData(
+    visualizationRecord.uuid,
+    settings.subchannel,
+    isDigitalRF ? waterfallRange.startIndex : undefined,
+    isDigitalRF ? waterfallRange.endIndex : undefined,
+  );
+
+  // Callback to receive waterfall range updates from WaterfallVisualization
+  const handleWaterfallRangeChange = useCallback(
+    (range: { startIndex: number; endIndex: number }) => {
+      if (isDigitalRF) {
+        setWaterfallRange(range);
+      }
+    },
+    [isDigitalRF],
+  );
 
   if (isLoading) {
     return <LoadingBlock message="Getting visualization files..." />;
@@ -50,6 +75,9 @@ export const WaterfallVizContainer = ({
   const waterfallFiles = waterfallData.sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
+
+  // Extract subchannel information from the first file if available
+  const numSubchannels = waterfallFiles[0]?.custom_fields?.num_subchannels;
 
   const handleSaveWaterfall = async () => {
     try {
@@ -149,7 +177,12 @@ export const WaterfallVizContainer = ({
             <WaterfallControls
               settings={settings}
               setSettings={setSettings}
-              numFiles={waterfallFiles.length}
+              numFiles={
+                isDigitalRF
+                  ? visualizationRecord.total_slices || waterfallFiles.length
+                  : waterfallFiles.length
+              }
+              numSubchannels={numSubchannels}
             />
           </div>
         </Col>
@@ -160,6 +193,12 @@ export const WaterfallVizContainer = ({
               settings={settings}
               setSettings={setSettings}
               onSave={handleSaveWaterfall}
+              onWaterfallRangeChange={handleWaterfallRangeChange}
+              totalSlices={
+                isDigitalRF
+                  ? visualizationRecord.total_slices || undefined
+                  : undefined
+              }
             />
           </Row>
           <Row>

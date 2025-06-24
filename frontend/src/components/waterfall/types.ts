@@ -122,6 +122,7 @@ const WaterfallCustomFieldsSchema = zod
     gps_lock: zod.boolean().optional(),
     job_name: zod.string().optional(),
     comments: zod.string().optional(),
+    num_subchannels: zod.number().optional(),
   })
   .catchall(zod.unknown());
 

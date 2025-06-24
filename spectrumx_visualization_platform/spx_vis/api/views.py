@@ -32,6 +32,9 @@ from spectrumx_visualization_platform.spx_vis.api.serializers import (
 )
 from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
+from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
+    DigitalRFUtility,
+)
 from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
     RadioHoundUtility,
 )
@@ -593,9 +596,9 @@ class VisualizationViewSet(viewsets.ModelViewSet):
     def get_waterfall_data(self, request: Request, uuid=None) -> Response:
         """Get waterfall data for a visualization.
 
-        This endpoint retrieves files from the visualization's SDS captures and converts them
+        This endpoint retrieves files from the visualization's captures and converts them
         to the WaterfallFile format expected by the frontend. Currently supports RadioHound
-        captures from SDS sources.
+        and DigitalRF captures from SDS sources.
 
         Args:
             request: The HTTP request
@@ -610,12 +613,15 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         visualization: Visualization = self.get_object()
 
-        # Currently only support RadioHound captures
-        if visualization.capture_type != CaptureType.RadioHound:
+        # Support RadioHound and DigitalRF captures
+        if visualization.capture_type not in [
+            CaptureType.RadioHound,
+            CaptureType.DigitalRF,
+        ]:
             return Response(
                 {
                     "status": "error",
-                    "message": "Only RadioHound captures are currently supported for waterfall visualization",
+                    "message": "Only RadioHound and DigitalRF captures are currently supported for waterfall visualization",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -642,31 +648,29 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             # Reset buffer position to start
             zip_buffer.seek(0)
 
-            # Process the ZIP file
+            # Process the ZIP file based on capture type
             with zipfile.ZipFile(zip_buffer, "r") as zip_file:
-                for capture_id in visualization.capture_ids:
-                    capture_dir = f"{capture_id}/"
-                    for file_info in zip_file.infolist():
-                        if file_info.filename.startswith(
-                            capture_dir
-                        ) and file_info.filename.endswith(".json"):
-                            with zip_file.open(file_info) as f:
-                                try:
-                                    rh_data = json.load(f)
-                                    waterfall_file = (
-                                        RadioHoundUtility.to_waterfall_file(rh_data)
-                                    )
-                                    waterfall_files.append(waterfall_file)
-                                except json.JSONDecodeError as e:
-                                    logging.error(
-                                        f"Failed to parse JSON from file {file_info.filename}: {e}"
-                                    )
-                                    continue
-                                except ValueError as e:
-                                    logging.error(
-                                        f"Failed to convert file {file_info.filename} to waterfall format: {e}"
-                                    )
-                                    continue
+                if visualization.capture_type == CaptureType.RadioHound:
+                    waterfall_files = self._process_radiohound_files(
+                        zip_file, visualization.capture_ids
+                    )
+                elif visualization.capture_type == CaptureType.DigitalRF:
+                    # Get subchannel and window parameters from query parameters
+                    subchannel = int(request.query_params.get("subchannel", 0))
+                    start_index = request.query_params.get("start_index")
+                    end_index = request.query_params.get("end_index")
+
+                    # Convert to integers if provided
+                    start_idx = int(start_index) if start_index is not None else None
+                    end_idx = int(end_index) if end_index is not None else None
+
+                    waterfall_files = self._process_digitalrf_files(
+                        zip_file,
+                        visualization.capture_ids,
+                        subchannel,
+                        start_idx,
+                        end_idx,
+                    )
 
             return Response(waterfall_files)
 
@@ -676,3 +680,125 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 {"error": f"Failed to process waterfall data: {e}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    def _process_radiohound_files(
+        self, zip_file: zipfile.ZipFile, capture_ids: list[str]
+    ) -> list[dict]:
+        """Process RadioHound files from ZIP archive.
+
+        Args:
+            zip_file: ZIP file containing RadioHound data
+            capture_ids: List of capture IDs to process (only one capture supported)
+
+        Returns:
+            list[dict]: List of WaterfallFile objects
+        """
+        waterfall_files = []
+
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture_dir = f"{capture_id}/"
+
+        for file_info in zip_file.infolist():
+            if file_info.filename.startswith(
+                capture_dir
+            ) and file_info.filename.endswith(".json"):
+                with zip_file.open(file_info) as f:
+                    try:
+                        rh_data = json.load(f)
+                        waterfall_file = RadioHoundUtility.to_waterfall_file(rh_data)
+                        waterfall_files.append(waterfall_file)
+                    except json.JSONDecodeError as e:
+                        logging.error(
+                            f"Failed to parse JSON from file {file_info.filename}: {e}"
+                        )
+                        continue
+                    except ValueError as e:
+                        logging.error(
+                            f"Failed to convert file {file_info.filename} to waterfall format: {e}"
+                        )
+                        continue
+
+        return waterfall_files
+
+    def _process_digitalrf_files(
+        self,
+        zip_file: zipfile.ZipFile,
+        capture_ids: list[str],
+        subchannel: int,
+        start_idx: int | None = None,
+        end_idx: int | None = None,
+    ) -> list[dict]:
+        """Process DigitalRF files from ZIP archive.
+
+        Args:
+            zip_file: ZIP file containing DigitalRF data
+            capture_ids: List of capture IDs to process (only one capture supported)
+            subchannel: Subchannel index to process
+            start_idx: Start index for the sliding window
+            end_idx: End index for the sliding window
+
+        Returns:
+            list[dict]: List of WaterfallFile objects
+        """
+        waterfall_files = []
+
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture_dir = f"{capture_id}/"
+
+        # Find the DigitalRF data directory
+        for file_info in zip_file.infolist():
+            if file_info.filename.startswith(
+                capture_dir
+            ) and file_info.filename.endswith("drf_properties.h5"):
+                # Extract the DigitalRF data to a temporary directory
+                import os
+                import shutil
+                import tempfile
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Extract all files for this capture
+                    for extract_info in zip_file.infolist():
+                        if extract_info.filename.startswith(capture_dir):
+                            # Create the directory structure
+                            file_path = os.path.join(
+                                temp_dir, extract_info.filename[len(capture_dir) :]
+                            )
+                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                            # Extract the file
+                            with (
+                                zip_file.open(extract_info) as source,
+                                open(file_path, "wb") as target,
+                            ):
+                                shutil.copyfileobj(source, target)
+
+                    # Find the DigitalRF root directory (parent of the channel directory)
+                    for root, dirs, files in os.walk(temp_dir):
+                        if "drf_properties.h5" in files:
+                            drf_data_path = root
+                            break
+
+                    if drf_data_path:
+                        try:
+                            # Process the DigitalRF data
+                            waterfall_result = DigitalRFUtility.to_waterfall_file(
+                                drf_data_path,
+                                subchannel=subchannel,
+                                start_idx=start_idx,
+                                end_idx=end_idx,
+                            )
+
+                            # waterfall_result is now always a list
+                            waterfall_files.extend(waterfall_result)
+
+                        except ValueError as e:
+                            logging.error(
+                                f"Failed to convert DigitalRF data to waterfall format: {e}"
+                            )
+                            continue
+
+                    break  # Only process the first drf_properties.h5 file
+
+        return waterfall_files

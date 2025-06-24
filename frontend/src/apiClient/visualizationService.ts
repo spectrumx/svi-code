@@ -41,7 +41,7 @@ export const VISUALIZATION_TYPES: VisualizationTypeInfo[] = [
     description:
       'View signal data as a scrolling waterfall display with periodogram',
     icon: 'bi-water',
-    supportedCaptureTypes: ['rh'],
+    supportedCaptureTypes: ['rh', 'drf'],
     multipleSelection: false,
   },
 ];
@@ -68,6 +68,7 @@ const VisualizationRecordDetailSchema = BaseVisualizationRecordSchema.extend({
   captures: zod.array(CaptureSchema),
   is_saved: zod.boolean(),
   expiration_date: zod.string().nullable(),
+  total_slices: zod.number().nullable().optional(),
 });
 
 export type VisualizationRecordDetail = zod.infer<
@@ -241,16 +242,35 @@ export const useVisualizationFiles = (vizRecord: VisualizationRecordDetail) => {
 /**
  * Fetches waterfall data for a visualization from the backend.
  * @param id - The ID of the visualization
+ * @param subchannel - Optional subchannel index for DigitalRF captures
+ * @param startIndex - Optional start index for DigitalRF sliding window
+ * @param endIndex - Optional end index for DigitalRF sliding window
  * @returns An array of WaterfallFile objects containing the waterfall data
  * @throws Error if the request fails or the response data is invalid
  */
 export const getWaterfallData = async (
   id: string,
+  subchannel?: number,
+  startIndex?: number,
+  endIndex?: number,
 ): Promise<WaterfallFile[]> => {
   try {
+    const params: Record<string, any> = {};
+    if (subchannel !== undefined) {
+      params.subchannel = subchannel;
+    }
+    if (startIndex !== undefined) {
+      params.start_index = startIndex;
+    }
+    if (endIndex !== undefined) {
+      params.end_index = endIndex;
+    }
+
     const response = await apiClient.get(
       `/api/visualizations/${id}/get_waterfall_data/`,
+      { params },
     );
+
     return zod.array(WaterfallFileSchema).parse(response.data);
   } catch (error) {
     console.error('Error fetching waterfall data:', error);
@@ -258,7 +278,12 @@ export const getWaterfallData = async (
   }
 };
 
-export const useWaterfallData = (id: string) => {
+export const useWaterfallData = (
+  id: string,
+  subchannel?: number,
+  startIndex?: number,
+  endIndex?: number,
+) => {
   const [waterfallData, setWaterfallData] = useState<WaterfallFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,7 +292,12 @@ export const useWaterfallData = (id: string) => {
     const fetchWaterfallData = async () => {
       setIsLoading(true);
       try {
-        const data = await getWaterfallData(id);
+        const data = await getWaterfallData(
+          id,
+          subchannel,
+          startIndex,
+          endIndex,
+        );
         setWaterfallData(data);
       } catch (error) {
         console.error('Error fetching waterfall data:', error);
@@ -277,7 +307,7 @@ export const useWaterfallData = (id: string) => {
       }
     };
     fetchWaterfallData();
-  }, [id]);
+  }, [id, subchannel, startIndex, endIndex]);
 
   return { waterfallData, isLoading, error };
 };
