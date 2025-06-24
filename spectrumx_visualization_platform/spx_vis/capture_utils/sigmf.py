@@ -5,8 +5,6 @@ from datetime import datetime
 
 from django.core.files.uploadedfile import UploadedFile
 
-from jobs.submission import request_job_submission
-
 from .base import CaptureUtility
 
 logger = logging.getLogger(__name__)
@@ -87,38 +85,3 @@ class SigMFUtility(CaptureUtility):
             raise ValueError(error_message)
 
         return ".".join(meta_file.name.split(".")[:-1])
-
-    @staticmethod
-    def submit_spectrogram_job(user, capture_files, width=10, height=10, config=None):
-        """Get the SigMF data and metadata files needed for spectrogram generation.
-
-        Args:
-            capture_files: List of file paths
-            width: Width of the spectrogram in inches
-            height: Height of the spectrogram in inches
-            config: The configuration for the spectrogram job
-
-        Returns:
-            Job: The submitted job
-
-        Raises:
-            ValueError: If the required SigMF files are not found
-        """
-        data_file = next((f for f in capture_files if f.endswith(".sigmf-data")), None)
-        meta_file = next((f for f in capture_files if f.endswith(".sigmf-meta")), None)
-
-        if not data_file or not meta_file:
-            error_message = "Required SigMF files (data and/or metadata) not found"
-            logger.error(error_message)
-            raise ValueError(error_message)
-
-        final_config = {"width": width, "height": height}
-        if config:
-            final_config.update(config)
-
-        return request_job_submission(
-            visualization_type="spectrogram",
-            owner=user,
-            local_files=[data_file, meta_file],
-            config=final_config,
-        )
