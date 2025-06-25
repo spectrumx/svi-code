@@ -1,9 +1,11 @@
 import io
 import json
 import logging
+import tempfile
 import zipfile
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import requests
@@ -20,6 +22,7 @@ from rest_framework.parsers import FormParser
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
+from spectrumx import Client as SDSClient
 
 from jobs.submission import request_job_submission
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
@@ -379,60 +382,65 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         self,
         file: dict,
         capture_id: str,
-        token: str,
+        sds_client: SDSClient,
         seen_filenames: set[str],
         zip_file: zipfile.ZipFile,
+        preserve_structure: bool = False,
     ) -> None:
         """Process a single SDS file and add it to the ZIP archive.
 
         Args:
             file: Dictionary containing file information from SDS
             capture_id: ID of the capture this file belongs to
-            token: SDS API token
+            sds_client: SDS client
             seen_filenames: Set of filenames already processed (to check duplicates)
             zip_file: ZIP archive to add the file to
+            preserve_structure: Whether to preserve the SDS directory structure
 
         Raises:
             ValueError: If duplicate filename is found or file download fails
         """
         file_uuid = file["uuid"]
 
-        response = requests.get(
-            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_uuid}/download",
-            headers={"Authorization": f"Api-Key: {token}"},
-            timeout=60,
-            stream=True,
-        )
-        response.raise_for_status()
-
-        # Get filename from Content-Disposition header or use file ID
-        content_disposition = response.headers.get("Content-Disposition", "")
-        filename = next(
-            (
-                part.split("=")[1].strip('"')
-                for part in content_disposition.split(";")
-                if part.strip().startswith("filename=")
-            ),
-            file["name"],
-        )
-
-        # Check for duplicate filename
-        if filename in seen_filenames:
-            raise ValueError(
-                f"Duplicate filename found for capture with ID {capture_id}. "
-                f"File name: {filename}"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            local_path = Path(temp_dir) / file["name"]
+            sds_file = sds_client.download_file(
+                file_uuid=file_uuid, to_local_path=local_path
             )
-        seen_filenames.add(filename)
+            if not sds_file.exists():
+                raise ValueError(f"Failed to download file {file_uuid}")
 
-        # Add file content directly to ZIP in capture-specific directory
-        zip_path = f"{capture_id}/{filename}"
-        zip_file.writestr(zip_path, response.content)
+            filename = sds_file.name
+            with open(sds_file.local_path, "rb") as file_obj:
+                # Determine the ZIP path based on preserve_structure option
+                if preserve_structure:
+                    # Use the file's directory path from SDS
+                    file_directory = sds_file.directory
+                    # Remove leading slash and create path relative to capture
+                    relative_path = file_directory.lstrip("/")
+                    zip_path = f"{capture_id}/{relative_path}/{filename}"
+                else:
+                    # Original behavior: flatten to capture_id/filename
+                    zip_path = f"{capture_id}/{filename}"
+
+                # Check for duplicate filename (only check basename for flattened structure)
+                check_filename = filename if not preserve_structure else zip_path
+                if check_filename in seen_filenames:
+                    raise ValueError(
+                        f"Duplicate filename found for capture with ID {capture_id}. "
+                        f"File name: {check_filename}"
+                    )
+                seen_filenames.add(check_filename)
+
+                # Add file content directly to ZIP
+                zip_file.write(file_obj, arcname=zip_path)
 
     def _handle_sds_captures(
         self,
         visualization: Visualization,
         request: Request,
         zip_file: zipfile.ZipFile,
+        preserve_structure: bool = False,
     ) -> None:
         """Handle downloading and processing of all SDS captures.
 
@@ -440,6 +448,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             visualization: Visualization model instance
             request: HTTP request object
             zip_file: ZIP archive to add files to
+            preserve_structure: Whether to preserve the SDS directory structure
 
         Raises:
             ValueError: If any capture processing fails
@@ -449,7 +458,8 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         if sds_errors:
             raise ValueError(f"Error getting SDS captures: {sds_errors}")
         logging.info(f"Found {len(sds_captures)} SDS captures")
-        token = request.user.sds_token
+
+        sds_client = request.user.sds_client()
 
         for capture_id in visualization.capture_ids:
             capture = next(
@@ -469,7 +479,12 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 logging.info(f"Downloading file {i + 1} of {len(files)}")
                 try:
                     self._process_sds_file(
-                        file, capture_id, token, seen_filenames, zip_file
+                        file,
+                        capture_id,
+                        sds_client,
+                        seen_filenames,
+                        zip_file,
+                        preserve_structure,
                     )
                 except requests.RequestException as e:
                     raise ValueError(
@@ -600,6 +615,11 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         to the WaterfallFile format expected by the frontend. Currently supports RadioHound
         and DigitalRF captures from SDS sources.
 
+        Query Parameters:
+            subchannel (int): For DigitalRF captures, the subchannel index to process (default: 0)
+            start_index (int): For DigitalRF captures, the start index for the sliding window
+            end_index (int): For DigitalRF captures, the end index for the sliding window
+
         Args:
             request: The HTTP request
             uuid: The UUID of the visualization
@@ -643,7 +663,12 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             zip_buffer = io.BytesIO()
 
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                self._handle_sds_captures(visualization, request, zip_file)
+                if visualization.capture_type == CaptureType.RadioHound:
+                    self._handle_sds_captures(visualization, request, zip_file)
+                elif visualization.capture_type == CaptureType.DigitalRF:
+                    self._handle_sds_captures(
+                        visualization, request, zip_file, preserve_structure=True
+                    )
 
             # Reset buffer position to start
             zip_buffer.seek(0)

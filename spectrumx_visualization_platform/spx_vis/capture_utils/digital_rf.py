@@ -1,5 +1,6 @@
 import logging
 import mimetypes
+import os
 import re
 import zipfile
 from datetime import UTC
@@ -155,6 +156,13 @@ class DigitalRFUtility(CaptureUtility):
             ValueError: If required fields are missing or invalid
         """
         try:
+            # Print the drf_data_path dir tree
+            for root, dirs, files in os.walk(drf_data_path):
+                print(root)
+                print(dirs)
+                print(files)
+                print("-" * 100)
+
             # Initialize DigitalRF reader
             reader = DigitalRFReader(drf_data_path)
             channels = reader.get_channels()

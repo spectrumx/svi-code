@@ -388,9 +388,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
                     local_path.mkdir(parents=True)
 
                     # Download files using the SDS client
-                    from spectrumx_visualization_platform.jobs.tasks import (
-                        safe_sds_client_download,
-                    )
+                    from jobs.tasks import safe_sds_client_download
 
                     file_results = safe_sds_client_download(
                         sds_client, sds_capture.top_level_dir, local_path
