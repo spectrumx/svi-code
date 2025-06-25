@@ -1,5 +1,6 @@
 interface SpectrogramVisualizationProps {
   imageUrl: string | null;
+  isLoading: boolean;
   hasError: boolean;
   onSave?: () => void;
 }
@@ -12,6 +13,7 @@ interface SpectrogramVisualizationProps {
  */
 const SpectrogramVisualization = ({
   imageUrl,
+  isLoading,
   hasError,
   onSave,
 }: SpectrogramVisualizationProps) => {
@@ -53,9 +55,11 @@ const SpectrogramVisualization = ({
         </>
       ) : (
         <p className="text-muted">
-          {hasError
-            ? 'Failed to generate spectrogram'
-            : 'Generate a spectrogram using the controls'}
+          {isLoading
+            ? 'Generating spectrogram...'
+            : hasError
+              ? 'Failed to generate spectrogram'
+              : 'Generate a spectrogram using the controls'}
         </p>
       )}
     </div>

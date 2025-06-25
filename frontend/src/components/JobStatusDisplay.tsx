@@ -15,6 +15,7 @@ const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
   if (!isSubmitting && !jobInfo.job_id && !jobInfo.message) return null;
 
   const variants: { [key: string]: string } = {
+    info: 'info',
     pending: 'info',
     submitted: 'info',
     running: 'primary',
