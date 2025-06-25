@@ -22,9 +22,25 @@ export interface SpectrogramSettings {
   subchannel?: number;
 }
 
+export type JobStatus =
+  | 'pending'
+  | 'submitted'
+  | 'running'
+  | 'fetching_results'
+  | 'completed'
+  | 'failed'
+  | 'error';
+
+export const ACTIVE_JOB_STATUSES: JobStatus[] = [
+  'pending',
+  'submitted',
+  'running',
+  'fetching_results',
+];
+
 export interface JobInfo {
   job_id: number | null;
-  status: string | null;
+  status: JobStatus | null;
   message?: string;
   results_id?: string;
 }
@@ -60,7 +76,7 @@ const SpectrogramVizContainer = ({
       );
       setJobInfo({
         job_id: response.job_id ?? null,
-        status: response.status ?? null,
+        status: response.status as JobStatus | null,
         message: response.message ?? response.detail,
       });
     } catch (error) {
@@ -126,6 +142,12 @@ const SpectrogramVizContainer = ({
     }
   };
 
+  // Request a spectrogram on mount with the default settings
+  useEffect(() => {
+    createSpectrogramJob();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /**
    * Once a job is created, periodically poll the server to check its status
    */
@@ -157,7 +179,7 @@ const SpectrogramVizContainer = ({
           } else {
             setJobInfo((prevStatus) => ({
               ...prevStatus,
-              status: newStatus,
+              status: newStatus as JobStatus | null,
               message: response.message,
               results_id: resultsId,
             }));
@@ -218,6 +240,12 @@ const SpectrogramVizContainer = ({
         <Col>
           <SpectrogramVisualization
             imageUrl={spectrogramUrl}
+            isLoading={
+              isSubmitting ||
+              (jobInfo.status
+                ? ACTIVE_JOB_STATUSES.includes(jobInfo.status)
+                : false)
+            }
             hasError={jobInfo.status === 'failed' || jobInfo.status === 'error'}
             onSave={handleSaveSpectrogram}
           />

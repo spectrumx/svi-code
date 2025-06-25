@@ -205,7 +205,7 @@ def _generate_spectrogram(
     title += rf"window, $\sigma_t={std_dev*short_time_fft.T:g}\,$s)"
     if spectrogram_data.channel_name:
         title = f"{spectrogram_data.channel_name} - {title}"
-    axes.set_title(title)
+    axes.set_title(title, fontsize=16)
 
     # Set axis labels and limits
     axes.set(
@@ -215,6 +215,13 @@ def _generate_spectrogram(
         rf"$\Delta f = {short_time_fft.delta_f:g}\,$Hz)",
         xlim=(time_min, time_max),
     )
+
+    # Increase font sizes for axis labels
+    axes.xaxis.label.set_size(14)
+    axes.yaxis.label.set_size(14)
+
+    # Increase font sizes for tick labels
+    axes.tick_params(axis="both", which="major", labelsize=12)
 
     # Plot spectrogram
     spectrogram_db_limited = 10 * np.log10(np.fmax(spectrogram, 1e-4))
@@ -227,10 +234,16 @@ def _generate_spectrogram(
     )
 
     # Add colorbar
-    figure.colorbar(
+    colorbar = figure.colorbar(
         image,
         label="Power Spectral Density " + r"$20\,\log_{10}|S_x(t, f)|$ in dB",
     )
+
+    # Increase font size for colorbar label and tick labels
+    colorbar.ax.set_ylabel(
+        "Power Spectral Density " + r"$20\,\log_{10}|S_x(t, f)|$ in dB", fontsize=14
+    )
+    colorbar.ax.tick_params(labelsize=12)
 
     figure.tight_layout()
     return figure
