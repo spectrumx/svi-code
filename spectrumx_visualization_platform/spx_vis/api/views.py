@@ -407,33 +407,33 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             sds_file = sds_client.download_file(
                 file_uuid=file_uuid, to_local_path=local_path
             )
-            if not sds_file.exists():
+            if not sds_file.local_path.exists():
                 raise ValueError(f"Failed to download file {file_uuid}")
 
             filename = sds_file.name
-            with open(sds_file.local_path, "rb") as file_obj:
-                # Determine the ZIP path based on preserve_structure option
-                if preserve_structure:
-                    # Use the file's directory path from SDS
-                    file_directory = sds_file.directory
-                    # Remove leading slash and create path relative to capture
-                    relative_path = file_directory.lstrip("/")
-                    zip_path = f"{capture_id}/{relative_path}/{filename}"
-                else:
-                    # Original behavior: flatten to capture_id/filename
-                    zip_path = f"{capture_id}/{filename}"
 
-                # Check for duplicate filename (only check basename for flattened structure)
-                check_filename = filename if not preserve_structure else zip_path
-                if check_filename in seen_filenames:
-                    raise ValueError(
-                        f"Duplicate filename found for capture with ID {capture_id}. "
-                        f"File name: {check_filename}"
-                    )
-                seen_filenames.add(check_filename)
+            # Determine the ZIP path based on preserve_structure option
+            if preserve_structure:
+                # Use the file's directory path from SDS
+                file_directory = sds_file.directory
+                # Remove leading slash and create path relative to capture
+                relative_path = str(file_directory).lstrip("/")
+                zip_path = f"{capture_id}/{relative_path}/{filename}"
+            else:
+                # Original behavior: flatten to capture_id/filename
+                zip_path = f"{capture_id}/{filename}"
 
-                # Add file content directly to ZIP
-                zip_file.write(file_obj, arcname=zip_path)
+            # Check for duplicate filename (only check basename for flattened structure)
+            check_filename = filename if not preserve_structure else zip_path
+            if check_filename in seen_filenames:
+                raise ValueError(
+                    f"Duplicate filename found for capture with ID {capture_id}. "
+                    f"File name: {check_filename}"
+                )
+            seen_filenames.add(check_filename)
+
+            # Add file to ZIP
+            zip_file.write(sds_file.local_path, arcname=zip_path)
 
     def _handle_sds_captures(
         self,
@@ -802,7 +802,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     # Find the DigitalRF root directory (parent of the channel directory)
                     for root, dirs, files in os.walk(temp_dir):
                         if "drf_properties.h5" in files:
-                            drf_data_path = root
+                            drf_data_path = str(Path(root).parent)
                             break
 
                     if drf_data_path:

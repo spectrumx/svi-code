@@ -1,3 +1,4 @@
+import base64
 import logging
 import mimetypes
 import os
@@ -164,7 +165,9 @@ class DigitalRFUtility(CaptureUtility):
                 print("-" * 100)
 
             # Initialize DigitalRF reader
+            logger.info(f"Initializing DigitalRF reader with path: {drf_data_path}")
             reader = DigitalRFReader(drf_data_path)
+            logger.info("Reader initialized successfully")
             channels = reader.get_channels()
 
             if not channels:
@@ -270,8 +273,7 @@ class DigitalRFUtility(CaptureUtility):
 
         # Convert power spectrum to binary string for transmission
         data_bytes = power_spectrum_db.astype(np.float32).tobytes()
-        data_b64 = np.frombuffer(data_bytes, dtype=np.uint8)
-        data_string = "".join([chr(b) for b in data_b64])
+        data_string = base64.b64encode(data_bytes).decode("utf-8")
 
         # Create timestamp from sample index
         timestamp = datetime.fromtimestamp(

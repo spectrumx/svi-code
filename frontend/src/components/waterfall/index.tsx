@@ -143,6 +143,7 @@ interface WaterfallVisualizationProps {
     endIndex: number;
   }) => void;
   totalSlices?: number; // For DigitalRF captures
+  isLoadingWaterfallRange?: boolean; // Loading state for waterfall range changes
 }
 
 const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
@@ -152,11 +153,16 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   onSave,
   onWaterfallRangeChange,
   totalSlices,
+  isLoadingWaterfallRange,
 }: WaterfallVisualizationProps) => {
   const [displayedFileIndex, setDisplayedFileIndex] = useState(
     settings.fileIndex,
   );
-  const [waterfallRange, setWaterfallRange] = useState({
+  const [currentWaterfallRange, setCurrentWaterfallRange] = useState({
+    startIndex: 0,
+    endIndex: 0,
+  });
+  const [desiredWaterfallRange, setDesiredWaterfallRange] = useState({
     startIndex: 0,
     endIndex: 0,
   });
@@ -551,20 +557,44 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
   useEffect(() => {
     // Process single file for periodogram
+    if (
+      isLoadingWaterfallRange ||
+      !_.isEqual(desiredWaterfallRange, currentWaterfallRange)
+    )
+      return;
+
     processPeriodogramData(
       waterfallFiles[settings.fileIndex],
       processedData[settings.fileIndex],
     );
-  }, [waterfallFiles, processedData, settings.fileIndex]);
+  }, [
+    waterfallFiles,
+    processedData,
+    settings.fileIndex,
+    isLoadingWaterfallRange,
+    desiredWaterfallRange,
+    currentWaterfallRange,
+  ]);
 
+  // Determine whether to update the waterfall range based on the current file
+  // index, and if so, process the new waterfall data
   useEffect(() => {
+    if (isLoadingWaterfallRange) return;
+
+    if (!_.isEqual(desiredWaterfallRange, currentWaterfallRange)) {
+      console.log('Processing waterfall data after loading new files');
+      processWaterfallData(waterfallFiles, processedData);
+      setCurrentWaterfallRange(desiredWaterfallRange);
+      return;
+    }
+
     const pageSize = WATERFALL_MAX_ROWS;
     const totalFiles = totalSlices || waterfallFiles.length;
 
     // Check if the requested index is outside current window
     const isOutsideCurrentWindow =
-      settings.fileIndex < waterfallRange.startIndex ||
-      settings.fileIndex >= waterfallRange.endIndex;
+      settings.fileIndex < currentWaterfallRange.startIndex ||
+      settings.fileIndex >= currentWaterfallRange.endIndex;
 
     if (isOutsideCurrentWindow) {
       // Calculate new start index only when moving outside current window
@@ -576,18 +606,29 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
       // Only reprocess waterfall if the range has changed
       if (
-        startIndex !== waterfallRange.startIndex ||
-        endIndex !== waterfallRange.endIndex
+        startIndex !== currentWaterfallRange.startIndex ||
+        endIndex !== currentWaterfallRange.endIndex
       ) {
-        const relevantFiles = waterfallFiles.slice(startIndex, endIndex);
-        const relevantProcessedValues = processedData.slice(
-          startIndex,
-          endIndex,
-        );
-        processWaterfallData(relevantFiles, relevantProcessedValues);
-        setWaterfallRange({ startIndex, endIndex });
-        if (onWaterfallRangeChange) {
-          onWaterfallRangeChange({ startIndex, endIndex });
+        if (totalSlices && waterfallFiles.length < totalSlices) {
+          // If we don't have all the files, we need to get the correct files
+          setDesiredWaterfallRange({ startIndex, endIndex });
+          if (onWaterfallRangeChange) {
+            onWaterfallRangeChange({ startIndex, endIndex });
+          }
+        } else {
+          // If we have all the files, we can just use the waterfallFiles
+          const relevantFiles = waterfallFiles.slice(startIndex, endIndex);
+          const relevantProcessedValues = processedData.slice(
+            startIndex,
+            endIndex,
+          );
+          setDesiredWaterfallRange({ startIndex, endIndex });
+          setCurrentWaterfallRange({ startIndex, endIndex });
+          if (onWaterfallRangeChange) {
+            onWaterfallRangeChange({ startIndex, endIndex });
+          }
+          console.log('Processing waterfall data after simple range change');
+          processWaterfallData(relevantFiles, relevantProcessedValues);
         }
       }
     }
@@ -595,7 +636,9 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     waterfallFiles,
     processedData,
     settings.fileIndex,
-    waterfallRange,
+    currentWaterfallRange,
+    desiredWaterfallRange,
+    isLoadingWaterfallRange,
     onWaterfallRangeChange,
     totalSlices,
   ]);
@@ -713,6 +756,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
               paddingBottom: 0,
             }}
             yAxisTitle="dBm per bin"
+            isLoading={isLoadingWaterfallRange}
           />
           <WaterfallPlot
             scan={scan}
@@ -722,10 +766,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             setResetScale={setResetScale}
             currentFileIndex={settings.fileIndex}
             onRowSelect={handleRowSelect}
-            fileRange={waterfallRange}
+            fileRange={currentWaterfallRange}
             totalFiles={waterfallFiles.length}
             colorLegendWidth={PLOTS_LEFT_MARGIN}
             indexLegendWidth={PLOTS_RIGHT_MARGIN}
+            isLoading={isLoadingWaterfallRange}
           />
         </div>
       </div>
