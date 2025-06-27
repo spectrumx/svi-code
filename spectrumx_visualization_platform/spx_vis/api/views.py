@@ -442,7 +442,9 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             ValueError: If any capture processing fails
         """
         logging.info("Getting SDS captures")
-        sds_captures, sds_errors = get_sds_captures(request.user)
+        sds_captures, sds_errors = get_sds_captures(
+            request.user, visualization.capture_ids
+        )
         if sds_errors:
             raise ValueError(f"Error getting SDS captures: {sds_errors}")
         logging.info(f"Found {len(sds_captures)} SDS captures")
