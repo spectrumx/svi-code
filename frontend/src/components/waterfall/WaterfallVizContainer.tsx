@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Alert, Row, Col } from 'react-bootstrap';
 
 import { WaterfallVisualization } from '.';
@@ -12,19 +12,62 @@ export interface WaterfallSettings {
   fileIndex: number;
   isPlaying: boolean;
   playbackSpeed: string;
+  subchannel?: number;
 }
 
 export const WaterfallVizContainer = ({
   visualizationRecord,
 }: VizContainerProps) => {
-  const { waterfallData, isLoading, error } = useWaterfallData(
-    visualizationRecord.uuid,
-  );
   const [settings, setSettings] = useState<WaterfallSettings>({
     fileIndex: 0,
     isPlaying: false,
     playbackSpeed: '1 fps',
+    subchannel: 0,
   });
+
+  // Track the current window range for DigitalRF captures (from WaterfallVisualization)
+  const [waterfallRange, setWaterfallRange] = useState({
+    startIndex: 0,
+    endIndex: 80, // WATERFALL_MAX_ROWS
+  });
+
+  // Track if we're loading new waterfall data due to range changes
+  const [isLoadingWaterfallRange, setIsLoadingWaterfallRange] = useState(false);
+
+  // Determine if this is a DigitalRF visualization
+  const isDigitalRF = visualizationRecord.capture_type === 'drf';
+
+  const { waterfallData, isLoading, error } = useWaterfallData(
+    visualizationRecord.uuid,
+    settings.subchannel,
+    isDigitalRF ? waterfallRange.startIndex : undefined,
+    isDigitalRF ? waterfallRange.endIndex : undefined,
+  );
+
+  // Callback to receive waterfall range updates from WaterfallVisualization
+  const handleWaterfallRangeChange = useCallback(
+    (range: { startIndex: number; endIndex: number }) => {
+      if (isDigitalRF) {
+        // Set loading state when range changes
+        setIsLoadingWaterfallRange(true);
+        setWaterfallRange(range);
+      }
+    },
+    [isDigitalRF],
+  );
+
+  // Clear loading state when new data arrives or when there's an error
+  useEffect(() => {
+    if (isLoadingWaterfallRange) {
+      if (!isLoading && waterfallData.length > 0) {
+        // Data loaded successfully
+        setIsLoadingWaterfallRange(false);
+      } else if (error) {
+        // Error occurred, clear loading state
+        setIsLoadingWaterfallRange(false);
+      }
+    }
+  }, [isLoadingWaterfallRange, isLoading, waterfallData.length, error]);
 
   if (isLoading) {
     return <LoadingBlock message="Getting visualization files..." />;
@@ -50,6 +93,9 @@ export const WaterfallVizContainer = ({
   const waterfallFiles = waterfallData.sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
+
+  // Extract subchannel information from the first file if available
+  const numSubchannels = waterfallFiles[0]?.custom_fields?.num_subchannels;
 
   const handleSaveWaterfall = async () => {
     try {
@@ -149,18 +195,53 @@ export const WaterfallVizContainer = ({
             <WaterfallControls
               settings={settings}
               setSettings={setSettings}
-              numFiles={waterfallFiles.length}
+              numFiles={
+                isDigitalRF
+                  ? visualizationRecord.total_slices || waterfallFiles.length
+                  : waterfallFiles.length
+              }
+              numSubchannels={numSubchannels}
             />
           </div>
         </Col>
         <Col>
           <Row>
-            <WaterfallVisualization
-              waterfallFiles={waterfallFiles}
-              settings={settings}
-              setSettings={setSettings}
-              onSave={handleSaveWaterfall}
-            />
+            <div style={{ position: 'relative' }}>
+              <WaterfallVisualization
+                waterfallFiles={waterfallFiles}
+                settings={settings}
+                setSettings={setSettings}
+                onSave={handleSaveWaterfall}
+                onWaterfallRangeChange={handleWaterfallRangeChange}
+                totalSlices={
+                  isDigitalRF
+                    ? visualizationRecord.total_slices || undefined
+                    : undefined
+                }
+                isLoadingWaterfallRange={isLoadingWaterfallRange}
+              />
+              {isLoadingWaterfallRange && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    backdropFilter: 'blur(2px)',
+                  }}
+                >
+                  <LoadingBlock
+                    message={`Loading waterfall data for range ${waterfallRange.startIndex} - ${waterfallRange.endIndex}`}
+                  />
+                </div>
+              )}
+            </div>
           </Row>
           <Row>
             <ScanDetailsTable

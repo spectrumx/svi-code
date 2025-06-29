@@ -1,3 +1,5 @@
+import LoadingBlock from '../LoadingBlock';
+
 // @ts-ignore
 import CanvasJSReact from '@canvasjs/react-charts';
 import { ChartOptions } from 'canvasjs';
@@ -8,12 +10,14 @@ interface PeriodogramProps {
   chartOptions: ChartOptions;
   chartContainerStyle?: React.CSSProperties;
   yAxisTitle?: string;
+  isLoading?: boolean;
 }
 
 function Periodogram({
   chartOptions,
   chartContainerStyle,
   yAxisTitle,
+  isLoading = false,
 }: PeriodogramProps) {
   const yAxisOptions = chartOptions.axisY;
   const plotLeftMargin =
@@ -43,6 +47,24 @@ function Periodogram({
         options={chartOptions}
         containerProps={chartContainerStyle}
       />
+      {isLoading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+          }}
+        >
+          <LoadingBlock message="Loading periodogram data" />
+        </div>
+      )}
     </div>
   );
 }

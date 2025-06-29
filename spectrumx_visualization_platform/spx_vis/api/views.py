@@ -1,9 +1,11 @@
 import io
 import json
 import logging
+import tempfile
 import zipfile
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import requests
@@ -20,6 +22,7 @@ from rest_framework.parsers import FormParser
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
+from spectrumx import Client as SDSClient
 
 from jobs.submission import request_job_submission
 from spectrumx_visualization_platform.spx_vis.api.serializers import CaptureSerializer
@@ -32,6 +35,9 @@ from spectrumx_visualization_platform.spx_vis.api.serializers import (
 )
 from spectrumx_visualization_platform.spx_vis.api.utils import datetime_check
 from spectrumx_visualization_platform.spx_vis.api.utils import filter_capture
+from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
+    DigitalRFUtility,
+)
 from spectrumx_visualization_platform.spx_vis.capture_utils.radiohound import (
     RadioHoundUtility,
 )
@@ -376,60 +382,65 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         self,
         file: dict,
         capture_id: str,
-        token: str,
+        sds_client: SDSClient,
         seen_filenames: set[str],
         zip_file: zipfile.ZipFile,
+        preserve_structure: bool = False,
     ) -> None:
         """Process a single SDS file and add it to the ZIP archive.
 
         Args:
             file: Dictionary containing file information from SDS
             capture_id: ID of the capture this file belongs to
-            token: SDS API token
+            sds_client: SDS client
             seen_filenames: Set of filenames already processed (to check duplicates)
             zip_file: ZIP archive to add the file to
+            preserve_structure: Whether to preserve the SDS directory structure
 
         Raises:
             ValueError: If duplicate filename is found or file download fails
         """
         file_uuid = file["uuid"]
 
-        response = requests.get(
-            f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/files/{file_uuid}/download",
-            headers={"Authorization": f"Api-Key: {token}"},
-            timeout=60,
-            stream=True,
-        )
-        response.raise_for_status()
-
-        # Get filename from Content-Disposition header or use file ID
-        content_disposition = response.headers.get("Content-Disposition", "")
-        filename = next(
-            (
-                part.split("=")[1].strip('"')
-                for part in content_disposition.split(";")
-                if part.strip().startswith("filename=")
-            ),
-            file["name"],
-        )
-
-        # Check for duplicate filename
-        if filename in seen_filenames:
-            raise ValueError(
-                f"Duplicate filename found for capture with ID {capture_id}. "
-                f"File name: {filename}"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            local_path = Path(temp_dir) / file["name"]
+            sds_file = sds_client.download_file(
+                file_uuid=file_uuid, to_local_path=local_path
             )
-        seen_filenames.add(filename)
+            if not sds_file.local_path.exists():
+                raise ValueError(f"Failed to download file {file_uuid}")
 
-        # Add file content directly to ZIP in capture-specific directory
-        zip_path = f"{capture_id}/{filename}"
-        zip_file.writestr(zip_path, response.content)
+            filename = sds_file.name
+
+            # Determine the ZIP path based on preserve_structure option
+            if preserve_structure:
+                # Use the file's directory path from SDS
+                file_directory = sds_file.directory
+                # Remove leading slash and create path relative to capture
+                relative_path = str(file_directory).lstrip("/")
+                zip_path = f"{capture_id}/{relative_path}/{filename}"
+            else:
+                # Original behavior: flatten to capture_id/filename
+                zip_path = f"{capture_id}/{filename}"
+
+            # Check for duplicate filename (only check basename for flattened structure)
+            check_filename = filename if not preserve_structure else zip_path
+            if check_filename in seen_filenames:
+                raise ValueError(
+                    f"Duplicate filename found for capture with ID {capture_id}. "
+                    f"File name: {check_filename}"
+                )
+            seen_filenames.add(check_filename)
+
+            # Add file to ZIP
+            zip_file.write(sds_file.local_path, arcname=zip_path)
 
     def _handle_sds_captures(
         self,
         visualization: Visualization,
         request: Request,
         zip_file: zipfile.ZipFile,
+        preserve_structure: bool = False,
     ) -> None:
         """Handle downloading and processing of all SDS captures.
 
@@ -437,6 +448,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             visualization: Visualization model instance
             request: HTTP request object
             zip_file: ZIP archive to add files to
+            preserve_structure: Whether to preserve the SDS directory structure
 
         Raises:
             ValueError: If any capture processing fails
@@ -448,7 +460,8 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         if sds_errors:
             raise ValueError(f"Error getting SDS captures: {sds_errors}")
         logging.info(f"Found {len(sds_captures)} SDS captures")
-        token = request.user.sds_token
+
+        sds_client = request.user.sds_client()
 
         for capture_id in visualization.capture_ids:
             capture = next(
@@ -468,7 +481,12 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 logging.info(f"Downloading file {i + 1} of {len(files)}")
                 try:
                     self._process_sds_file(
-                        file, capture_id, token, seen_filenames, zip_file
+                        file,
+                        capture_id,
+                        sds_client,
+                        seen_filenames,
+                        zip_file,
+                        preserve_structure,
                     )
                 except requests.RequestException as e:
                     raise ValueError(
@@ -595,9 +613,14 @@ class VisualizationViewSet(viewsets.ModelViewSet):
     def get_waterfall_data(self, request: Request, uuid=None) -> Response:
         """Get waterfall data for a visualization.
 
-        This endpoint retrieves files from the visualization's SDS captures and converts them
+        This endpoint retrieves files from the visualization's captures and converts them
         to the WaterfallFile format expected by the frontend. Currently supports RadioHound
-        captures from SDS sources.
+        and DigitalRF captures from SDS sources.
+
+        Query Parameters:
+            subchannel (int): For DigitalRF captures, the subchannel index to process (default: 0)
+            start_index (int): For DigitalRF captures, the start index for the sliding window
+            end_index (int): For DigitalRF captures, the end index for the sliding window
 
         Args:
             request: The HTTP request
@@ -612,12 +635,15 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """
         visualization: Visualization = self.get_object()
 
-        # Currently only support RadioHound captures
-        if visualization.capture_type != CaptureType.RadioHound:
+        # Support RadioHound and DigitalRF captures
+        if visualization.capture_type not in [
+            CaptureType.RadioHound,
+            CaptureType.DigitalRF,
+        ]:
             return Response(
                 {
                     "status": "error",
-                    "message": "Only RadioHound captures are currently supported for waterfall visualization",
+                    "message": "Only RadioHound and DigitalRF captures are currently supported for waterfall visualization",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -639,36 +665,39 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             zip_buffer = io.BytesIO()
 
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                self._handle_sds_captures(visualization, request, zip_file)
+                if visualization.capture_type == CaptureType.RadioHound:
+                    self._handle_sds_captures(visualization, request, zip_file)
+                elif visualization.capture_type == CaptureType.DigitalRF:
+                    self._handle_sds_captures(
+                        visualization, request, zip_file, preserve_structure=True
+                    )
 
             # Reset buffer position to start
             zip_buffer.seek(0)
 
-            # Process the ZIP file
+            # Process the ZIP file based on capture type
             with zipfile.ZipFile(zip_buffer, "r") as zip_file:
-                for capture_id in visualization.capture_ids:
-                    capture_dir = f"{capture_id}/"
-                    for file_info in zip_file.infolist():
-                        if file_info.filename.startswith(
-                            capture_dir
-                        ) and file_info.filename.endswith(".json"):
-                            with zip_file.open(file_info) as f:
-                                try:
-                                    rh_data = json.load(f)
-                                    waterfall_file = (
-                                        RadioHoundUtility.to_waterfall_file(rh_data)
-                                    )
-                                    waterfall_files.append(waterfall_file)
-                                except json.JSONDecodeError as e:
-                                    logging.error(
-                                        f"Failed to parse JSON from file {file_info.filename}: {e}"
-                                    )
-                                    continue
-                                except ValueError as e:
-                                    logging.error(
-                                        f"Failed to convert file {file_info.filename} to waterfall format: {e}"
-                                    )
-                                    continue
+                if visualization.capture_type == CaptureType.RadioHound:
+                    waterfall_files = self._process_radiohound_files(
+                        zip_file, visualization.capture_ids
+                    )
+                elif visualization.capture_type == CaptureType.DigitalRF:
+                    # Get subchannel and window parameters from query parameters
+                    subchannel = int(request.query_params.get("subchannel", 0))
+                    start_index = request.query_params.get("start_index")
+                    end_index = request.query_params.get("end_index")
+
+                    # Convert to integers if provided
+                    start_idx = int(start_index) if start_index is not None else None
+                    end_idx = int(end_index) if end_index is not None else None
+
+                    waterfall_files = self._process_digitalrf_files(
+                        zip_file,
+                        visualization.capture_ids,
+                        subchannel,
+                        start_idx,
+                        end_idx,
+                    )
 
             return Response(waterfall_files)
 
@@ -678,3 +707,125 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 {"error": f"Failed to process waterfall data: {e}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    def _process_radiohound_files(
+        self, zip_file: zipfile.ZipFile, capture_ids: list[str]
+    ) -> list[dict]:
+        """Process RadioHound files from ZIP archive.
+
+        Args:
+            zip_file: ZIP file containing RadioHound data
+            capture_ids: List of capture IDs to process (only one capture supported)
+
+        Returns:
+            list[dict]: List of WaterfallFile objects
+        """
+        waterfall_files = []
+
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture_dir = f"{capture_id}/"
+
+        for file_info in zip_file.infolist():
+            if file_info.filename.startswith(
+                capture_dir
+            ) and file_info.filename.endswith(".json"):
+                with zip_file.open(file_info) as f:
+                    try:
+                        rh_data = json.load(f)
+                        waterfall_file = RadioHoundUtility.to_waterfall_file(rh_data)
+                        waterfall_files.append(waterfall_file)
+                    except json.JSONDecodeError as e:
+                        logging.error(
+                            f"Failed to parse JSON from file {file_info.filename}: {e}"
+                        )
+                        continue
+                    except ValueError as e:
+                        logging.error(
+                            f"Failed to convert file {file_info.filename} to waterfall format: {e}"
+                        )
+                        continue
+
+        return waterfall_files
+
+    def _process_digitalrf_files(
+        self,
+        zip_file: zipfile.ZipFile,
+        capture_ids: list[str],
+        subchannel: int,
+        start_idx: int | None = None,
+        end_idx: int | None = None,
+    ) -> list[dict]:
+        """Process DigitalRF files from ZIP archive.
+
+        Args:
+            zip_file: ZIP file containing DigitalRF data
+            capture_ids: List of capture IDs to process (only one capture supported)
+            subchannel: Subchannel index to process
+            start_idx: Start index for the sliding window
+            end_idx: End index for the sliding window
+
+        Returns:
+            list[dict]: List of WaterfallFile objects
+        """
+        waterfall_files = []
+
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture_dir = f"{capture_id}/"
+
+        # Find the DigitalRF data directory
+        for file_info in zip_file.infolist():
+            if file_info.filename.startswith(
+                capture_dir
+            ) and file_info.filename.endswith("drf_properties.h5"):
+                # Extract the DigitalRF data to a temporary directory
+                import os
+                import shutil
+                import tempfile
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Extract all files for this capture
+                    for extract_info in zip_file.infolist():
+                        if extract_info.filename.startswith(capture_dir):
+                            # Create the directory structure
+                            file_path = os.path.join(
+                                temp_dir, extract_info.filename[len(capture_dir) :]
+                            )
+                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                            # Extract the file
+                            with (
+                                zip_file.open(extract_info) as source,
+                                open(file_path, "wb") as target,
+                            ):
+                                shutil.copyfileobj(source, target)
+
+                    # Find the DigitalRF root directory (parent of the channel directory)
+                    for root, dirs, files in os.walk(temp_dir):
+                        if "drf_properties.h5" in files:
+                            drf_data_path = str(Path(root).parent)
+                            break
+
+                    if drf_data_path:
+                        try:
+                            # Process the DigitalRF data
+                            waterfall_result = DigitalRFUtility.to_waterfall_file(
+                                drf_data_path,
+                                subchannel=subchannel,
+                                start_idx=start_idx,
+                                end_idx=end_idx,
+                            )
+
+                            # waterfall_result is now always a list
+                            waterfall_files.extend(waterfall_result)
+
+                        except ValueError as e:
+                            logging.error(
+                                f"Failed to convert DigitalRF data to waterfall format: {e}"
+                            )
+                            continue
+
+                    break  # Only process the first drf_properties.h5 file
+
+        return waterfall_files
