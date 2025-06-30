@@ -7,12 +7,14 @@ from spectrumx_visualization_platform.spx_vis.models import CaptureType
 from spectrumx_visualization_platform.users.models import User
 
 
-def get_sds_captures(user: User) -> tuple[list[dict], list[str]]:
-    """Get SDS captures for the current user.
+def get_sds_captures(
+    user: User, capture_ids: list[str] | None = None
+) -> tuple[list[dict], list[str]]:
+    """Get SDS captures for the current user, filtered by capture IDs.
 
     Args:
         user: The user object
-
+        capture_ids (optional): List of capture IDs to filter by
     Returns:
         tuple: A tuple containing:
             - List of successfully formatted captures
@@ -27,6 +29,9 @@ def get_sds_captures(user: User) -> tuple[list[dict], list[str]]:
         captures = [capture.model_dump() for capture in captures_response]
 
         for capture in captures:
+            if capture_ids and str(capture["uuid"]) not in capture_ids:
+                continue
+
             try:
                 if capture["capture_type"] == CaptureType.RadioHound:
                     formatted_capture = format_sds_rh_capture(capture, user.id)
@@ -101,7 +106,6 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
         dict: Formatted capture data
     """
     capture_props = sds_capture["capture_props"]
-    custom_attrs = capture_props["custom_attrs"]
 
     start_bound: int = capture_props["start_bound"]
     end_bound: int = capture_props["end_bound"]
@@ -109,7 +113,12 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
     timestamp = datetime.fromtimestamp(start_bound, tz=UTC).isoformat()
     end_time = datetime.fromtimestamp(end_bound, tz=UTC).isoformat()
 
-    center_freq: int = capture_props["center_freq"]
+    center_freq = capture_props.get("center_frequencies", [None])[
+        0
+    ] or capture_props.get("center_freq", None)
+    if center_freq is None:
+        raise ValueError(f"No center frequency found for capture {sds_capture['uuid']}")
+
     bandwidth: int | None = capture_props.get("bandwidth", None)
     if not bandwidth:
         bandwidth = capture_props.get("samples_per_second", None)
@@ -145,5 +154,4 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
         "max_freq": fmax,
         "scan_time": scan_time,
         "end_time": end_time,
-        "subchannels": custom_attrs["num_subchannels"],
     }

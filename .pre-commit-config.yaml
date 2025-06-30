@@ -20,12 +20,13 @@ repos:
       - id: check-docstring-first
       - id: detect-private-key
 
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8
-    hooks:
-      - id: prettier
-        args: ['--tab-width', '2', '--single-quote']
-        exclude: 'spectrumx_visualization_platform/templates/'
+  ## This plugin is no longer supported
+  # - repo: https://github.com/pre-commit/mirrors-prettier
+  #   rev: v4.0.0-alpha.8
+  #   hooks:
+  #     - id: prettier
+  #       args: ['--tab-width', '2', '--single-quote']
+  #       exclude: 'spectrumx_visualization_platform/templates/'
 
   - repo: https://github.com/adamchainz/django-upgrade
     rev: '1.22.1'
