@@ -106,7 +106,6 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
         dict: Formatted capture data
     """
     capture_props = sds_capture["capture_props"]
-    custom_attrs = capture_props["custom_attrs"]
 
     start_bound: int = capture_props["start_bound"]
     end_bound: int = capture_props["end_bound"]
@@ -114,7 +113,12 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
     timestamp = datetime.fromtimestamp(start_bound, tz=UTC).isoformat()
     end_time = datetime.fromtimestamp(end_bound, tz=UTC).isoformat()
 
-    center_freq: int = capture_props["center_frequencies"][0]
+    center_freq = capture_props.get("center_frequencies", [None])[
+        0
+    ] or capture_props.get("center_freq", None)
+    if center_freq is None:
+        raise ValueError(f"No center frequency found for capture {sds_capture['uuid']}")
+
     bandwidth: int | None = capture_props.get("bandwidth", None)
     if not bandwidth:
         bandwidth = capture_props.get("samples_per_second", None)
@@ -150,5 +154,4 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
         "max_freq": fmax,
         "scan_time": scan_time,
         "end_time": end_time,
-        "subchannels": custom_attrs["num_subchannels"],
     }
