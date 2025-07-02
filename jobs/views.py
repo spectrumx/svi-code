@@ -5,6 +5,7 @@ This module provides endpoints for job submission, status updates, metadata retr
 and data management. All endpoints requiring authentication use Token Authentication.
 """
 
+import traceback
 from datetime import datetime
 from typing import Literal
 from typing import TypedDict
@@ -126,7 +127,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
 
     Args:
         request: HTTP request object
-        id: Job ID to retrieve metadata for
+        job_id: Job ID to retrieve metadata for
 
     Returns:
         JsonResponse: Job metadata including type, status, timestamps, and
@@ -144,6 +145,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
 
         # make sure the owner of this job is the person requesting it
         if job.owner != request.user:
+            print(f"Job {job_id}: Access denied for user {request.user.id}")
             raise_does_not_exist(Job)
 
         # Get associated files
@@ -177,14 +179,24 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
                 },
             },
         )
-
     except Job.DoesNotExist:
+        print(f"Job {job_id}: Job not found in database")
         return JsonResponse(
             {
                 "status": "error",
                 "message": "Job not found",
             },
             status=404,
+        )
+    except Exception as e:
+        print(f"Error getting job metadata for job {job_id}: {e}")
+        print(traceback.format_exc())
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Error getting job metadata",
+            },
+            status=500,
         )
 
 

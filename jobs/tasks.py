@@ -1,9 +1,12 @@
 import logging
 import os
 import shutil
+import time
 from pathlib import Path
 
 from celery import shared_task
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import connection
 from spectrumx import Client as SDSClient
 from spectrumx.errors import Result
 from spectrumx.models.captures import CaptureType
@@ -15,13 +18,78 @@ from .io import get_job_file
 from .io import get_job_meta
 from .io import post_results
 from .io import update_job_status
+from .models import Job
 from .visualizations.spectrogram import make_spectrogram
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
 def submit_job(job_id: int, token: str, config: dict | None = None):
-    # The very first thing we should do is update the Job status to "running"
-    update_job_status(job_id, "running", token)
+    """
+    Submit a job for processing.
+
+    Args:
+        job_id: The ID of the job to process
+        token: Authentication token for API access
+        config: Optional configuration dictionary
+    """
+    logger.info(f"Starting job {job_id} processing")
+
+    # Ensure we have a fresh database connection
+    connection.close()
+
+    # First, verify the job exists in the database with retry logic
+    max_retries = 5
+    retry_delay = 0.5
+
+    for attempt in range(max_retries):
+        try:
+            job = Job.objects.get(id=job_id)
+            logger.info(
+                f"Job {job_id} found in database with status '{job.status}' on attempt {attempt + 1}"
+            )
+            break
+        except ObjectDoesNotExist:
+            if attempt < max_retries - 1:
+                logger.warning(
+                    f"Job {job_id} not found in database on attempt {attempt + 1}, retrying in {retry_delay}s..."
+                )
+                time.sleep(retry_delay)
+                retry_delay *= 1.5  # Gradual backoff
+            else:
+                logger.error(
+                    f"Job {job_id} does not exist in database after {max_retries} attempts - this indicates a transaction isolation issue"
+                )
+                return
+        except Exception as e:
+            logger.error(f"Error accessing job {job_id} in database: {e}")
+            return
+
+    # Retry logic for status update - sometimes the job might not be immediately
+    # visible due to database transaction isolation
+    max_retries = 3
+    retry_delay = 0.5
+
+    for attempt in range(max_retries):
+        if update_job_status(job_id, "running", token):
+            logger.info(
+                f"Successfully updated job {job_id} status to 'running' on attempt {attempt + 1}"
+            )
+            break
+        elif attempt < max_retries - 1:
+            logger.warning(
+                f"Failed to update job {job_id} status to 'running' on attempt {attempt + 1}, retrying in {retry_delay}s..."
+            )
+            time.sleep(retry_delay)
+            retry_delay *= 2  # Exponential backoff
+        else:
+            logger.error(
+                f"Failed to update job {job_id} status to 'running' after {max_retries} attempts. Aborting job."
+            )
+            # Don't raise an exception here as it might cause the task to retry
+            # Instead, we'll let the job remain in its current state
+            return
 
     # The next thing we do is get the job information. This will tell us:
     # 1. What type of visualization we should do
@@ -29,6 +97,7 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
     job_metadata = get_job_meta(job_id, token)
     if job_metadata is None:
         error_msg = "Could not get job information."
+        logger.error(f"Job {job_id}: {error_msg}")
         update_job_status(
             job_id,
             "failed",
@@ -47,25 +116,32 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
         try:
             # Get user from token
             user = User.objects.get(uuid=job_metadata["data"]["user_id"])
+            logger.info(
+                f"Job {job_id}: Downloading SDS files for capture {config['capture_ids']}"
+            )
             file_paths = download_sds_files(
                 job_id, token, config["capture_ids"], user, config["capture_type"]
             )
+            logger.info(f"Job {job_id}: Successfully downloaded SDS files")
         except Exception as e:
             error_msg = f"Error downloading SDS data: {e!s}"
+            logger.error(f"Job {job_id}: {error_msg}")
             update_job_status(job_id, "failed", token, info=error_msg)
             raise ValueError(error_msg)
 
     # Process local files
     for f in job_metadata["data"]["local_files"]:
+        logger.info(f"Job {job_id}: Fetching local file {f['name']}")
         data = get_job_file(f["id"], token, "local")
 
         if data is None:
-            error_msg = "Could not fetch local file."
+            error_msg = f"Could not fetch local file {f['name']}."
+            logger.error(f"Job {job_id}: {error_msg}")
             update_job_status(
                 job_id,
                 "failed",
                 token,
-                info="Could not fetch local file.",
+                info=error_msg,
             )
             raise ValueError(error_msg)
 
@@ -73,25 +149,31 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
         with file_path.open("wb") as new_file:
             new_file.write(data)
         file_paths.append(str(file_path))
+        logger.info(f"Job {job_id}: Successfully saved local file {f['name']}")
 
     if job_metadata["data"]["type"] == "spectrogram":
         try:
+            logger.info(f"Job {job_id}: Generating spectrogram")
             figure = make_spectrogram(
                 job_metadata,
                 config,
                 file_paths=file_paths,
             )
             figure.savefig(f"jobs/job_results/{job_id}.png")
+            logger.info(f"Job {job_id}: Successfully generated spectrogram")
         except Exception as e:
+            error_msg = f"Could not make spectrogram: {e}"
+            logger.error(f"Job {job_id}: {error_msg}")
             update_job_status(
                 job_id,
                 "failed",
                 token,
-                info=f"Could not make spectrogram: {e}",
+                info=error_msg,
             )
             raise
     else:
         error_msg = f"Unknown job type: {job_metadata['data']['type']}"
+        logger.error(f"Job {job_id}: {error_msg}")
         update_job_status(
             job_id,
             "failed",
@@ -103,6 +185,7 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
     # Let's say the code dumped to a local file and we want to upload that.
     # We can do either that, or have an in-memory file. Either way,
     # "results_file" will be our file contents (byte format)
+    logger.info(f"Job {job_id}: Uploading results")
     with Path.open(f"jobs/job_results/{job_id}.png", "rb") as results_file:
         # Post results -- we can make this call as many times as needed to get
         # results to send to the main system.
@@ -119,22 +202,46 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
 
     if not response:
         error_msg = "Could not post results."
+        logger.error(f"Job {job_id}: {error_msg}")
         update_job_status(job_id, "failed", token, info=error_msg)
         raise ValueError(error_msg)
 
     # Clean up job files
+    logger.info(f"Job {job_id}: Cleaning up temporary files")
     cleanup_job_files(job_id)
 
     # Update the job as complete
     info = {
         "results_id": response["file_ids"]["figure.png"],
     }
-    update_job_status(job_id, "completed", token, info=info)
+    logger.info(f"Job {job_id}: Marking job as completed")
+    if not update_job_status(job_id, "completed", token, info=info):
+        logger.error(
+            f"Job {job_id}: Failed to update status to completed, but job processing succeeded"
+        )
+    else:
+        logger.info(f"Job {job_id}: Successfully completed")
 
 
 @shared_task
 def error_handler(request, exc, _traceback):
-    update_job_status(request.job_id, "failed", request.token, info=str(exc))
+    """
+    Handle errors that occur during job processing.
+
+    Args:
+        request: The Celery request object containing job_id and token
+        exc: The exception that occurred
+        _traceback: The traceback (unused)
+    """
+    logger.error(f"Job {request.job_id}: Error handler called with exception: {exc}")
+    if not update_job_status(request.job_id, "failed", request.token, info=str(exc)):
+        logger.error(
+            f"Job {request.job_id}: Failed to update status to failed in error handler"
+        )
+    else:
+        logger.info(
+            f"Job {request.job_id}: Successfully updated status to failed in error handler"
+        )
 
 
 def download_sds_files(

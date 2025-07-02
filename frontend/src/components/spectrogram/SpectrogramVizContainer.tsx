@@ -8,6 +8,8 @@ import {
   postSpectrogramJob,
   getJobMetadata,
   getJobResults,
+  JobStatus,
+  ACTIVE_JOB_STATUSES,
 } from '../../apiClient/jobService';
 import { VizContainerProps } from '../types';
 
@@ -21,22 +23,6 @@ export interface SpectrogramSettings {
   colormap: string;
   subchannel?: number;
 }
-
-export type JobStatus =
-  | 'pending'
-  | 'submitted'
-  | 'running'
-  | 'fetching_results'
-  | 'completed'
-  | 'failed'
-  | 'error';
-
-export const ACTIVE_JOB_STATUSES: JobStatus[] = [
-  'pending',
-  'submitted',
-  'running',
-  'fetching_results',
-];
 
 export interface JobInfo {
   job_id: number | null;
@@ -155,19 +141,25 @@ const SpectrogramVizContainer = ({
     let interval: NodeJS.Timeout;
 
     if (jobInfo.job_id) {
+      console.log(`Starting job status polling for job ${jobInfo.job_id}`);
       interval = setInterval(async () => {
         try {
           if (jobInfo.job_id === null) {
+            console.log('Job ID is null, stopping polling');
             clearInterval(interval);
             return;
           }
 
+          console.log(`Polling job ${jobInfo.job_id} status...`);
           const response = await getJobMetadata(jobInfo.job_id);
 
           const newStatus = response.data?.status ?? null;
           const resultsId = response.data?.results_id;
 
+          console.log(`Job ${jobInfo.job_id} status: ${newStatus}, results_id: ${resultsId}`);
+
           if (newStatus === 'completed' && resultsId) {
+            console.log(`Job ${jobInfo.job_id} completed, fetching results...`);
             clearInterval(interval);
             setJobInfo((prevStatus) => ({
               ...prevStatus,
@@ -186,10 +178,11 @@ const SpectrogramVizContainer = ({
           }
 
           if (newStatus === 'failed') {
+            console.log(`Job ${jobInfo.job_id} failed, stopping polling`);
             clearInterval(interval);
           }
         } catch (error) {
-          console.error('Error fetching job status:', error);
+          console.error(`Error polling job ${jobInfo.job_id} status:`, error);
           clearInterval(interval);
           setJobInfo((prevStatus) => ({
             ...prevStatus,
@@ -202,6 +195,7 @@ const SpectrogramVizContainer = ({
 
     return () => {
       if (interval) {
+        console.log('Cleaning up job status polling interval');
         clearInterval(interval);
       }
       if (spectrogramUrl) {

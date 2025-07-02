@@ -64,8 +64,24 @@ export const postSpectrogramJob = async (
   }
 };
 
+export type JobStatus =
+  | 'pending'
+  | 'submitted'
+  | 'running'
+  | 'fetching_results'
+  | 'completed'
+  | 'failed'
+  | 'error';
+
+export const ACTIVE_JOB_STATUSES: JobStatus[] = [
+  'pending',
+  'submitted',
+  'running',
+  'fetching_results',
+];
+
 export interface JobMetadata {
-  status: string;
+  status: JobStatus;
   results_id?: string;
 }
 

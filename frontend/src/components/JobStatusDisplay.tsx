@@ -2,6 +2,7 @@ import { Alert, Spinner } from 'react-bootstrap';
 import _ from 'lodash';
 
 import { JobInfo } from './spectrogram/SpectrogramVizContainer';
+import { ACTIVE_JOB_STATUSES } from '../apiClient/jobService';
 
 interface JobStatusDisplayProps {
   isSubmitting: boolean;
@@ -27,9 +28,7 @@ const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
 
   const isActive =
     isSubmitting ||
-    ['pending', 'submitted', 'running', 'fetching_results'].includes(
-      jobInfo.status || '',
-    );
+    (jobInfo.status && ACTIVE_JOB_STATUSES.includes(jobInfo.status));
 
   return (
     <Alert variant={isSubmitting ? 'info' : variants[jobInfo.status || 'info']}>
