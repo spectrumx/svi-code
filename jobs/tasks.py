@@ -2,7 +2,9 @@ import logging
 import os
 import shutil
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
@@ -23,6 +25,55 @@ from .visualizations.spectrogram import make_spectrogram
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
+
+
+def retry_operation(
+    operation: Callable[[], T],
+    max_retries: int = 5,
+    base_delay: float = 0.5,
+    backoff_factor: float = 1.5,
+    operation_name: str = "operation",
+) -> T:
+    """
+    Retry an operation with exponential backoff.
+
+    Args:
+        operation: The operation to retry
+        max_retries: Maximum number of retry attempts
+        base_delay: Initial delay between retries in seconds
+        backoff_factor: Factor to multiply delay by on each retry
+        operation_name: Name of the operation for logging purposes
+
+    Returns:
+        The result of the operation if successful
+
+    Raises:
+        The last exception encountered if all retries fail
+    """
+    last_exception = None
+    delay = base_delay
+
+    for attempt in range(max_retries):
+        try:
+            return operation()
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries - 1:
+                logger.warning(
+                    f"{operation_name} failed on attempt {attempt + 1}/{max_retries}: {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+                delay *= backoff_factor
+            else:
+                logger.error(
+                    f"{operation_name} failed after {max_retries} attempts. "
+                    f"Last error: {e}"
+                )
+
+    raise last_exception
+
 
 @shared_task
 def submit_job(job_id: int, token: str, config: dict | None = None):
@@ -39,57 +90,31 @@ def submit_job(job_id: int, token: str, config: dict | None = None):
     # Ensure we have a fresh database connection
     connection.close()
 
-    # First, verify the job exists in the database with retry logic
-    max_retries = 5
-    retry_delay = 0.5
+    # Get the job from database with retry logic
+    try:
+        job = retry_operation(
+            lambda: Job.objects.get(id=job_id),
+            max_retries=5,
+            base_delay=0.5,
+            operation_name=f"Database lookup for job {job_id}",
+        )
+        logger.info(f"Job {job_id} found in database with status '{job.status}'")
+    except ObjectDoesNotExist:
+        logger.error(
+            f"Job {job_id} does not exist in database after retries - "
+            "this indicates a transaction isolation issue"
+        )
+        return
+    except Exception as e:
+        logger.error(f"Error accessing job {job_id} in database: {e}")
+        return
 
-    for attempt in range(max_retries):
-        try:
-            job = Job.objects.get(id=job_id)
-            logger.info(
-                f"Job {job_id} found in database with status '{job.status}' on attempt {attempt + 1}"
-            )
-            break
-        except ObjectDoesNotExist:
-            if attempt < max_retries - 1:
-                logger.warning(
-                    f"Job {job_id} not found in database on attempt {attempt + 1}, retrying in {retry_delay}s..."
-                )
-                time.sleep(retry_delay)
-                retry_delay *= 1.5  # Gradual backoff
-            else:
-                logger.error(
-                    f"Job {job_id} does not exist in database after {max_retries} attempts - this indicates a transaction isolation issue"
-                )
-                return
-        except Exception as e:
-            logger.error(f"Error accessing job {job_id} in database: {e}")
-            return
-
-    # Retry logic for status update - sometimes the job might not be immediately
-    # visible due to database transaction isolation
-    max_retries = 3
-    retry_delay = 0.5
-
-    for attempt in range(max_retries):
-        if update_job_status(job_id, "running", token):
-            logger.info(
-                f"Successfully updated job {job_id} status to 'running' on attempt {attempt + 1}"
-            )
-            break
-        elif attempt < max_retries - 1:
-            logger.warning(
-                f"Failed to update job {job_id} status to 'running' on attempt {attempt + 1}, retrying in {retry_delay}s..."
-            )
-            time.sleep(retry_delay)
-            retry_delay *= 2  # Exponential backoff
-        else:
-            logger.error(
-                f"Failed to update job {job_id} status to 'running' after {max_retries} attempts. Aborting job."
-            )
-            # Don't raise an exception here as it might cause the task to retry
-            # Instead, we'll let the job remain in its current state
-            return
+    # Update job status to running - the API call now has built-in retries
+    if not update_job_status(job_id, "running", token):
+        logger.error(
+            f"Failed to update job {job_id} status to 'running' after retries. Aborting job."
+        )
+        return
 
     # The next thing we do is get the job information. This will tell us:
     # 1. What type of visualization we should do
