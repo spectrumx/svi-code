@@ -221,9 +221,9 @@ const SpectrogramVizContainer = ({
             <SpectrogramControls
               settings={spectrogramSettings}
               setSettings={setSpectrogramSettings}
-              numSubchannels={
-                visualizationRecord.captures?.[0]?.subchannels ?? undefined
-              }
+              // numSubchannels={
+              //   visualizationRecord.captures?.[0]?.subchannels ?? undefined
+              // }
             />
             <Button onClick={createSpectrogramJob} disabled={isSubmitting}>
               Generate Spectrogram

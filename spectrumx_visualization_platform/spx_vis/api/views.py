@@ -63,9 +63,9 @@ def capture_list(request: Request) -> Response:
     error_messages = []
 
     if not source_filter or "sds" in source_filter:
-        sds_captures, sds_error = get_sds_captures(request.user)
-        if sds_error:
-            error_messages.extend(sds_error)
+        sds_captures, sds_errors = get_sds_captures(request.user)
+        if sds_errors:
+            error_messages.extend(sds_errors)
 
     # Combine captures
     combined_capture_list = sds_captures

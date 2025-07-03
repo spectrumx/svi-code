@@ -22,13 +22,13 @@ const colormapOptions = [
 interface SpectrogramControlsProps {
   settings: SpectrogramSettings;
   setSettings: (settings: SpectrogramSettings) => void;
-  numSubchannels?: number;
+  // numSubchannels?: number;
 }
 
 const SpectrogramControls = ({
   settings,
   setSettings,
-  numSubchannels,
+  // numSubchannels,
 }: SpectrogramControlsProps) => {
   // Separate handlers for different input types
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -49,7 +49,7 @@ const SpectrogramControls = ({
 
   return (
     <Form>
-      {numSubchannels && numSubchannels > 1 && (
+      {/* {numSubchannels && numSubchannels > 1 && (
         <Form.Group className="mb-3">
           <Form.Label>Subchannel</Form.Label>
           <Form.Select
@@ -64,7 +64,7 @@ const SpectrogramControls = ({
             ))}
           </Form.Select>
         </Form.Group>
-      )}
+      )} */}
 
       <Form.Group className="mb-3">
         <Form.Label>FFT Size</Form.Label>
