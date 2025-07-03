@@ -1,8 +1,8 @@
 import { Alert, Spinner } from 'react-bootstrap';
 import _ from 'lodash';
 
-import { JobInfo } from './spectrogram/SpectrogramVizContainer';
 import { ACTIVE_JOB_STATUSES } from '../apiClient/jobService';
+import { JobInfo } from './spectrogram/SpectrogramVizContainer';
 
 interface JobStatusDisplayProps {
   isSubmitting: boolean;
@@ -30,36 +30,56 @@ const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
     isSubmitting ||
     (jobInfo.status && ACTIVE_JOB_STATUSES.includes(jobInfo.status));
 
+  // Check for memory warning in job info
+  const hasMemoryWarning = jobInfo.memory_warning || (jobInfo.message && jobInfo.message.includes('memory_warning'));
+
   return (
-    <Alert variant={isSubmitting ? 'info' : variants[jobInfo.status || 'info']}>
-      <div className="d-flex align-items-center">
-        {isActive && (
-          <div>
-            <Spinner
-              animation="border"
-              size="sm"
-              className="me-2"
-              variant={
-                isSubmitting ? 'info' : variants[jobInfo.status || 'info']
-              }
-            />
-          </div>
-        )}
-        <div>
-          {isSubmitting ? (
-            'Creating spectrogram job...'
-          ) : (
-            <>
-              Job status:{' '}
-              {_.capitalize(
-                jobInfo.status?.replace('_', ' ') || 'Status missing',
-              )}
-              {jobInfo.message && <div>{jobInfo.message}</div>}
-            </>
+    <div className="d-flex flex-column gap-2">
+      <Alert variant={isSubmitting ? 'info' : variants[jobInfo.status || 'info']}>
+        <div className="d-flex align-items-center">
+          {isActive && (
+            <div>
+              <Spinner
+                animation="border"
+                size="sm"
+                className="me-2"
+                variant={
+                  isSubmitting ? 'info' : variants[jobInfo.status || 'info']
+                }
+              />
+            </div>
           )}
+          <div>
+            {isSubmitting ? (
+              'Creating spectrogram job...'
+            ) : (
+              <>
+                Job status:{' '}
+                {_.capitalize(
+                  jobInfo.status?.replace('_', ' ') || 'Status missing',
+                )}
+                {jobInfo.message && <div>{jobInfo.message}</div>}
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </Alert>
+      </Alert>
+
+      {/* Show memory warning if present */}
+      {hasMemoryWarning && (
+        <Alert variant="warning" className="mb-0">
+          <Alert.Heading>
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            Memory Usage Warning
+          </Alert.Heading>
+          <p className="mb-0">
+            This job may use significant memory. The system will attempt to process it,
+            but performance may be affected. Consider using smaller datasets or different
+            processing parameters if issues occur.
+          </p>
+        </Alert>
+      )}
+    </div>
   );
 };
 

@@ -14,7 +14,8 @@ import {
 import { VizContainerProps } from '../types';
 
 // How long to wait between job status polls to the server
-const POLL_INTERVAL = 3000;
+const POLL_INTERVAL = 3000; // 3 seconds
+const STALE_JOB_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 export interface SpectrogramSettings {
   fftSize: number;
@@ -27,8 +28,10 @@ export interface SpectrogramSettings {
 export interface JobInfo {
   job_id: number | null;
   status: JobStatus | null;
+  requested_at?: number;
   message?: string;
   results_id?: string;
+  memory_warning?: string;
 }
 
 const SpectrogramVizContainer = ({
@@ -52,6 +55,7 @@ const SpectrogramVizContainer = ({
     setIsSubmitting(true);
     const width = window.innerWidth / 100;
     const height = window.innerHeight / 100;
+    const requested_at = Date.now();
 
     try {
       const response = await postSpectrogramJob(
@@ -64,6 +68,7 @@ const SpectrogramVizContainer = ({
         job_id: response.job_id ?? null,
         status: response.status as JobStatus | null,
         message: response.message ?? response.detail,
+        requested_at,
       });
     } catch (error) {
       console.error('Error creating spectrogram job:', error);
@@ -136,6 +141,7 @@ const SpectrogramVizContainer = ({
 
   /**
    * Once a job is created, periodically poll the server to check its status
+   * with improved timeout and stale job handling
    */
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -150,10 +156,24 @@ const SpectrogramVizContainer = ({
             return;
           }
 
+          // Check if the job has been running too long (stale job detection)
+          const timeSinceJobStart = jobInfo.requested_at ? Date.now() - jobInfo.requested_at : 0;
+          if (timeSinceJobStart > STALE_JOB_TIMEOUT) {
+            console.log(`Job ${jobInfo.job_id}: Job appears stale (running for ${timeSinceJobStart / 1000 / 60} minutes)`);
+            clearInterval(interval);
+            setJobInfo((prevStatus) => ({
+              ...prevStatus,
+              status: 'failed',
+              message: 'Job appears to be stale and may have been abandoned. Please try again.',
+            }));
+            return;
+          }
+
           console.log(`Polling job ${jobInfo.job_id} status...`);
           const response = await getJobMetadata(jobInfo.job_id);
 
           const newStatus = response.data?.status ?? null;
+          const memoryWarning = response.data?.memory_warning;
           const resultsId = response.data?.results_id;
 
           console.log(`Job ${jobInfo.job_id} status: ${newStatus}, results_id: ${resultsId}`);
@@ -166,6 +186,7 @@ const SpectrogramVizContainer = ({
               status: 'fetching_results',
               results_id: resultsId,
               message: undefined,
+              memory_warning: memoryWarning,
             }));
             await fetchSpectrogramImage(resultsId);
           } else {
@@ -174,6 +195,7 @@ const SpectrogramVizContainer = ({
               status: newStatus as JobStatus | null,
               message: response.message,
               results_id: resultsId,
+              memory_warning: memoryWarning,
             }));
           }
 
@@ -187,7 +209,7 @@ const SpectrogramVizContainer = ({
           setJobInfo((prevStatus) => ({
             ...prevStatus,
             status: 'failed',
-            message: error instanceof Error ? error.message : 'Unknown error',
+            message: error instanceof Error ? error.message : 'Unknown error during polling',
           }));
         }
       }, POLL_INTERVAL);

@@ -81,11 +81,21 @@ export const ACTIVE_JOB_STATUSES: JobStatus[] = [
 ];
 
 export interface JobMetadata {
+  user_id: string;
+  type: string;
   status: JobStatus;
+  created_at: string;
+  updated_at: string;
+  local_files: string[];
+  remote_files: string[];
+  config: Record<string, unknown>;
+  memory_warning?: string;
   results_id?: string;
 }
 
 export interface JobResponse {
+  // Whether the request was successful (not the job status)
+  status: "success" | "error";
   data?: JobMetadata;
   message?: string;
   job_id?: number;

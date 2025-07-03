@@ -50,7 +50,7 @@ def create_retry_session(
 _default_retry_session = create_retry_session()
 
 
-def update_job_status(job_id: int, status: str, token: str, info=None):
+def update_job_status(job_id: int, status: str, token: str, info=None, retry=True):
     """
     Update the status of a job in the API.
 
@@ -59,7 +59,7 @@ def update_job_status(job_id: int, status: str, token: str, info=None):
         status (str): The new status to set
         token (str): Authentication token for API access
         info (dict, optional): Additional information to include with the status update
-
+        retry (bool, optional): Whether to retry the request if it fails
     Returns:
         bool: True if update was successful, False otherwise
     """
@@ -77,12 +77,20 @@ def update_job_status(job_id: int, status: str, token: str, info=None):
     logger.debug(f"API_URL: {settings.API_URL}")
 
     try:
-        response = _default_retry_session.post(
-            f"{settings.API_URL}/api/jobs/update-job-status/",
-            data=data,
-            headers=headers,
-            timeout=60,
-        )
+        if retry:
+            response = _default_retry_session.post(
+                f"{settings.API_URL}/api/jobs/update-job-status/",
+                data=data,
+                headers=headers,
+                timeout=60,
+            )
+        else:
+            response = requests.post(
+                f"{settings.API_URL}/api/jobs/update-job-status/",
+                data=data,
+                headers=headers,
+                timeout=60,
+            )
 
         if response.status_code == requests.codes.created:
             logger.info(f"Successfully updated job {job_id} status to '{status}'")

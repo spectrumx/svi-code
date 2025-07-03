@@ -15,3 +15,15 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
+
+# Configure periodic tasks
+app.conf.beat_schedule = {
+    "cleanup-stale-jobs": {
+        "task": "jobs.tasks.cleanup_stale_jobs",
+        "schedule": 300.0,  # Run every 5 minutes
+    },
+    "cleanup-zombie-jobs": {
+        "task": "jobs.tasks.cleanup_zombie_jobs",
+        "schedule": 120.0,  # Run every 2 minutes
+    },
+}
