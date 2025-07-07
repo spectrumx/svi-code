@@ -227,10 +227,10 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
             memory_manager.unregister_job(job_id)
             return
 
-        # Update job status to running - the API call now has built-in retries
+        # Update job status to running
         if not update_job_status(job_id, "running", token):
             logger.error(
-                f"Failed to update job {job_id} status to 'running' after retries. Aborting job."
+                f"Failed to update job {job_id} status to 'running'. Aborting job."
             )
             memory_manager.unregister_job(job_id)
             return

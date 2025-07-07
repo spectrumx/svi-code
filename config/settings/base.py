@@ -292,7 +292,6 @@ CELERY_TASK_SERIALIZER = "json"
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-result_serializer
 CELERY_RESULT_SERIALIZER = "json"
 
-# Enhanced timeout and memory management for large spectrograms
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-soft-time-limit
 CELERY_TASK_SOFT_TIME_LIMIT = env.int(
     "CELERY_TASK_SOFT_TIME_LIMIT", default=10 * 60
@@ -324,11 +323,7 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 # Job monitoring settings
 JOB_MONITORING = {
-    "MAX_POLL_ATTEMPTS": env.int(
-        "JOB_MAX_POLL_ATTEMPTS", default=120
-    ),  # 10 minutes at 5s intervals
-    "POLL_INTERVAL": env.int("JOB_POLL_INTERVAL", default=5),  # 5 seconds
-    "STALE_JOB_TIMEOUT": env.int("JOB_STALE_TIMEOUT", default=60 * 60),  # 1 hour
+    "STALE_JOB_TIMEOUT": env.int("JOB_STALE_TIMEOUT", default=30 * 60),  # 30 minutes
 }
 
 # Memory safeguard settings

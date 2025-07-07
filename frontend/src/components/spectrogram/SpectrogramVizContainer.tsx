@@ -141,17 +141,15 @@ const SpectrogramVizContainer = ({
 
   /**
    * Once a job is created, periodically poll the server to check its status
-   * with improved timeout and stale job handling
+   * with timeout and stale job handling
    */
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     if (jobInfo.job_id) {
-      console.log(`Starting job status polling for job ${jobInfo.job_id}`);
       interval = setInterval(async () => {
         try {
           if (jobInfo.job_id === null) {
-            console.log('Job ID is null, stopping polling');
             clearInterval(interval);
             return;
           }
@@ -159,7 +157,6 @@ const SpectrogramVizContainer = ({
           // Check if the job has been running too long (stale job detection)
           const timeSinceJobStart = jobInfo.requested_at ? Date.now() - jobInfo.requested_at : 0;
           if (timeSinceJobStart > STALE_JOB_TIMEOUT) {
-            console.log(`Job ${jobInfo.job_id}: Job appears stale (running for ${timeSinceJobStart / 1000 / 60} minutes)`);
             clearInterval(interval);
             setJobInfo((prevStatus) => ({
               ...prevStatus,
@@ -169,17 +166,13 @@ const SpectrogramVizContainer = ({
             return;
           }
 
-          console.log(`Polling job ${jobInfo.job_id} status...`);
           const response = await getJobMetadata(jobInfo.job_id);
 
           const newStatus = response.data?.status ?? null;
           const memoryWarning = response.data?.memory_warning;
           const resultsId = response.data?.results_id;
 
-          console.log(`Job ${jobInfo.job_id} status: ${newStatus}, results_id: ${resultsId}`);
-
           if (newStatus === 'completed' && resultsId) {
-            console.log(`Job ${jobInfo.job_id} completed, fetching results...`);
             clearInterval(interval);
             setJobInfo((prevStatus) => ({
               ...prevStatus,
@@ -200,7 +193,6 @@ const SpectrogramVizContainer = ({
           }
 
           if (newStatus === 'failed') {
-            console.log(`Job ${jobInfo.job_id} failed, stopping polling`);
             clearInterval(interval);
           }
         } catch (error) {
@@ -217,7 +209,6 @@ const SpectrogramVizContainer = ({
 
     return () => {
       if (interval) {
-        console.log('Cleaning up job status polling interval');
         clearInterval(interval);
       }
       if (spectrogramUrl) {
