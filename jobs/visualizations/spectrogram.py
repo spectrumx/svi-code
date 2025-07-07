@@ -45,14 +45,14 @@ def estimate_chunk_size(sample_rate: float, max_memory_mb: float = 1000) -> int:
     """
     # Estimate memory per sample (complex64 = 8 bytes)
     bytes_per_sample = 8
-    max_samples = (max_memory_mb * 1024 * 1024) // bytes_per_sample
+    max_samples = int((max_memory_mb * 1024 * 1024) // bytes_per_sample)
 
     # Ensure chunk size is reasonable (not too small, not too large)
     min_chunk_size = int(sample_rate * 10)  # 10 seconds minimum
     max_chunk_size = int(sample_rate * 300)  # 5 minutes maximum
 
-    chunk_size = min(max_samples, max_chunk_size)
-    chunk_size = max(chunk_size, min_chunk_size)
+    chunk_size = int(min(max_samples, max_chunk_size))
+    chunk_size = int(max(chunk_size, min_chunk_size))
 
     return chunk_size
 
@@ -175,7 +175,12 @@ def _load_digital_rf_data(
                 f.attrs["sample_rate_numerator"] / f.attrs["sample_rate_denominator"]
             )
 
-        num_samples = end_sample - start_sample
+        num_samples = int(end_sample - start_sample)
+
+        # Validate sample count
+        if num_samples <= 0:
+            raise ValueError(f"Invalid sample count: {num_samples}. Must be positive.")
+
         data_array = reader.read_vector(start_sample, num_samples, channel, subchannel)
 
         return SpectrogramData(
@@ -216,6 +221,9 @@ def _generate_spectrogram_chunked(
     logging.info(
         f"Processing {spectrogram_data.sample_count} samples in chunks of {chunk_size}"
     )
+    logging.info(
+        f"Sample rate: {spectrogram_data.sample_rate}, Chunk size: {chunk_size} (type: {type(chunk_size)})"
+    )
 
     # Create ShortTimeFFT object
     short_time_fft = ShortTimeFFT(
@@ -228,11 +236,19 @@ def _generate_spectrogram_chunked(
 
     # Process data in chunks
     all_spectrograms = []
-    total_chunks = (spectrogram_data.sample_count + chunk_size - 1) // chunk_size
+    total_chunks = int((spectrogram_data.sample_count + chunk_size - 1) // chunk_size)
+
+    logging.info(f"Total chunks: {total_chunks} (type: {type(total_chunks)})")
+
+    # Safety check
+    if chunk_size <= 0:
+        raise ValueError(f"Invalid chunk size: {chunk_size}. Must be positive.")
+    if total_chunks <= 0:
+        raise ValueError(f"Invalid total chunks: {total_chunks}. Must be positive.")
 
     for chunk_idx in range(total_chunks):
-        start_idx = chunk_idx * chunk_size
-        end_idx = min(start_idx + chunk_size, spectrogram_data.sample_count)
+        start_idx = int(chunk_idx * chunk_size)
+        end_idx = int(min(start_idx + chunk_size, spectrogram_data.sample_count))
 
         logging.info(
             f"Processing chunk {chunk_idx + 1}/{total_chunks} (samples {start_idx}-{end_idx})"

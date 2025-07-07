@@ -72,32 +72,41 @@ Workers are configured with:
 
 ### How It Works
 
-The system now includes **real-time memory monitoring** during task execution:
+The system now includes **real-time memory monitoring** during task execution with **actual job termination**:
 
 1. **Background Monitoring**: A daemon thread monitors memory usage every 5 seconds
 2. **Threshold Detection**: When memory usage exceeds 95% (configurable), the system takes action
-3. **Graceful Termination**: Updates job status and forces process termination to prevent system crash
-4. **Automatic Retries**: Memory-related errors trigger automatic retries (up to 2 attempts)
+3. **Actual Termination**: The memory manager now **actually terminates** the most memory-hogging job using Celery's `revoke()` method
+4. **Graceful Shutdown**: Jobs are terminated gracefully with SIGTERM, then forcefully with SIGKILL if needed
+5. **Automatic Retries**: Memory-related errors trigger automatic retries (up to 2 attempts)
 
 ### Memory Thresholds
 
 - **Warning Level** (>85%): Logs warnings but continues processing
-- **Critical Level** (>95%): Forces task termination and worker restart
+- **Critical Level** (>95%): **Actually terminates** the heaviest job and forces worker restart
 - **Configurable**: Threshold can be adjusted via `MEMORY_SAFEGUARD_THRESHOLD`
 
 ### What Happens When Memory Threshold is Exceeded
 
 1. **Immediate Action**:
    - Logs critical memory usage error
+   - Identifies the job with the highest estimated memory usage
+   - **Actually terminates the Celery task** using `current_app.control.revoke()`
    - Updates job status to "failed" with memory error details
-   - Forces process termination using `os._exit(1)`
+   - Unregisters the job from memory monitoring
 
-2. **Worker Behavior**:
-   - Worker process is killed
-   - Celery automatically restarts the worker
-   - Task is lost (not automatically retried)
+2. **Task Termination Process**:
+   - Sends SIGTERM signal to the task for graceful shutdown
+   - Waits 1 second for graceful termination
+   - If task is still running, sends SIGKILL for forced termination
+   - Verifies task termination by inspecting active tasks
 
-3. **User Experience**:
+3. **Worker Behavior**:
+   - Worker process continues running (only the specific task is terminated)
+   - Celery automatically handles the terminated task
+   - Other jobs on the same worker continue processing
+
+4. **User Experience**:
    - Job status shows "failed" with memory error message
    - Frontend displays appropriate error message
    - User can retry with different parameters
@@ -106,8 +115,35 @@ The system now includes **real-time memory monitoring** during task execution:
 
 - **Real-time monitoring**: Checks memory every 5 seconds during task execution
 - **Thread-safe**: Uses daemon threads that don't block task completion
-- **Graceful cleanup**: Properly stops monitoring on task completion or failure
-- **Detailed logging**: Records memory usage at key processing stages
+- **Task ID tracking**: Each job registers its Celery task ID for precise termination
+- **Graceful termination**: Uses SIGTERM first, then SIGKILL if needed
+- **Verification**: Checks if tasks are actually terminated after sending signals
+
+### Testing the Memory Manager
+
+You can test the memory manager functionality using the Django management command:
+
+```bash
+# Test job termination
+python manage.py test_memory_manager --action=test-termination
+
+# Test memory monitoring
+python manage.py test_memory_manager --action=monitor
+
+# Test manual job termination
+python manage.py test_memory_manager --action=terminate --job-id=123
+```
+
+### Manual Job Termination
+
+The memory manager also provides a method to manually terminate specific jobs:
+
+```python
+from jobs.memory_manager import memory_manager
+
+# Terminate a specific job
+success = memory_manager.terminate_job(job_id=123, reason="manual_intervention")
+```
 
 ## Memory Warning System
 

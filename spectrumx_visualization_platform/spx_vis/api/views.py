@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import requests
-import spectrumx
 from django.conf import settings
 from django.http import FileResponse
 from rest_framework import filters
@@ -44,9 +43,6 @@ from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_ca
 
 if TYPE_CHECKING:
     from spectrumx_visualization_platform.users.models import User
-
-if settings.DEBUG:
-    spectrumx.enable_logging()
 
 
 @api_view(["GET"])

@@ -2,7 +2,6 @@ import logging
 import os
 import shutil
 import signal
-import threading
 import time
 from collections.abc import Callable
 from datetime import timedelta
@@ -29,6 +28,7 @@ from .io import get_job_file
 from .io import get_job_meta
 from .io import post_results
 from .io import update_job_status
+from .memory_manager import memory_manager
 from .models import Job
 from .models import JobStatusUpdate
 from .visualizations.spectrogram import make_spectrogram
@@ -36,131 +36,6 @@ from .visualizations.spectrogram import make_spectrogram
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
-
-# Global flag to track if memory monitoring is active
-_memory_monitor_active = False
-_memory_monitor_thread = None
-
-
-def get_memory_usage() -> dict[str, float]:
-    """Get current memory usage statistics.
-
-    Returns:
-        dict: Memory usage statistics in MB
-    """
-    memory_info = psutil.virtual_memory()
-    return {
-        "rss_mb": memory_info.used / 1024 / 1024,  # Resident Set Size
-        "vms_mb": memory_info.total / 1024 / 1024,  # Virtual Memory Size
-        "percent": memory_info.percent,
-    }
-
-
-def log_memory_usage(stage: str, job_id: int) -> None:
-    """Log memory usage at a specific stage.
-
-    Args:
-        stage: Description of the current processing stage
-        job_id: Job ID for logging context
-    """
-    memory_stats = get_memory_usage()
-    logger.info(
-        f"Job {job_id} memory usage at {stage}: "
-        f"RSS: {memory_stats['rss_mb']:.1f}MB, "
-        f"VMS: {memory_stats['vms_mb']:.1f}MB, "
-        f"Percent: {memory_stats['percent']:.1f}%"
-    )
-
-
-def memory_monitor_worker(
-    job_id: int, token: str, memory_threshold: float = 95.0, check_interval: float = 5.0
-):
-    """Background thread to monitor memory usage during task execution.
-
-    Args:
-        job_id: The job ID being monitored
-        token: Authentication token for status updates
-        memory_threshold: Memory usage percentage threshold (default 95%)
-        check_interval: How often to check memory usage in seconds (default 5s)
-    """
-    global _memory_monitor_active
-
-    logger.info(
-        f"Starting memory monitor for job {job_id} (threshold: {memory_threshold}%, interval: {check_interval}s)"
-    )
-
-    while _memory_monitor_active:
-        try:
-            memory_stats = get_memory_usage()
-            memory_percent = memory_stats["percent"]
-
-            if memory_percent > memory_threshold:
-                logger.error(
-                    f"Job {job_id}: CRITICAL MEMORY USAGE - {memory_percent:.1f}% exceeds threshold {memory_threshold}%"
-                )
-
-                # Update job status with memory error
-                update_job_status(
-                    job_id,
-                    "failed",
-                    token,
-                    info={
-                        "error": "Memory usage exceeded safety threshold",
-                        "memory_percent": memory_percent,
-                        "threshold": memory_threshold,
-                        "timestamp": timezone.now().isoformat(),
-                    },
-                    retry=False,
-                )
-
-                # Force exit the process to prevent system crash
-                logger.critical(
-                    f"Job {job_id}: Forcing process termination due to memory usage"
-                )
-                os._exit(1)  # Force exit without cleanup
-
-            elif memory_percent > 85.0:
-                logger.warning(
-                    f"Job {job_id}: High memory usage detected - {memory_percent:.1f}%"
-                )
-
-            time.sleep(check_interval)
-
-        except Exception as e:
-            logger.error(f"Memory monitor error for job {job_id}: {e}")
-            time.sleep(check_interval)
-
-
-def start_memory_monitor(
-    job_id: int, token: str, memory_threshold: float = 95.0
-) -> None:
-    """Start memory monitoring for a job.
-
-    Args:
-        job_id: The job ID to monitor
-        token: Authentication token for status updates
-        memory_threshold: Memory usage percentage threshold
-    """
-    global _memory_monitor_active, _memory_monitor_thread
-
-    _memory_monitor_active = True
-    _memory_monitor_thread = threading.Thread(
-        target=memory_monitor_worker,
-        args=(job_id, token, memory_threshold),
-        daemon=True,
-    )
-    _memory_monitor_thread.start()
-    logger.info(f"Memory monitor started for job {job_id}")
-
-
-def stop_memory_monitor() -> None:
-    """Stop memory monitoring."""
-    global _memory_monitor_active, _memory_monitor_thread
-
-    _memory_monitor_active = False
-    if _memory_monitor_thread and _memory_monitor_thread.is_alive():
-        _memory_monitor_thread.join(timeout=2.0)
-        logger.info("Memory monitor stopped")
 
 
 def estimate_memory_requirements(
@@ -347,18 +222,18 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
         config: Optional configuration dictionary
     """
     logger.info(f"Starting job {job_id} processing")
-    log_memory_usage("job_start", job_id)
+    memory_manager.log_memory_usage("job_start", job_id)
 
-    # Start memory monitoring
-    memory_threshold = getattr(settings, "MEMORY_SAFEGUARD_THRESHOLD", 95.0)
-    start_memory_monitor(job_id, token, memory_threshold)
+    # Register job for memory monitoring with the Celery task ID
+    # This allows the memory manager to actually terminate this task if needed
+    memory_manager.register_job(job_id, estimated_memory_mb=0, task_id=self.request.id)
 
     # Set up signal handlers for graceful shutdown
     def signal_handler(signum, frame):
         logger.warning(
             f"Job {job_id}: Received signal {signum}, attempting graceful shutdown"
         )
-        stop_memory_monitor()
+        memory_manager.unregister_job(job_id)
         update_job_status(
             job_id, "failed", token, info=f"Worker terminated by signal {signum}"
         )
@@ -385,11 +260,11 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                 f"Job {job_id} does not exist in database after retries - "
                 "this indicates a transaction isolation issue"
             )
-            stop_memory_monitor()
+            memory_manager.unregister_job(job_id)
             return
         except Exception as e:
             logger.error(f"Error accessing job {job_id} in database: {e}")
-            stop_memory_monitor()
+            memory_manager.unregister_job(job_id)
             return
 
         # Update job status to running - the API call now has built-in retries
@@ -397,7 +272,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
             logger.error(
                 f"Failed to update job {job_id} status to 'running' after retries. Aborting job."
             )
-            stop_memory_monitor()
+            memory_manager.unregister_job(job_id)
             return
 
         # The next thing we do is get the job information. This will tell us:
@@ -413,7 +288,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                 token,
                 info=error_msg,
             )
-            stop_memory_monitor()
+            memory_manager.unregister_job(job_id)
             raise ValueError(error_msg)
 
         # Create directories for job files and results
@@ -433,12 +308,12 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                     job_id, token, config["capture_ids"], user, config["capture_type"]
                 )
                 logger.info(f"Job {job_id}: Successfully downloaded SDS files")
-                log_memory_usage("after_sds_download", job_id)
+                memory_manager.log_memory_usage("after_sds_download", job_id)
             except Exception as e:
                 error_msg = f"Error downloading SDS data: {e!s}"
                 logger.error(f"Job {job_id}: {error_msg}")
                 update_job_status(job_id, "failed", token, info=error_msg)
-                stop_memory_monitor()
+                memory_manager.unregister_job(job_id)
                 raise ValueError(error_msg)
 
         # Process local files
@@ -455,7 +330,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                     token,
                     info=error_msg,
                 )
-                stop_memory_monitor()
+                memory_manager.unregister_job(job_id)
                 raise ValueError(error_msg)
 
             file_path = Path("jobs/job_files") / f["name"]
@@ -471,6 +346,11 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
             f"Files: {memory_estimate['file_size_mb']:.1f}MB, "
             f"Processing: {memory_estimate['estimated_processing_mb']:.1f}MB, "
             f"Total: {memory_estimate['total_estimated_mb']:.1f}MB"
+        )
+
+        # Update the job's memory estimate for monitoring
+        memory_manager.update_job_memory_estimate(
+            job_id, memory_estimate["total_estimated_mb"]
         )
 
         # Check if we have enough memory - log warning but continue
@@ -529,7 +409,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
         if job_metadata["data"]["type"] == "spectrogram":
             try:
                 logger.info(f"Job {job_id}: Generating spectrogram")
-                log_memory_usage("before_spectrogram", job_id)
+                memory_manager.log_memory_usage("before_spectrogram", job_id)
 
                 figure = make_spectrogram(
                     job_metadata,
@@ -537,20 +417,20 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                     file_paths=file_paths,
                 )
 
-                log_memory_usage("after_spectrogram", job_id)
+                memory_manager.log_memory_usage("after_spectrogram", job_id)
                 figure.savefig(f"jobs/job_results/{job_id}.png")
                 logger.info(f"Job {job_id}: Successfully generated spectrogram")
             except SoftTimeLimitExceeded:
                 error_msg = "Job exceeded soft time limit during spectrogram generation"
                 logger.error(f"Job {job_id}: {error_msg}")
                 update_job_status(job_id, "failed", token, info=error_msg)
-                stop_memory_monitor()
+                memory_manager.unregister_job(job_id)
                 raise
             except TimeLimitExceeded:
                 error_msg = "Job exceeded hard time limit during spectrogram generation"
                 logger.error(f"Job {job_id}: {error_msg}")
                 update_job_status(job_id, "failed", token, info=error_msg)
-                stop_memory_monitor()
+                memory_manager.unregister_job(job_id)
                 raise
             except Exception as e:
                 error_msg = f"Could not make spectrogram: {e}"
@@ -561,7 +441,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                     token,
                     info=error_msg,
                 )
-                stop_memory_monitor()
+                memory_manager.unregister_job(job_id)
                 raise
         else:
             error_msg = f"Unknown job type: {job_metadata['data']['type']}"
@@ -572,7 +452,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                 token,
                 info=error_msg,
             )
-            stop_memory_monitor()
+            memory_manager.unregister_job(job_id)
             raise ValueError(error_msg)
 
         # Let's say the code dumped to a local file and we want to upload that.
@@ -597,7 +477,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
             error_msg = "Could not post results."
             logger.error(f"Job {job_id}: {error_msg}")
             update_job_status(job_id, "failed", token, info=error_msg)
-            stop_memory_monitor()
+            memory_manager.unregister_job(job_id)
             raise ValueError(error_msg)
 
         # Clean up job files
@@ -616,36 +496,36 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
         else:
             logger.info(f"Job {job_id}: Successfully completed")
 
-        log_memory_usage("job_complete", job_id)
+        memory_manager.log_memory_usage("job_complete", job_id)
 
     except MemoryError:
         # Log memory error and update job status
         error_msg = "Worker ran out of memory"
         logger.error(f"Job {job_id}: {error_msg}")
         update_job_status(job_id, "failed", token, info=error_msg)
-        stop_memory_monitor()
+        memory_manager.unregister_job(job_id)
         raise
     except SoftTimeLimitExceeded:
         error_msg = "Job exceeded soft time limit"
         logger.error(f"Job {job_id}: {error_msg}")
         update_job_status(job_id, "failed", token, info=error_msg)
-        stop_memory_monitor()
+        memory_manager.unregister_job(job_id)
         raise
     except TimeLimitExceeded:
         error_msg = "Job exceeded hard time limit"
         logger.error(f"Job {job_id}: {error_msg}")
         update_job_status(job_id, "failed", token, info=error_msg)
-        stop_memory_monitor()
+        memory_manager.unregister_job(job_id)
         raise
     except Exception as e:
         error_msg = f"Unexpected error in job {job_id}: {e}"
         logger.error(error_msg)
         update_job_status(job_id, "failed", token, info=error_msg)
-        stop_memory_monitor()
+        memory_manager.unregister_job(job_id)
         raise
     finally:
-        # Always stop memory monitoring
-        stop_memory_monitor()
+        # Always unregister job from memory monitoring
+        memory_manager.unregister_job(job_id)
 
 
 @shared_task
