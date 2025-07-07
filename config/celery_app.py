@@ -17,9 +17,4 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
 # Configure periodic tasks
-app.conf.beat_schedule = {
-    "cleanup-stale-jobs": {
-        "task": "jobs.tasks.cleanup_stale_jobs",
-        "schedule": 300.0,  # Run every 5 minutes
-    },
-}
+app.conf.beat_schedule = {}

@@ -4,7 +4,6 @@ import shutil
 import signal
 import time
 from collections.abc import Callable
-from datetime import timedelta
 from pathlib import Path
 from typing import TypeVar
 
@@ -15,8 +14,6 @@ from celery.exceptions import TimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
-from django.utils import timezone
-from rest_framework.authtoken.models import Token
 from spectrumx import Client as SDSClient
 from spectrumx.errors import Result
 from spectrumx.models.captures import CaptureType
@@ -30,7 +27,6 @@ from .io import post_results
 from .io import update_job_status
 from .memory_manager import memory_manager
 from .models import Job
-from .models import JobStatusUpdate
 from .visualizations.spectrogram import make_spectrogram
 
 logger = logging.getLogger(__name__)
@@ -114,54 +110,6 @@ def retry_operation(
                 )
 
     raise last_exception
-
-
-@shared_task
-def cleanup_stale_jobs():
-    """Periodic task to clean up stale jobs that have been running too long."""
-    timeout_hours = (
-        getattr(settings, "JOB_MONITORING", {}).get("STALE_JOB_TIMEOUT", 3600) // 3600
-    )
-    cutoff_time = timezone.now() - timedelta(hours=timeout_hours)
-
-    # Find jobs that have been running for too long
-    stale_jobs = Job.objects.filter(
-        status__in=["running", "submitted"], created_at__lt=cutoff_time
-    )
-
-    logger.info(
-        f"Found {stale_jobs.count()} stale jobs older than {timeout_hours} hour(s)"
-    )
-
-    cleaned_count = 0
-    for job in stale_jobs:
-        try:
-            # Get or create a token for the job owner
-            token, _ = Token.objects.get_or_create(user=job.owner)
-
-            # Mark job as failed
-            job.status = "failed"
-            job.save()
-
-            # Create status update
-            JobStatusUpdate.objects.create(
-                job=job,
-                status="failed",
-                info={
-                    "reason": "Job marked as stale by periodic cleanup task",
-                    "timeout_hours": timeout_hours,
-                    "cutoff_time": cutoff_time.isoformat(),
-                },
-            )
-
-            logger.info(f"Marked stale job {job.id} as failed")
-            cleaned_count += 1
-
-        except Exception as e:
-            logger.error(f"Failed to update stale job {job.id}: {e}")
-
-    logger.info(f"Cleaned up {cleaned_count} stale jobs")
-    return cleaned_count
 
 
 @shared_task(
