@@ -11,6 +11,7 @@ import os
 import sys
 
 import django
+import pytest
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +27,7 @@ from jobs.views import detect_zombie_job
 from spectrumx_visualization_platform.users.models import User
 
 
+@pytest.mark.django_db(transaction=True)
 def test_zombie_detection():
     """Test the zombie job detection functionality."""
     print("=== Testing Zombie Job Detection ===")
@@ -35,8 +37,7 @@ def test_zombie_detection():
         username="test_user",
         defaults={
             "email": "test@example.com",
-            "first_name": "Test",
-            "last_name": "User",
+            "name": "Test User",
         },
     )
 

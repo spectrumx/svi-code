@@ -164,46 +164,6 @@ def cleanup_stale_jobs():
     return cleaned_count
 
 
-@shared_task
-def cleanup_zombie_jobs():
-    """Periodic task to clean up zombie jobs (jobs that appear running but aren't on workers)."""
-    from .views import detect_zombie_job
-
-    # Find jobs that appear to be running
-    potential_zombies = Job.objects.filter(status__in=["running", "submitted"])
-
-    logger.info(f"Checking {potential_zombies.count()} jobs for zombie detection")
-
-    zombie_count = 0
-    for job in potential_zombies:
-        try:
-            if detect_zombie_job(job):
-                zombie_count += 1
-
-                # Mark the job as failed
-                job.status = "failed"
-                job.save()
-
-                # Create status update
-                JobStatusUpdate.objects.create(
-                    job=job,
-                    status="failed",
-                    info={
-                        "reason": "Job detected as zombie by periodic cleanup task",
-                        "detected_at": timezone.now().isoformat(),
-                        "previous_status": job.status,
-                    },
-                )
-
-                logger.info(f"Marked zombie job {job.id} as failed")
-
-        except Exception as e:
-            logger.error(f"Failed to check job {job.id} for zombie detection: {e}")
-
-    logger.info(f"Cleaned up {zombie_count} zombie jobs")
-    return zombie_count
-
-
 @shared_task(
     bind=True,
     soft_time_limit=settings.CELERY_TASK_SOFT_TIME_LIMIT,
