@@ -312,7 +312,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
             # Force chunked processing
             logger.info(f"Job {job_id}: Forcing chunked processing")
             config["use_chunked_processing"] = True
-            config["max_memory_mb"] = available_memory * 0.4  # Conservative limit
+            config["max_memory_mb"] = 100  # Conservative limit
 
         if job_metadata["data"]["type"] == "spectrogram":
             try:
