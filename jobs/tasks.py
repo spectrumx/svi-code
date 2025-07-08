@@ -14,6 +14,7 @@ from celery.exceptions import TimeLimitExceeded
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
+from django.utils import timezone
 from spectrumx import Client as SDSClient
 from spectrumx.errors import Result
 from spectrumx.models.captures import CaptureType
@@ -27,6 +28,7 @@ from .io import post_results
 from .io import update_job_status
 from .memory_manager import memory_manager
 from .models import Job
+from .models import JobStatusUpdate
 from .visualizations.spectrogram import make_spectrogram
 
 logger = logging.getLogger(__name__)
@@ -52,11 +54,11 @@ def estimate_memory_requirements(
             total_size_mb += os.path.getsize(file_path) / 1024 / 1024
 
     # Estimate memory needed for processing (typically 2-4x file size for complex data)
-    processing_multiplier = 3.0
+    processing_multiplier = 5.0
     estimated_processing_mb = total_size_mb * processing_multiplier
 
     # Add overhead for matplotlib and other libraries
-    overhead_mb = 500  # 500MB overhead
+    overhead_mb = 1000  # 1GB overhead
 
     return {
         "file_size_mb": total_size_mb,
@@ -268,16 +270,14 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
         ) * 100
 
         if (
-            memory_estimate["total_estimated_mb"] > available_memory * 0.8
-        ):  # 80% of available
-            logger.warning(
+            memory_estimate["total_estimated_mb"] > available_memory * 0.6
+        ):  # 60% of available
+            logger.info(
                 f"Job {job_id}: High memory usage expected - "
                 f"Estimated: {memory_estimate['total_estimated_mb']:.1f}MB, "
                 f"Available: {available_memory:.1f}MB, "
-                f"Usage: {memory_usage_percent:.1f}%. "
-                f"Job will proceed but may cause memory pressure."
+                f"Usage: {memory_usage_percent:.1f}%"
             )
-
             # Update job status with memory warning
             update_job_status(
                 job_id,
@@ -285,18 +285,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                 token,
                 info={
                     "memory_warning": f"High memory usage expected ({memory_usage_percent:.1f}% of available)",
-                    "estimated_memory_mb": memory_estimate["total_estimated_mb"],
-                    "available_memory_mb": available_memory,
                 },
-            )
-        elif (
-            memory_estimate["total_estimated_mb"] > available_memory * 0.6
-        ):  # 60% of available
-            logger.info(
-                f"Job {job_id}: Moderate memory usage expected - "
-                f"Estimated: {memory_estimate['total_estimated_mb']:.1f}MB, "
-                f"Available: {available_memory:.1f}MB, "
-                f"Usage: {memory_usage_percent:.1f}%"
             )
         else:
             logger.info(
@@ -594,3 +583,131 @@ def cleanup_job_files(job_id: int) -> None:
 
     except Exception as e:
         logging.warning(f"Error cleaning up job files: {e}")
+
+
+def check_job_running_on_worker(job_id: int) -> bool:
+    """
+    Check if a job is actually running on any Celery worker.
+
+    Args:
+        job_id: The job ID to check
+
+    Returns:
+        bool: True if the job is running on a worker, False otherwise
+    """
+    try:
+        # Get the Celery app instance
+        from celery import current_app
+
+        app = current_app
+
+        # Inspect active tasks on all workers
+        inspect = app.control.inspect()
+        active_tasks = inspect.active()
+
+        if not active_tasks:
+            return False
+
+        # Check if any worker has our job task running
+        for worker_name, tasks in active_tasks.items():
+            for task in tasks:
+                # Check if this is a submit_job task and if it's processing our job_id
+                if (
+                    task.get("name") == "jobs.tasks.submit_job"
+                    and task.get("args")
+                    and len(task.get("args", [])) > 0
+                    and task["args"][0] == job_id
+                ):
+                    return True
+
+        return False
+
+    except Exception as e:
+        # If we can't inspect workers, assume the job might be running
+        # This is a conservative approach to avoid false positives
+        logger.warning(f"Error checking if job {job_id} is running on worker: {e}")
+        return True
+
+
+def detect_zombie_job(job: Job) -> bool:
+    """
+    Detect if a job is a "zombie" - appears to be running but isn't actually on a worker.
+
+    Args:
+        job: The job object to check
+
+    Returns:
+        bool: True if the job is a zombie (should be marked as failed), False otherwise
+    """
+    # Only check jobs that appear to be running
+    if job.status != "running":
+        return False
+
+    # Check if the job is actually running on a worker
+    is_running = check_job_running_on_worker(job.id)
+
+    if not is_running:
+        logger.warning(
+            f"Job {job.id}: Detected as zombie - status '{job.status}' but not running on any worker"
+        )
+        return True
+
+    return False
+
+
+@shared_task
+def check_zombie_jobs() -> dict[str, int]:
+    """
+    Periodic task to check for and fix zombie jobs.
+
+    This task runs every minute to detect jobs that appear to be running
+    but aren't actually executing on any Celery worker. Such jobs are
+    marked as failed with appropriate status updates.
+
+    Returns:
+        dict: Summary of zombie job detection results
+    """
+    logger.info("Starting zombie job detection task")
+
+    # Get all jobs that appear to be running
+    running_jobs = Job.objects.filter(status__in=["running", "submitted"])
+    zombie_count = 0
+    processed_count = 0
+
+    for job in running_jobs:
+        try:
+            processed_count += 1
+
+            if detect_zombie_job(job):
+                # Mark the job as failed
+                job.status = "failed"
+                job.save()
+
+                # Create a status update for the zombie detection
+                JobStatusUpdate.objects.create(
+                    job=job,
+                    status="failed",
+                    info={
+                        "reason": "Job detected as zombie - not running on any worker",
+                        "detected_at": timezone.now().isoformat(),
+                        "previous_status": job.status,
+                        "detected_by": "periodic_zombie_check",
+                    },
+                )
+
+                logger.info(f"Job {job.id}: Marked as failed due to zombie detection")
+                zombie_count += 1
+
+        except Exception as e:
+            logger.error(f"Error processing job {job.id} for zombie detection: {e}")
+            continue
+
+    logger.info(
+        f"Zombie job detection completed: {zombie_count} zombies found out of {processed_count} jobs checked"
+    )
+
+    return {
+        "zombies_found": zombie_count,
+        "jobs_checked": processed_count,
+        "timestamp": timezone.now().isoformat(),
+    }

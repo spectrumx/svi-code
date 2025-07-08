@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import Literal
 from typing import TypedDict
 
-from celery import current_app
 from django.http import FileResponse
 from django.http import JsonResponse
 from kombu import Connection
@@ -30,74 +29,6 @@ from .models import JobStatusUpdate
 from .models import JobSubmissionConnection
 from .serializers import JobStatusUpdateSerializer
 from .submission import request_job_submission
-
-
-def check_job_running_on_worker(job_id: int) -> bool:
-    """
-    Check if a job is actually running on any Celery worker.
-
-    Args:
-        job_id: The job ID to check
-
-    Returns:
-        bool: True if the job is running on a worker, False otherwise
-    """
-    try:
-        # Get the Celery app instance
-        app = current_app
-
-        # Inspect active tasks on all workers
-        inspect = app.control.inspect()
-        active_tasks = inspect.active()
-
-        if not active_tasks:
-            return False
-
-        # Check if any worker has our job task running
-        for worker_name, tasks in active_tasks.items():
-            for task in tasks:
-                # Check if this is a submit_job task and if it's processing our job_id
-                if (
-                    task.get("name") == "jobs.tasks.submit_job"
-                    and task.get("args")
-                    and len(task.get("args", [])) > 0
-                    and task["args"][0] == job_id
-                ):
-                    return True
-
-        return False
-
-    except Exception as e:
-        # If we can't inspect workers, assume the job might be running
-        # This is a conservative approach to avoid false positives
-        print(f"Error checking if job {job_id} is running on worker: {e}")
-        return True
-
-
-def detect_zombie_job(job: Job) -> bool:
-    """
-    Detect if a job is a "zombie" - appears to be running but isn't actually on a worker.
-
-    Args:
-        job: The job object to check
-
-    Returns:
-        bool: True if the job is a zombie (should be marked as failed), False otherwise
-    """
-    # Only check jobs that appear to be running
-    if job.status not in ["running", "submitted"]:
-        return False
-
-    # Check if the job is actually running on a worker
-    is_running = check_job_running_on_worker(job.id)
-
-    if not is_running:
-        print(
-            f"Job {job.id}: Detected as zombie - status '{job.status}' but not running on any worker"
-        )
-        return True
-
-    return False
 
 
 @api_view(["POST"])
@@ -229,25 +160,6 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
     try:
         job = Job.objects.get(id=job_id)
 
-        # Check for zombie jobs (appears running but not on worker)
-        if detect_zombie_job(job):
-            # Mark the job as failed
-            job.status = "failed"
-            job.save()
-
-            # Create a status update for the zombie detection
-            JobStatusUpdate.objects.create(
-                job=job,
-                status="failed",
-                info={
-                    "reason": "Job detected as zombie - not running on any worker",
-                    "detected_at": datetime.now().isoformat(),
-                    "previous_status": job.status,
-                },
-            )
-
-            print(f"Job {job_id}: Marked as failed due to zombie detection")
-
         # Get latest status update
         status_update = (
             JobStatusUpdate.objects.filter(job=job).order_by("-created_at").first()
@@ -270,9 +182,11 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
         if status_update and isinstance(status_update.info, dict):
             results_id = status_update.info.get("results_id", None)
             memory_warning = status_update.info.get("memory_warning", None)
+            error = status_update.info.get("error", None)
         else:
             results_id = None
             memory_warning = None
+            error = None
 
         return JsonResponse(
             {
@@ -289,6 +203,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
                     "config": job.config,
                     "memory_warning": memory_warning,
                     "results_id": results_id,
+                    "error": error,
                 },
             },
         )

@@ -148,8 +148,16 @@ class MemoryManager:
         logger.info(
             f"Starting global memory monitor (threshold: {memory_threshold}%, interval: {check_interval}s)"
         )
+        # Grace period to allow for job to be terminated
+        grace_period_count = 0
 
         while self._memory_monitor_active:
+            if grace_period_count > 0:
+                logger.info("In grace period to allow for job to be terminated...")
+                grace_period_count -= 1
+                time.sleep(check_interval)
+                continue
+
             try:
                 memory_stats = self.get_memory_usage()
                 memory_percent = memory_stats["percent"]
@@ -192,7 +200,9 @@ class MemoryManager:
                         task_terminated = self._terminate_celery_task(
                             task_id, heaviest_job_id
                         )
-                        if not task_terminated:
+                        if task_terminated:
+                            grace_period_count = 2
+                        else:
                             logger.error(
                                 f"Job {heaviest_job_id}: Failed to terminate Celery task, falling back to status update only"
                             )
@@ -213,17 +223,7 @@ class MemoryManager:
                             token.key,
                             info={
                                 "error": "Job terminated due to system memory pressure",
-                                "memory_percent": memory_percent,
-                                "threshold": memory_threshold,
-                                "reason": "highest_memory_usage",
-                                "estimated_memory_mb": heaviest_job_info.get(
-                                    "estimated_memory_mb", 0
-                                ),
-                                "current_process_memory_mb": current_memory,
-                                "task_terminated": task_id is not None,
-                                "timestamp": timezone.now().isoformat(),
                             },
-                            retry=False,
                         )
                         logger.error(
                             f"Job {heaviest_job_id}: Marked as failed due to memory pressure"

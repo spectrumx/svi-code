@@ -22,8 +22,8 @@ django.setup()
 
 from jobs.models import Job
 from jobs.models import JobStatusUpdate
-from jobs.views import check_job_running_on_worker
-from jobs.views import detect_zombie_job
+from jobs.tasks import check_job_running_on_worker
+from jobs.tasks import detect_zombie_job
 from spectrumx_visualization_platform.users.models import User
 
 
@@ -71,10 +71,16 @@ def test_zombie_detection():
     else:
         print("✗ Zombie detection failed - job should be detected as zombie")
 
-    # Test 3: Check job status after zombie detection
-    print("\n--- Test 3: Check job status after zombie detection ---")
+    # Test 3: Simulate periodic zombie detection task
+    print("\n--- Test 3: Simulate periodic zombie detection task ---")
+    from jobs.tasks import check_zombie_jobs
+
+    result = check_zombie_jobs()
+    print(f"Periodic task result: {result}")
+
+    # Check job status after periodic task
     job.refresh_from_db()
-    print(f"Job {job.id} status after detection: {job.status}")
+    print(f"Job {job.id} status after periodic task: {job.status}")
 
     # Check if status update was created
     status_updates = JobStatusUpdate.objects.filter(job=job)
