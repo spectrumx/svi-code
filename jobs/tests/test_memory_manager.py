@@ -98,7 +98,9 @@ def test_memory_monitor_triggers_termination(monkeypatch) -> None:
     mock_job = MagicMock()
     mock_job.owner = MagicMock()
     monkeypatch.setattr("jobs.memory_manager.Job", MagicMock())
-    monkeypatch.setattr("jobs.memory_manager.Job.objects.get", lambda job_id: mock_job)
+    monkeypatch.setattr(
+        "jobs.memory_manager.Job.objects.get", lambda **kwargs: mock_job
+    )
 
     # Mock Token model with proper get_or_create return value
     mock_token = MagicMock()

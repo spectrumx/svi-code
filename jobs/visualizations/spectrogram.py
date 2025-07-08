@@ -33,30 +33,6 @@ class SpectrogramData:
     channel_name: str | None = None
 
 
-def estimate_chunk_size(sample_rate: float, max_memory_mb: float = 1000) -> int:
-    """Estimate appropriate chunk size based on memory constraints.
-
-    Args:
-        sample_rate: Sample rate in Hz
-        max_memory_mb: Maximum memory to use for processing in MB
-
-    Returns:
-        int: Number of samples per chunk
-    """
-    # Estimate memory per sample (complex64 = 8 bytes)
-    bytes_per_sample = 8
-    max_samples = int((max_memory_mb * 1024 * 1024) // bytes_per_sample)
-
-    # Ensure chunk size is reasonable (not too small, not too large)
-    min_chunk_size = int(sample_rate * 10)  # 10 seconds minimum
-    max_chunk_size = int(sample_rate * 300)  # 5 minutes maximum
-
-    chunk_size = int(min(max_samples, max_chunk_size))
-    chunk_size = int(max(chunk_size, min_chunk_size))
-
-    return chunk_size
-
-
 def make_spectrogram(
     job_metadata: dict[str, Any], config: dict[str, Any], file_paths: list[str]
 ) -> plt.Figure:
@@ -94,9 +70,7 @@ def _load_sigmf_data(file_paths: list[str]) -> SpectrogramData:
     """Load data from SigMF format.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         file_paths: List of file paths to search through
-        config: Dictionary containing job configuration
 
     Returns:
         SpectrogramData: Container with loaded data and metadata
@@ -134,7 +108,6 @@ def _load_digital_rf_data(
     """Load data from DigitalRF format.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         file_paths: List of file paths to search through
         config: Dictionary containing job configuration
 
@@ -195,89 +168,6 @@ def _load_digital_rf_data(
         raise
 
 
-def _generate_spectrogram_chunked(
-    spectrogram_data: SpectrogramData, config: dict[str, Any]
-) -> plt.Figure:
-    """Generate a spectrogram from complex data using chunked processing for large datasets.
-
-    Args:
-        spectrogram_data: Container with data and metadata
-        config: Dictionary containing job configuration
-
-    Returns:
-        matplotlib.figure.Figure: The generated spectrogram figure
-    """
-    # Standard deviation for Gaussian window in samples
-    std_dev = config.get("stdDev", 100)
-    fft_size = config.get("fftSize", 1024)
-    gaussian_window = gaussian(fft_size, std=std_dev, sym=True)
-    width = config["width"]
-    height = config["height"]
-
-    # Estimate chunk size based on memory constraints
-    max_memory_mb = config.get("max_memory_mb", 1000)
-    chunk_size = estimate_chunk_size(spectrogram_data.sample_rate, max_memory_mb)
-
-    logging.info(
-        f"Processing {spectrogram_data.sample_count} samples in chunks of {chunk_size}"
-    )
-    logging.info(
-        f"Sample rate: {spectrogram_data.sample_rate}, Chunk size: {chunk_size} (type: {type(chunk_size)})"
-    )
-
-    # Create ShortTimeFFT object
-    short_time_fft = ShortTimeFFT(
-        gaussian_window,
-        hop=config.get("hopSize", 500),
-        fs=spectrogram_data.sample_rate,
-        mfft=fft_size,
-        fft_mode="centered",
-    )
-
-    # Process data in chunks
-    all_spectrograms = []
-    total_chunks = int((spectrogram_data.sample_count + chunk_size - 1) // chunk_size)
-
-    logging.info(f"Total chunks: {total_chunks} (type: {type(total_chunks)})")
-
-    # Safety check
-    if chunk_size <= 0:
-        raise ValueError(f"Invalid chunk size: {chunk_size}. Must be positive.")
-    if total_chunks <= 0:
-        raise ValueError(f"Invalid total chunks: {total_chunks}. Must be positive.")
-
-    for chunk_idx in range(total_chunks):
-        start_idx = int(chunk_idx * chunk_size)
-        end_idx = int(min(start_idx + chunk_size, spectrogram_data.sample_count))
-
-        logging.info(
-            f"Processing chunk {chunk_idx + 1}/{total_chunks} (samples {start_idx}-{end_idx})"
-        )
-
-        # Extract chunk
-        chunk_data = spectrogram_data.data_array[start_idx:end_idx]
-
-        # Generate spectrogram for this chunk
-        chunk_spectrogram = short_time_fft.spectrogram(chunk_data)
-        all_spectrograms.append(chunk_spectrogram)
-
-        # Log memory usage
-        chunk_memory_mb = chunk_spectrogram.nbytes / 1024 / 1024
-        logging.info(f"Chunk {chunk_idx + 1} spectrogram size: {chunk_memory_mb:.1f}MB")
-
-    # Combine all spectrograms
-    if len(all_spectrograms) == 1:
-        combined_spectrogram = all_spectrograms[0]
-    else:
-        # Concatenate along time axis
-        combined_spectrogram = np.concatenate(all_spectrograms, axis=1)
-
-    # Create the final figure
-    return _create_spectrogram_figure(
-        combined_spectrogram, short_time_fft, spectrogram_data, config
-    )
-
-
 def _generate_spectrogram(
     spectrogram_data: SpectrogramData, config: dict[str, Any]
 ) -> plt.Figure:
@@ -290,20 +180,10 @@ def _generate_spectrogram(
     Returns:
         matplotlib.figure.Figure: The generated spectrogram figure
     """
-    # Check if we should use chunked processing
-    use_chunked = config.get("use_chunked_processing", False)
-    data_size_mb = spectrogram_data.data_array.nbytes / 1024 / 1024
-
-    if use_chunked or data_size_mb > 500:  # Use chunked processing for large datasets
-        logging.info(f"Using chunked processing for dataset of {data_size_mb:.1f}MB")
-        return _generate_spectrogram_chunked(spectrogram_data, config)
-
-    # Standard processing for smaller datasets
+    # Standard deviation for Gaussian window in samples
     std_dev = config.get("stdDev", 100)
     fft_size = config.get("fftSize", 1024)
     gaussian_window = gaussian(fft_size, std=std_dev, sym=True)
-    width = config["width"]
-    height = config["height"]
 
     short_time_fft = ShortTimeFFT(
         gaussian_window,

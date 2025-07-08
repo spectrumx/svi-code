@@ -306,14 +306,6 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
                 f"Usage: {memory_usage_percent:.1f}%"
             )
 
-        if (
-            memory_estimate["total_estimated_mb"] > available_memory * 0.5
-        ):  # Use 50% threshold
-            # Force chunked processing
-            logger.info(f"Job {job_id}: Forcing chunked processing")
-            config["use_chunked_processing"] = True
-            config["max_memory_mb"] = 100  # Conservative limit
-
         if job_metadata["data"]["type"] == "spectrogram":
             try:
                 logger.info(f"Job {job_id}: Generating spectrogram")
