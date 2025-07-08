@@ -91,6 +91,7 @@ export interface JobMetadata {
   config: Record<string, unknown>;
   memory_warning?: string;
   results_id?: string;
+  error?: string;
 }
 
 export interface JobResponse {

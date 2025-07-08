@@ -66,16 +66,10 @@ const JobStatusDisplay = ({ isSubmitting, jobInfo }: JobStatusDisplayProps) => {
       </Alert>
 
       {/* Show memory warning if present */}
-      {hasMemoryWarning && (
+      {(
         <Alert variant="warning" className="mb-0">
-          <Alert.Heading>
-            <i className="bi bi-exclamation-triangle me-2"></i>
-            Memory Usage Warning
-          </Alert.Heading>
           <p className="mb-0">
-            This job may use significant memory. The system will attempt to process it,
-            but performance may be affected. Consider using smaller datasets or different
-            processing parameters if issues occur.
+          <i className="bi bi-exclamation-triangle me-2"></i>This job may use significant memory. Try a smaller dataset or different parameters if issues occur.
           </p>
         </Alert>
       )}

@@ -14,8 +14,9 @@ import {
 import { VizContainerProps } from '../types';
 
 // How long to wait between job status polls to the server
-const POLL_INTERVAL = 3000; // 3 seconds
+const POLL_INTERVAL = 5000; // 5 seconds
 const STALE_JOB_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const MAX_POLL_RETRIES = 10;
 
 export interface SpectrogramSettings {
   fftSize: number;
@@ -50,6 +51,7 @@ const SpectrogramVizContainer = ({
     status: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pollRetries, setPollRetries] = useState(0);
 
   const createSpectrogramJob = async () => {
     setIsSubmitting(true);
@@ -69,6 +71,7 @@ const SpectrogramVizContainer = ({
         status: response.status as JobStatus | null,
         message: response.message ?? response.detail,
         requested_at,
+        memory_warning: undefined,
       });
     } catch (error) {
       console.error('Error creating spectrogram job:', error);
@@ -171,6 +174,7 @@ const SpectrogramVizContainer = ({
           const newStatus = response.data?.status ?? null;
           const memoryWarning = response.data?.memory_warning;
           const resultsId = response.data?.results_id;
+          const error = response.data?.error;
 
           if (newStatus === 'completed' && resultsId) {
             clearInterval(interval);
@@ -179,16 +183,15 @@ const SpectrogramVizContainer = ({
               status: 'fetching_results',
               results_id: resultsId,
               message: undefined,
-              memory_warning: memoryWarning,
+              memory_warning: undefined,
             }));
             await fetchSpectrogramImage(resultsId);
           } else {
             setJobInfo((prevStatus) => ({
               ...prevStatus,
               status: newStatus as JobStatus | null,
-              message: response.message,
-              results_id: resultsId,
-              memory_warning: memoryWarning,
+              message: prevStatus.message ?? error ?? response.message,
+              memory_warning: prevStatus.memory_warning ?? memoryWarning,
             }));
           }
 
@@ -197,12 +200,15 @@ const SpectrogramVizContainer = ({
           }
         } catch (error) {
           console.error(`Error polling job ${jobInfo.job_id} status:`, error);
-          clearInterval(interval);
-          setJobInfo((prevStatus) => ({
-            ...prevStatus,
-            status: 'failed',
-            message: error instanceof Error ? error.message : 'Unknown error during polling',
-          }));
+          setPollRetries(pollRetries + 1);
+          if (pollRetries >= MAX_POLL_RETRIES) {
+            clearInterval(interval);
+            setJobInfo((prevStatus) => ({
+              ...prevStatus,
+              status: 'failed',
+              message: 'Failed to get job status.',
+            }));
+          }
         }
       }, POLL_INTERVAL);
     }
@@ -215,7 +221,7 @@ const SpectrogramVizContainer = ({
         URL.revokeObjectURL(spectrogramUrl);
       }
     };
-  }, [jobInfo.job_id, spectrogramUrl]);
+  }, [jobInfo.job_id, jobInfo.requested_at, spectrogramUrl, pollRetries]);
 
   if (!visualizationRecord.uuid) {
     return (
