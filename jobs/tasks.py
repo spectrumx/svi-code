@@ -50,8 +50,8 @@ def estimate_memory_requirements(
     """
     total_size_mb = 0
     for file_path in file_paths:
-        if os.path.exists(file_path):
-            total_size_mb += os.path.getsize(file_path) / 1024 / 1024
+        if Path(file_path).exists():
+            total_size_mb += Path(file_path).stat().st_size / 1024 / 1024
 
     # Estimate memory needed for processing (typically 2-4x file size for complex data)
     processing_multiplier = 5.0
@@ -114,6 +114,414 @@ def retry_operation(
     raise last_exception
 
 
+def _setup_signal_handlers(job_id: int, token: str) -> None:
+    """Set up signal handlers for graceful shutdown.
+
+    Args:
+        job_id: The ID of the job being processed
+        token: Authentication token for API access
+    """
+
+    def signal_handler(signum, frame):
+        logger.warning(
+            f"Job {job_id}: Received signal {signum}, attempting graceful shutdown"
+        )
+        memory_manager.unregister_job(job_id)
+        update_job_status(
+            job_id, "failed", token, info=f"Worker terminated by signal {signum}"
+        )
+        raise SystemExit(1)
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+
+def _get_job_from_database(job_id: int) -> Job:
+    """Retrieve job from database with retry logic.
+
+    Args:
+        job_id: The ID of the job to retrieve
+
+    Returns:
+        Job: The job object
+
+    Raises:
+        ObjectDoesNotExist: If job doesn't exist after retries
+        Exception: If database access fails
+    """
+    try:
+        job = retry_operation(
+            lambda: Job.objects.get(id=job_id),
+            max_retries=5,
+            base_delay=0.5,
+            operation_name=f"Database lookup for job {job_id}",
+        )
+        logger.info(f"Job {job_id} found in database with status '{job.status}'")
+        return job
+    except ObjectDoesNotExist:
+        logger.error(
+            f"Job {job_id} does not exist in database after retries - "
+            "this indicates a transaction isolation issue"
+        )
+        raise
+    except Exception as e:
+        logger.error(f"Error accessing job {job_id} in database: {e}")
+        raise
+
+
+def _process_sds_files(
+    job_id: int, token: str, config: dict, job_metadata: dict
+) -> list[str]:
+    """Process SDS files if capture_ids are provided in config.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        config: Job configuration
+        job_metadata: Job metadata from API
+
+    Returns:
+        list[str]: List of file paths for downloaded SDS files
+
+    Raises:
+        ValueError: If SDS download fails
+    """
+    if not config or "capture_ids" not in config:
+        return []
+
+    try:
+        user = User.objects.get(uuid=job_metadata["data"]["user_id"])
+        logger.info(
+            f"Job {job_id}: Downloading SDS files for capture {config['capture_ids']}"
+        )
+        file_paths = download_sds_files(
+            job_id, token, config["capture_ids"], user, config["capture_type"]
+        )
+        logger.info(f"Job {job_id}: Successfully downloaded SDS files")
+        memory_manager.log_memory_usage("after_sds_download", job_id)
+        return file_paths
+    except Exception as e:
+        error_msg = f"Error downloading SDS data: {e!s}"
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(job_id, "failed", token, info=error_msg)
+        raise ValueError(error_msg)
+
+
+def _process_local_files(job_id: int, token: str, job_metadata: dict) -> list[str]:
+    """Process local files from job metadata.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        job_metadata: Job metadata containing local files
+
+    Returns:
+        list[str]: List of file paths for local files
+
+    Raises:
+        ValueError: If local file processing fails
+    """
+    file_paths = []
+    for f in job_metadata["data"]["local_files"]:
+        logger.info(f"Job {job_id}: Fetching local file {f['name']}")
+        data = get_job_file(f["id"], token, "local")
+
+        if data is None:
+            error_msg = f"Could not fetch local file {f['name']}."
+            logger.error(f"Job {job_id}: {error_msg}")
+            update_job_status(
+                job_id,
+                "failed",
+                token,
+                info=error_msg,
+            )
+            raise ValueError(error_msg)
+
+        file_path = Path("jobs/job_files") / f["name"]
+        with file_path.open("wb") as new_file:
+            new_file.write(data)
+        file_paths.append(str(file_path))
+        logger.info(f"Job {job_id}: Successfully saved local file {f['name']}")
+
+    return file_paths
+
+
+def _check_memory_requirements(
+    job_id: int, token: str, file_paths: list[str], config: dict
+) -> None:
+    """Check and log memory requirements for the job.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        file_paths: List of file paths to process
+        config: Job configuration
+    """
+    memory_estimate = estimate_memory_requirements(file_paths, config or {})
+    logger.info(
+        f"Job {job_id}: Memory estimate - "
+        f"Files: {memory_estimate['file_size_mb']:.1f}MB, "
+        f"Processing: {memory_estimate['estimated_processing_mb']:.1f}MB, "
+        f"Total: {memory_estimate['total_estimated_mb']:.1f}MB"
+    )
+
+    # Update the job's memory estimate for monitoring
+    memory_manager.update_job_memory_estimate(
+        job_id, memory_estimate["total_estimated_mb"]
+    )
+
+    # Check if we have enough memory - log warning but continue
+    available_memory = psutil.virtual_memory().available / 1024 / 1024  # MB
+    memory_usage_percent = (
+        memory_estimate["total_estimated_mb"] / available_memory
+    ) * 100
+
+    if (
+        memory_estimate["total_estimated_mb"] > available_memory * 0.6
+    ):  # 60% of available
+        logger.info(
+            f"Job {job_id}: High memory usage expected - "
+            f"Estimated: {memory_estimate['total_estimated_mb']:.1f}MB, "
+            f"Available: {available_memory:.1f}MB, "
+            f"Usage: {memory_usage_percent:.1f}%"
+        )
+        # Update job status with memory warning
+        update_job_status(
+            job_id,
+            "running",
+            token,
+            info={
+                "memory_warning": f"High memory usage expected ({memory_usage_percent:.1f}% of available)",
+            },
+        )
+    else:
+        logger.info(
+            f"Job {job_id}: Low memory usage expected - "
+            f"Estimated: {memory_estimate['total_estimated_mb']:.1f}MB, "
+            f"Available: {available_memory:.1f}MB, "
+            f"Usage: {memory_usage_percent:.1f}%"
+        )
+
+
+def _generate_visualization(
+    job_id: int, token: str, job_metadata: dict, config: dict, file_paths: list[str]
+) -> None:
+    """Generate the visualization based on job type.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        job_metadata: Job metadata
+        config: Job configuration
+        file_paths: List of file paths to process
+
+    Raises:
+        ValueError: If job type is unsupported or generation fails
+        SoftTimeLimitExceeded: If job exceeds soft time limit
+        TimeLimitExceeded: If job exceeds hard time limit
+    """
+    if job_metadata["data"]["type"] != "spectrogram":
+        error_msg = f"Unknown job type: {job_metadata['data']['type']}"
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(
+            job_id,
+            "failed",
+            token,
+            info=error_msg,
+        )
+        raise ValueError(error_msg)
+
+    try:
+        logger.info(f"Job {job_id}: Generating spectrogram")
+        memory_manager.log_memory_usage("before_spectrogram", job_id)
+
+        figure = make_spectrogram(
+            job_metadata,
+            config,
+            file_paths=file_paths,
+        )
+
+        memory_manager.log_memory_usage("after_spectrogram", job_id)
+        figure.savefig(f"jobs/job_results/{job_id}.png")
+        logger.info(f"Job {job_id}: Successfully generated spectrogram")
+    except SoftTimeLimitExceeded:
+        error_msg = "Job exceeded soft time limit during spectrogram generation"
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(job_id, "failed", token, info=error_msg)
+        raise
+    except TimeLimitExceeded:
+        error_msg = "Job exceeded hard time limit during spectrogram generation"
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(job_id, "failed", token, info=error_msg)
+        raise
+    except Exception as e:
+        error_msg = f"Could not make spectrogram: {e}"
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(
+            job_id,
+            "failed",
+            token,
+            info=error_msg,
+        )
+        raise
+
+
+def _upload_results(job_id: int, token: str) -> dict:
+    """Upload job results to the main system.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+
+    Returns:
+        dict: Response from the upload operation
+
+    Raises:
+        ValueError: If upload fails
+    """
+    logger.info(f"Job {job_id}: Uploading results")
+    with Path.open(f"jobs/job_results/{job_id}.png", "rb") as results_file:
+        response = post_results(
+            job_id,
+            token,
+            file_data=results_file.read(),
+            file_name="figure.png",
+        )
+
+    if not response:
+        error_msg = "Could not post results."
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(job_id, "failed", token, info=error_msg)
+        raise ValueError(error_msg)
+
+    return response
+
+
+def _complete_job(job_id: int, token: str, response: dict) -> None:
+    """Mark job as completed and clean up.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        response: Response from results upload
+    """
+    # Clean up job files
+    logger.info(f"Job {job_id}: Cleaning up temporary files")
+    cleanup_job_files(job_id)
+
+    # Update the job as complete
+    info = {
+        "results_id": response["file_ids"]["figure.png"],
+    }
+    logger.info(f"Job {job_id}: Marking job as completed")
+    if not update_job_status(job_id, "completed", token, info=info):
+        logger.error(
+            f"Job {job_id}: Failed to update status to completed, but job processing succeeded"
+        )
+    else:
+        logger.info(f"Job {job_id}: Successfully completed")
+
+
+def _initialize_job_processing(job_id: int, token: str, self) -> None:
+    """Initialize job processing setup.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        self: The Celery task instance
+    """
+    logger.info(f"Starting job {job_id} processing")
+    memory_manager.log_memory_usage("job_start", job_id)
+    memory_manager.register_job(job_id, estimated_memory_mb=0, task_id=self.request.id)
+    _setup_signal_handlers(job_id, token)
+
+
+def _setup_job_environment(job_id: int, token: str) -> tuple[Job, dict]:
+    """Set up the job environment and get job metadata.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+
+    Returns:
+        tuple: (job object, job metadata)
+
+    Raises:
+        ValueError: If setup fails
+    """
+    connection.close()
+
+    try:
+        job = _get_job_from_database(job_id)
+    except (ObjectDoesNotExist, Exception):
+        memory_manager.unregister_job(job_id)
+        error_msg = "Failed to retrieve job from database"
+        raise ValueError(error_msg)
+
+    if not update_job_status(job_id, "running", token):
+        logger.error(
+            f"Failed to update job {job_id} status to 'running'. Aborting job."
+        )
+        memory_manager.unregister_job(job_id)
+        error_msg = "Failed to update job status"
+        raise ValueError(error_msg)
+
+    job_metadata = get_job_meta(job_id, token)
+    if job_metadata is None:
+        error_msg = "Could not get job information."
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(job_id, "failed", token, info=error_msg)
+        memory_manager.unregister_job(job_id)
+        raise ValueError(error_msg)
+
+    return job, job_metadata
+
+
+def _prepare_directories_and_files(
+    job_id: int, token: str, config: dict, job_metadata: dict
+) -> list[str]:
+    """Prepare directories and process all files.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        config: Job configuration
+        job_metadata: Job metadata
+
+    Returns:
+        list[str]: List of file paths
+    """
+    Path("jobs/job_files").mkdir(parents=True, exist_ok=True)
+    Path("jobs/job_results").mkdir(parents=True, exist_ok=True)
+
+    file_paths = _process_sds_files(job_id, token, config, job_metadata)
+    file_paths.extend(_process_local_files(job_id, token, job_metadata))
+
+    return file_paths
+
+
+def _handle_job_exceptions(job_id: int, token: str, exc: Exception) -> None:
+    """Handle exceptions during job processing.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        exc: The exception that occurred
+    """
+    if isinstance(exc, MemoryError):
+        error_msg = "Worker ran out of memory"
+    elif isinstance(exc, SoftTimeLimitExceeded):
+        error_msg = "Job exceeded soft time limit"
+    elif isinstance(exc, TimeLimitExceeded):
+        error_msg = "Job exceeded hard time limit"
+    else:
+        error_msg = f"Unexpected error in job {job_id}: {exc}"
+
+    logger.error(f"Job {job_id}: {error_msg}")
+    update_job_status(job_id, "failed", token, info=error_msg)
+    memory_manager.unregister_job(job_id)
+
+
 @shared_task(
     bind=True,
     soft_time_limit=settings.CELERY_TASK_SOFT_TIME_LIMIT,
@@ -131,289 +539,26 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
         token: Authentication token for API access
         config: Optional configuration dictionary
     """
-    logger.info(f"Starting job {job_id} processing")
-    memory_manager.log_memory_usage("job_start", job_id)
-
-    # Register job for memory monitoring with the Celery task ID
-    # This allows the memory manager to actually terminate this task if needed
-    memory_manager.register_job(job_id, estimated_memory_mb=0, task_id=self.request.id)
-
-    # Set up signal handlers for graceful shutdown
-    def signal_handler(signum, frame):
-        logger.warning(
-            f"Job {job_id}: Received signal {signum}, attempting graceful shutdown"
-        )
-        memory_manager.unregister_job(job_id)
-        update_job_status(
-            job_id, "failed", token, info=f"Worker terminated by signal {signum}"
-        )
-        raise SystemExit(1)
-
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
+    _initialize_job_processing(job_id, token, self)
 
     try:
-        # Ensure we have a fresh database connection
-        connection.close()
-
-        # Get the job from database with retry logic
-        try:
-            job = retry_operation(
-                lambda: Job.objects.get(id=job_id),
-                max_retries=5,
-                base_delay=0.5,
-                operation_name=f"Database lookup for job {job_id}",
-            )
-            logger.info(f"Job {job_id} found in database with status '{job.status}'")
-        except ObjectDoesNotExist:
-            logger.error(
-                f"Job {job_id} does not exist in database after retries - "
-                "this indicates a transaction isolation issue"
-            )
-            memory_manager.unregister_job(job_id)
-            return
-        except Exception as e:
-            logger.error(f"Error accessing job {job_id} in database: {e}")
-            memory_manager.unregister_job(job_id)
-            return
-
-        # Update job status to running
-        if not update_job_status(job_id, "running", token):
-            logger.error(
-                f"Failed to update job {job_id} status to 'running'. Aborting job."
-            )
-            memory_manager.unregister_job(job_id)
-            return
-
-        # The next thing we do is get the job information. This will tell us:
-        # 1. What type of visualization we should do
-        # 2. A list of files we'll need
-        job_metadata = get_job_meta(job_id, token)
-        if job_metadata is None:
-            error_msg = "Could not get job information."
-            logger.error(f"Job {job_id}: {error_msg}")
-            update_job_status(
-                job_id,
-                "failed",
-                token,
-                info=error_msg,
-            )
-            memory_manager.unregister_job(job_id)
-            raise ValueError(error_msg)
-
-        # Create directories for job files and results
-        Path("jobs/job_files").mkdir(parents=True, exist_ok=True)
-        Path("jobs/job_results").mkdir(parents=True, exist_ok=True)
-
-        # Handle SDS data downloading if needed
-        file_paths = []
-        if config and "capture_ids" in config:
-            try:
-                # Get user from token
-                user = User.objects.get(uuid=job_metadata["data"]["user_id"])
-                logger.info(
-                    f"Job {job_id}: Downloading SDS files for capture {config['capture_ids']}"
-                )
-                file_paths = download_sds_files(
-                    job_id, token, config["capture_ids"], user, config["capture_type"]
-                )
-                logger.info(f"Job {job_id}: Successfully downloaded SDS files")
-                memory_manager.log_memory_usage("after_sds_download", job_id)
-            except Exception as e:
-                error_msg = f"Error downloading SDS data: {e!s}"
-                logger.error(f"Job {job_id}: {error_msg}")
-                update_job_status(job_id, "failed", token, info=error_msg)
-                memory_manager.unregister_job(job_id)
-                raise ValueError(error_msg)
-
-        # Process local files
-        for f in job_metadata["data"]["local_files"]:
-            logger.info(f"Job {job_id}: Fetching local file {f['name']}")
-            data = get_job_file(f["id"], token, "local")
-
-            if data is None:
-                error_msg = f"Could not fetch local file {f['name']}."
-                logger.error(f"Job {job_id}: {error_msg}")
-                update_job_status(
-                    job_id,
-                    "failed",
-                    token,
-                    info=error_msg,
-                )
-                memory_manager.unregister_job(job_id)
-                raise ValueError(error_msg)
-
-            file_path = Path("jobs/job_files") / f["name"]
-            with file_path.open("wb") as new_file:
-                new_file.write(data)
-            file_paths.append(str(file_path))
-            logger.info(f"Job {job_id}: Successfully saved local file {f['name']}")
-
-        # Estimate memory requirements before processing
-        memory_estimate = estimate_memory_requirements(file_paths, config or {})
-        logger.info(
-            f"Job {job_id}: Memory estimate - "
-            f"Files: {memory_estimate['file_size_mb']:.1f}MB, "
-            f"Processing: {memory_estimate['estimated_processing_mb']:.1f}MB, "
-            f"Total: {memory_estimate['total_estimated_mb']:.1f}MB"
+        job, job_metadata = _setup_job_environment(job_id, token)
+        file_paths = _prepare_directories_and_files(
+            job_id, token, config or {}, job_metadata
         )
 
-        # Update the job's memory estimate for monitoring
-        memory_manager.update_job_memory_estimate(
-            job_id, memory_estimate["total_estimated_mb"]
-        )
+        _check_memory_requirements(job_id, token, file_paths, config or {})
+        _generate_visualization(job_id, token, job_metadata, config or {}, file_paths)
 
-        # Check if we have enough memory - log warning but continue
-        available_memory = psutil.virtual_memory().available / 1024 / 1024  # MB
-        memory_usage_percent = (
-            memory_estimate["total_estimated_mb"] / available_memory
-        ) * 100
-
-        if (
-            memory_estimate["total_estimated_mb"] > available_memory * 0.6
-        ):  # 60% of available
-            logger.info(
-                f"Job {job_id}: High memory usage expected - "
-                f"Estimated: {memory_estimate['total_estimated_mb']:.1f}MB, "
-                f"Available: {available_memory:.1f}MB, "
-                f"Usage: {memory_usage_percent:.1f}%"
-            )
-            # Update job status with memory warning
-            update_job_status(
-                job_id,
-                "running",
-                token,
-                info={
-                    "memory_warning": f"High memory usage expected ({memory_usage_percent:.1f}% of available)",
-                },
-            )
-        else:
-            logger.info(
-                f"Job {job_id}: Low memory usage expected - "
-                f"Estimated: {memory_estimate['total_estimated_mb']:.1f}MB, "
-                f"Available: {available_memory:.1f}MB, "
-                f"Usage: {memory_usage_percent:.1f}%"
-            )
-
-        if job_metadata["data"]["type"] == "spectrogram":
-            try:
-                logger.info(f"Job {job_id}: Generating spectrogram")
-                memory_manager.log_memory_usage("before_spectrogram", job_id)
-
-                figure = make_spectrogram(
-                    job_metadata,
-                    config,
-                    file_paths=file_paths,
-                )
-
-                memory_manager.log_memory_usage("after_spectrogram", job_id)
-                figure.savefig(f"jobs/job_results/{job_id}.png")
-                logger.info(f"Job {job_id}: Successfully generated spectrogram")
-            except SoftTimeLimitExceeded:
-                error_msg = "Job exceeded soft time limit during spectrogram generation"
-                logger.error(f"Job {job_id}: {error_msg}")
-                update_job_status(job_id, "failed", token, info=error_msg)
-                memory_manager.unregister_job(job_id)
-                raise
-            except TimeLimitExceeded:
-                error_msg = "Job exceeded hard time limit during spectrogram generation"
-                logger.error(f"Job {job_id}: {error_msg}")
-                update_job_status(job_id, "failed", token, info=error_msg)
-                memory_manager.unregister_job(job_id)
-                raise
-            except Exception as e:
-                error_msg = f"Could not make spectrogram: {e}"
-                logger.error(f"Job {job_id}: {error_msg}")
-                update_job_status(
-                    job_id,
-                    "failed",
-                    token,
-                    info=error_msg,
-                )
-                memory_manager.unregister_job(job_id)
-                raise
-        else:
-            error_msg = f"Unknown job type: {job_metadata['data']['type']}"
-            logger.error(f"Job {job_id}: {error_msg}")
-            update_job_status(
-                job_id,
-                "failed",
-                token,
-                info=error_msg,
-            )
-            memory_manager.unregister_job(job_id)
-            raise ValueError(error_msg)
-
-        # Let's say the code dumped to a local file and we want to upload that.
-        # We can do either that, or have an in-memory file. Either way,
-        # "results_file" will be our file contents (byte format)
-        logger.info(f"Job {job_id}: Uploading results")
-        with Path.open(f"jobs/job_results/{job_id}.png", "rb") as results_file:
-            # Post results -- we can make this call as many times as needed to get
-            # results to send to the main system.
-            # We can also mix JSON data and a file. It will save 2 records of
-            # "JobData", one for the JSON and one for the file.
-            # Remember that "json_data" should be a dictionary, and if we use a
-            # file upload, to provide it a name.
-            response = post_results(
-                job_id,
-                token,
-                file_data=results_file.read(),
-                file_name="figure.png",
-            )
-
-        if not response:
-            error_msg = "Could not post results."
-            logger.error(f"Job {job_id}: {error_msg}")
-            update_job_status(job_id, "failed", token, info=error_msg)
-            memory_manager.unregister_job(job_id)
-            raise ValueError(error_msg)
-
-        # Clean up job files
-        logger.info(f"Job {job_id}: Cleaning up temporary files")
-        cleanup_job_files(job_id)
-
-        # Update the job as complete
-        info = {
-            "results_id": response["file_ids"]["figure.png"],
-        }
-        logger.info(f"Job {job_id}: Marking job as completed")
-        if not update_job_status(job_id, "completed", token, info=info):
-            logger.error(
-                f"Job {job_id}: Failed to update status to completed, but job processing succeeded"
-            )
-        else:
-            logger.info(f"Job {job_id}: Successfully completed")
+        response = _upload_results(job_id, token)
+        _complete_job(job_id, token, response)
 
         memory_manager.log_memory_usage("job_complete", job_id)
 
-    except MemoryError:
-        # Log memory error and update job status
-        error_msg = "Worker ran out of memory"
-        logger.error(f"Job {job_id}: {error_msg}")
-        update_job_status(job_id, "failed", token, info=error_msg)
-        memory_manager.unregister_job(job_id)
-        raise
-    except SoftTimeLimitExceeded:
-        error_msg = "Job exceeded soft time limit"
-        logger.error(f"Job {job_id}: {error_msg}")
-        update_job_status(job_id, "failed", token, info=error_msg)
-        memory_manager.unregister_job(job_id)
-        raise
-    except TimeLimitExceeded:
-        error_msg = "Job exceeded hard time limit"
-        logger.error(f"Job {job_id}: {error_msg}")
-        update_job_status(job_id, "failed", token, info=error_msg)
-        memory_manager.unregister_job(job_id)
-        raise
-    except Exception as e:
-        error_msg = f"Unexpected error in job {job_id}: {e}"
-        logger.error(error_msg)
-        update_job_status(job_id, "failed", token, info=error_msg)
-        memory_manager.unregister_job(job_id)
+    except (MemoryError, SoftTimeLimitExceeded, TimeLimitExceeded, Exception) as e:
+        _handle_job_exceptions(job_id, token, e)
         raise
     finally:
-        # Always unregister job from memory monitoring
         memory_manager.unregister_job(job_id)
 
 
@@ -609,7 +754,7 @@ def check_job_running_on_worker(job_id: int) -> bool:
             return False
 
         # Check if any worker has our job task running
-        for worker_name, tasks in active_tasks.items():
+        for tasks in active_tasks.values():
             for task in tasks:
                 # Check if this is a submit_job task and if it's processing our job_id
                 if (

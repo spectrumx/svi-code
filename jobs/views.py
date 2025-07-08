@@ -104,15 +104,14 @@ def create_job_status_update(request):
             },
             status=201,
         )
-    else:
-        return Response(
-            {
-                "status": "error",
-                "message": "Invalid data provided",
-                "errors": serializer.errors,
-            },
-            status=400,
-        )
+    return Response(
+        {
+            "status": "error",
+            "message": "Invalid data provided",
+            "errors": serializer.errors,
+        },
+        status=400,
+    )
 
 
 class LocalFile(TypedDict):

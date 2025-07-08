@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script for zombie job detection functionality.
 
@@ -9,22 +8,23 @@ Run with: python test_zombie_detection.py
 
 import os
 import sys
+from pathlib import Path
 
 import django
 import pytest
-
-# Add the project root to the Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# Set up Django
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
-django.setup()
 
 from jobs.models import Job
 from jobs.models import JobStatusUpdate
 from jobs.tasks import check_job_running_on_worker
 from jobs.tasks import detect_zombie_job
 from spectrumx_visualization_platform.users.models import User
+
+# Add the project root to the Python path
+sys.path.append(str(Path(__file__).resolve().parent))
+
+# Set up Django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
+django.setup()
 
 
 @pytest.mark.django_db(transaction=True)

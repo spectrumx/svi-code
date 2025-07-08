@@ -100,7 +100,7 @@ class MemoryManager:
                 active_tasks = inspect.active()
 
                 if active_tasks:
-                    for worker_name, tasks in active_tasks.items():
+                    for tasks in active_tasks.values():
                         for task in tasks:
                             if task.get("id") == task_id:
                                 logger.warning(
@@ -237,7 +237,7 @@ class MemoryManager:
                             f"Failed to update job {heaviest_job_id} status: {e}"
                         )
 
-                elif memory_percent > 85.0:
+                elif memory_percent > memory_threshold - 10.0:
                     logger.warning(
                         f"High memory usage detected - {memory_percent:.1f}% "
                         f"({len(self._active_jobs)} active jobs)"

@@ -152,7 +152,7 @@ def _load_digital_rf_data(
 
         # Validate sample count
         if num_samples <= 0:
-            raise ValueError(f"Invalid sample count: {num_samples}. Must be positive.")
+            _raise_error(f"Invalid sample count: {num_samples}. Must be positive.")
 
         data_array = reader.read_vector(start_sample, num_samples, channel, subchannel)
 

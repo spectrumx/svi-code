@@ -50,7 +50,7 @@ def create_retry_session(
 _default_retry_session = create_retry_session()
 
 
-def update_job_status(job_id: int, status: str, token: str, info=None, retry=True):
+def update_job_status(job_id: int, status: str, token: str, info=None, *, retry=True):
     """
     Update the status of a job in the API.
 
@@ -95,19 +95,22 @@ def update_job_status(job_id: int, status: str, token: str, info=None, retry=Tru
         if response.status_code == requests.codes.created:
             logger.info(f"Successfully updated job {job_id} status to '{status}'")
             return True
-        else:
+
+        logger.error(
+            f"Failed to update job {job_id} status to '{status}'. "
+            f"Status code: {response.status_code}, Response: {response.text}"
+        )
+
+        # If the job doesn't exist, log this specifically
+        if (
+            response.status_code == requests.codes.bad_request
+            and "object does not exist" in response.text
+        ):
             logger.error(
-                f"Failed to update job {job_id} status to '{status}'. "
-                f"Status code: {response.status_code}, Response: {response.text}"
+                f"Job {job_id} does not exist in the database - this may indicate a transaction isolation issue"
             )
 
-            # If the job doesn't exist, log this specifically
-            if response.status_code == 400 and "object does not exist" in response.text:
-                logger.error(
-                    f"Job {job_id} does not exist in the database - this may indicate a transaction isolation issue"
-                )
-
-            return False
+        return False
     except requests.exceptions.RequestException as e:
         logger.error(
             f"Request exception while updating job {job_id} status to '{status}': {e}"
@@ -147,12 +150,12 @@ def get_job_meta(job_id: int, token: str):
         if response.status_code == requests.codes.ok:
             logger.info(f"Successfully fetched metadata for job {job_id}")
             return response.json()
-        else:
-            logger.error(
-                f"Failed to get job metadata for job {job_id}. "
-                f"Status code: {response.status_code}, Response: {response.text}"
-            )
-            return None
+
+        logger.error(
+            f"Failed to get job metadata for job {job_id}. "
+            f"Status code: {response.status_code}, Response: {response.text}"
+        )
+        return None
     except requests.exceptions.RequestException as e:
         logger.error(f"Request exception while fetching job {job_id} metadata: {e}")
         return None

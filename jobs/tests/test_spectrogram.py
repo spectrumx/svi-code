@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Tests for spectrogram generation logic.
 
@@ -6,8 +5,8 @@ This module tests the spectrogram generation functionality,
 including data loading and figure creation.
 """
 
-import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -15,7 +14,7 @@ from scipy.signal import ShortTimeFFT
 from scipy.signal.windows import gaussian
 
 # Add the project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from jobs.visualizations.spectrogram import SpectrogramData
 from jobs.visualizations.spectrogram import _create_spectrogram_figure
@@ -28,17 +27,19 @@ class TestSpectrogramData:
     def test_spectrogram_data_creation(self):
         """Test creating SpectrogramData with various parameters."""
         # Basic creation
-        data = np.random.randn(1000) + 1j * np.random.randn(1000)
+        sample_rate = 1e6
+        sample_count = 1000
+        data = np.random.randn(sample_count) + 1j * np.random.randn(sample_count)
         spectrogram_data = SpectrogramData(
             data_array=data,
-            sample_rate=1e6,
-            sample_count=1000,
+            sample_rate=sample_rate,
+            sample_count=sample_count,
             channel_name="test_channel",
         )
 
-        assert spectrogram_data.data_array.shape == (1000,)
-        assert spectrogram_data.sample_rate == 1e6
-        assert spectrogram_data.sample_count == 1000
+        assert spectrogram_data.data_array.shape == (sample_count,)
+        assert spectrogram_data.sample_rate == sample_rate
+        assert spectrogram_data.sample_count == sample_count
         assert spectrogram_data.channel_name == "test_channel"
 
     def test_spectrogram_data_defaults(self):
@@ -151,9 +152,11 @@ class TestSpectrogramFigureCreation:
             spectrogram, short_time_fft, self.spectrogram_data, self.config
         )
 
+        num_axes = 2
+
         assert figure is not None
         assert hasattr(figure, "axes")
-        assert len(figure.axes) == 2
+        assert len(figure.axes) == num_axes
 
         # Check that the figure has the expected properties
         ax = figure.axes[0]

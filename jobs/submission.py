@@ -73,7 +73,7 @@ def request_job_submission(
         error_message = f"Failed to verify job {job.id} exists in database: {e}"
         logger.error(error_message)
         # If we can't verify the job exists, we should not queue the task
-        raise Exception(error_message)
+        raise ValueError(error_message)
 
     # Update status to 'submitted' directly in database BEFORE queuing the task
     # This avoids the API call that might fail due to transaction isolation
