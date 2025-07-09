@@ -114,28 +114,6 @@ def retry_operation(
     raise last_exception
 
 
-def _setup_signal_handlers(job_id: int, token: str) -> None:
-    """Set up signal handlers for graceful shutdown.
-
-    Args:
-        job_id: The ID of the job being processed
-        token: Authentication token for API access
-    """
-
-    def signal_handler(signum, frame):
-        logger.warning(
-            f"Job {job_id}: Received signal {signum}, attempting graceful shutdown"
-        )
-        memory_manager.unregister_job(job_id)
-        update_job_status(
-            job_id, "failed", token, info=f"Worker terminated by signal {signum}"
-        )
-        raise SystemExit(1)
-
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
-
-
 def _get_job_from_database(job_id: int) -> Job:
     """Retrieve job from database with retry logic.
 
@@ -366,76 +344,6 @@ def _generate_visualization(
         raise
 
 
-def _upload_results(job_id: int, token: str) -> dict:
-    """Upload job results to the main system.
-
-    Args:
-        job_id: The ID of the job
-        token: Authentication token
-
-    Returns:
-        dict: Response from the upload operation
-
-    Raises:
-        ValueError: If upload fails
-    """
-    logger.info(f"Job {job_id}: Uploading results")
-    with Path.open(f"jobs/job_results/{job_id}.png", "rb") as results_file:
-        response = post_results(
-            job_id,
-            token,
-            file_data=results_file.read(),
-            file_name="figure.png",
-        )
-
-    if not response:
-        error_msg = "Could not post results."
-        logger.error(f"Job {job_id}: {error_msg}")
-        update_job_status(job_id, "failed", token, info=error_msg)
-        raise ValueError(error_msg)
-
-    return response
-
-
-def _complete_job(job_id: int, token: str, response: dict) -> None:
-    """Mark job as completed and clean up.
-
-    Args:
-        job_id: The ID of the job
-        token: Authentication token
-        response: Response from results upload
-    """
-    # Clean up job files
-    logger.info(f"Job {job_id}: Cleaning up temporary files")
-    cleanup_job_files(job_id)
-
-    # Update the job as complete
-    info = {
-        "results_id": response["file_ids"]["figure.png"],
-    }
-    logger.info(f"Job {job_id}: Marking job as completed")
-    if not update_job_status(job_id, "completed", token, info=info):
-        logger.error(
-            f"Job {job_id}: Failed to update status to completed, but job processing succeeded"
-        )
-    else:
-        logger.info(f"Job {job_id}: Successfully completed")
-
-
-def _initialize_job_processing(job_id: int, token: str, self) -> None:
-    """Initialize job processing setup.
-
-    Args:
-        job_id: The ID of the job
-        token: Authentication token
-        self: The Celery task instance
-    """
-    logger.info(f"Starting job {job_id} processing")
-    memory_manager.log_memory_usage("job_start", job_id)
-    memory_manager.register_job(job_id, estimated_memory_mb=0, task_id=self.request.id)
-    _setup_signal_handlers(job_id, token)
-
-
 def _setup_job_environment(job_id: int, token: str) -> tuple[Job, dict]:
     """Set up the job environment and get job metadata.
 
@@ -500,28 +408,6 @@ def _prepare_directories_and_files(
     return file_paths
 
 
-def _handle_job_exceptions(job_id: int, token: str, exc: Exception) -> None:
-    """Handle exceptions during job processing.
-
-    Args:
-        job_id: The ID of the job
-        token: Authentication token
-        exc: The exception that occurred
-    """
-    if isinstance(exc, MemoryError):
-        error_msg = "Worker ran out of memory"
-    elif isinstance(exc, SoftTimeLimitExceeded):
-        error_msg = "Job exceeded soft time limit"
-    elif isinstance(exc, TimeLimitExceeded):
-        error_msg = "Job exceeded hard time limit"
-    else:
-        error_msg = f"Unexpected error in job {job_id}: {exc}"
-
-    logger.error(f"Job {job_id}: {error_msg}")
-    update_job_status(job_id, "failed", token, info=error_msg)
-    memory_manager.unregister_job(job_id)
-
-
 @shared_task(
     bind=True,
     soft_time_limit=settings.CELERY_TASK_SOFT_TIME_LIMIT,
@@ -539,7 +425,24 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
         token: Authentication token for API access
         config: Optional configuration dictionary
     """
-    _initialize_job_processing(job_id, token, self)
+    # Initialize job processing setup
+    logger.info(f"Starting job {job_id} processing")
+    memory_manager.log_memory_usage("job_start", job_id)
+    memory_manager.register_job(job_id, estimated_memory_mb=0, task_id=self.request.id)
+
+    # Set up signal handlers for graceful shutdown
+    def signal_handler(signum, frame):
+        logger.warning(
+            f"Job {job_id}: Received signal {signum}, attempting graceful shutdown"
+        )
+        memory_manager.unregister_job(job_id)
+        update_job_status(
+            job_id, "failed", token, info=f"Worker terminated by signal {signum}"
+        )
+        raise SystemExit(1)
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
     try:
         job, job_metadata = _setup_job_environment(job_id, token)
@@ -550,13 +453,51 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
         _check_memory_requirements(job_id, token, file_paths, config or {})
         _generate_visualization(job_id, token, job_metadata, config or {}, file_paths)
 
-        response = _upload_results(job_id, token)
-        _complete_job(job_id, token, response)
+        # Upload job results to the main system
+        logger.info(f"Job {job_id}: Uploading results")
+        with Path.open(f"jobs/job_results/{job_id}.png", "rb") as results_file:
+            response = post_results(
+                job_id,
+                token,
+                file_data=results_file.read(),
+                file_name="figure.png",
+            )
+
+        if not response:
+            error_msg = "Could not post results."
+            _handle_job_error(job_id, token, error_msg, logger)
+
+        # Mark job as completed and clean up
+        logger.info(f"Job {job_id}: Cleaning up temporary files")
+        cleanup_job_files(job_id)
+
+        info = {
+            "results_id": response["file_ids"]["figure.png"],
+        }
+        logger.info(f"Job {job_id}: Marking job as completed")
+        if not update_job_status(job_id, "completed", token, info=info):
+            logger.error(
+                f"Job {job_id}: Failed to update status to completed, but job processing succeeded"
+            )
+        else:
+            logger.info(f"Job {job_id}: Successfully completed")
 
         memory_manager.log_memory_usage("job_complete", job_id)
 
     except (MemoryError, SoftTimeLimitExceeded, TimeLimitExceeded, Exception) as e:
-        _handle_job_exceptions(job_id, token, e)
+        # Handle exceptions during job processing
+        if isinstance(e, MemoryError):
+            error_msg = "Worker ran out of memory"
+        elif isinstance(e, SoftTimeLimitExceeded):
+            error_msg = "Job exceeded soft time limit"
+        elif isinstance(e, TimeLimitExceeded):
+            error_msg = "Job exceeded hard time limit"
+        else:
+            error_msg = f"Unexpected error in job {job_id}: {e}"
+
+        logger.error(f"Job {job_id}: {error_msg}")
+        update_job_status(job_id, "failed", token, info=error_msg)
+        memory_manager.unregister_job(job_id)
         raise
     finally:
         memory_manager.unregister_job(job_id)
@@ -581,6 +522,25 @@ def error_handler(request, exc, _traceback):
         logger.info(
             f"Job {request.job_id}: Successfully updated status to failed in error handler"
         )
+
+
+def _handle_job_error(
+    job_id: int, token: str, error_msg: str, logger_instance: logging.Logger
+) -> None:
+    """Handle job errors by logging, updating status, and raising ValueError.
+
+    Args:
+        job_id: The ID of the job
+        token: Authentication token
+        error_msg: Error message to log and raise
+        logger_instance: Logger instance to use
+
+    Raises:
+        ValueError: Always raised with the error message
+    """
+    logger_instance.error(f"Job {job_id}: {error_msg}")
+    update_job_status(job_id, "failed", token, info=error_msg)
+    raise ValueError(error_msg)
 
 
 def download_sds_files(
