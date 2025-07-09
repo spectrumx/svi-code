@@ -77,7 +77,7 @@ class User(AbstractUser):
                 headers={
                     "Authorization": f"Token {settings.SVI_SERVER_API_KEY}",
                 },
-                timeout=10,
+                timeout=60,
             )
 
             response.raise_for_status()

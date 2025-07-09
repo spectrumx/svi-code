@@ -2,6 +2,7 @@ import { AxiosError } from 'axios';
 import { z as zod } from 'zod';
 
 import apiClient from '.';
+import { SpectrogramSettings } from '../components/spectrogram/SpectrogramVizContainer';
 
 const CreateSpectrogramResponseSchema = zod.object({
   status: zod.string().optional(),
@@ -25,6 +26,7 @@ export const postSpectrogramJob = async (
   visualizationUUID: string,
   width: number,
   height: number,
+  settings: SpectrogramSettings,
 ): Promise<CreateSpectrogramResponse> => {
   try {
     const response = await apiClient.post(
@@ -32,6 +34,7 @@ export const postSpectrogramJob = async (
       {
         width: width,
         height: height,
+        config: settings,
       },
     );
 

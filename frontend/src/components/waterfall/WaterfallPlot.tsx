@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
-import { ScanState, WaterfallType, Display } from './types';
+import { ScanState, ScanWaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './index';
 
 const SCROLL_INDICATOR_SIZE = 15;
@@ -31,7 +31,7 @@ const downIndicatorStyle: React.CSSProperties = {
 interface WaterfallPlotProps {
   scan: ScanState;
   display: Display;
-  setWaterfall: (waterfall: WaterfallType) => void;
+  setWaterfall: (waterfall: ScanWaterfallType) => void;
   setScaleChanged: (scaleChanged: boolean) => void;
   setResetScale: (resetScale: boolean) => void;
   currentFileIndex: number;
@@ -581,7 +581,10 @@ export function WaterfallPlot({
           />
         )}
       </div>
-      <div style={{ position: 'relative', height: `${WATERFALL_HEIGHT}px` }}>
+      <div
+        className="waterfall-plot"
+        style={{ position: 'relative', height: `${WATERFALL_HEIGHT}px` }}
+      >
         <canvas ref={plotCanvasRef} style={{ display: 'block' }} />
         <canvas
           ref={overlayCanvasRef}

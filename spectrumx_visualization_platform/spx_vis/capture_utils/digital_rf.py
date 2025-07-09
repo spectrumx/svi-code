@@ -1,20 +1,11 @@
 import logging
 import mimetypes
-import os
 import re
-import shutil
-import tarfile
-import tempfile
 import zipfile
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 
-from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
-
-from jobs.submission import request_job_submission
-from spectrumx_visualization_platform.spx_vis.models import CaptureType
 
 from .base import CaptureUtility
 
@@ -124,62 +115,3 @@ class DigitalRFUtility(CaptureUtility):
 
         # Use the file name (without extension) as the capture name
         return ".".join(files[0].name.split(".")[:-1])
-
-    @staticmethod
-    def submit_spectrogram_job(user, capture_files, width=10, height=10):
-        """Get the Digital RF data and metadata files needed for spectrogram generation.
-
-        Args:
-            capture_files: List of file paths that make up a Digital RF channel directory structure
-            width: Width of the spectrogram in inches
-            height: Height of the spectrogram in inches
-
-        Returns:
-            Job: The submitted job
-
-        Raises:
-            ValueError: If the required Digital RF files are not found
-        """
-        # Find the metadata file and data directories
-        meta_file = None
-
-        for f in capture_files:
-            if f.endswith("drf_properties.h5"):
-                meta_file = f
-
-        if not meta_file:
-            error_message = "Required Digital RF metadata file not found"
-            logger.error(error_message)
-            raise ValueError(error_message)
-
-        # Create a temporary directory for archive creation
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create the tar file in the temporary directory
-            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-            parent_dir = os.path.commonpath(capture_files)
-            archive_filename = f"{parent_dir.split('/')[-1][:30]}_{timestamp}.tar.gz"
-            temp_archive_path = Path(temp_dir) / archive_filename
-
-            # Create the tar archive in the temporary directory
-            logger.info(f"Creating tar archive in temp directory: {temp_archive_path}")
-            with tarfile.open(temp_archive_path, "w:gz") as tf:
-                tf.add(parent_dir, arcname=parent_dir.split("/")[-1])
-
-            # Move the archive file to its final location
-            final_archive_path = Path(settings.MEDIA_ROOT)
-            logger.info(f"Moving tar archive to final location: {final_archive_path}")
-            shutil.move(str(temp_archive_path), str(final_archive_path))
-
-        config = {
-            "width": width,
-            "height": height,
-            "capture_type": CaptureType.DigitalRF,
-        }
-
-        # Submit the job with the archive file
-        return request_job_submission(
-            visualization_type="spectrogram",
-            owner=user,
-            local_files=[archive_filename],
-            config=config,
-        )

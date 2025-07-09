@@ -99,16 +99,20 @@ class LocalFile(TypedDict):
 
 
 class JobMetadata(TypedDict):
+    user_id: str
     type: str
     status: Literal["submitted", "running", "completed", "failed"]
     created_at: datetime
     updated_at: datetime
     local_files: list[LocalFile]
     remote_files: list[str]
+    config: dict
+    results_id: str | None
 
 
 class JobMetadataResponse(TypedDict):
     status: Literal["success", "error"]
+    job_id: int
     data: JobMetadata | None
     message: str | None
 
@@ -159,13 +163,16 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
         return JsonResponse(
             {
                 "status": "success",
+                "job_id": job_id,
                 "data": {
+                    "user_id": job.owner.uuid,
                     "type": job.type,
                     "status": job.status,
                     "created_at": job.created_at,
                     "updated_at": job.updated_at,
                     "local_files": local_files,
                     "remote_files": remote_files,
+                    "config": job.config,
                     "results_id": results_id,
                 },
             },

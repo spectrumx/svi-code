@@ -33,7 +33,7 @@ def update_job_status(job_id: int, status: str, token: str, info=None):
         f"{settings.API_URL}/api/jobs/update-job-status/",
         data=data,
         headers=headers,
-        timeout=20,
+        timeout=60,
     )
 
     return response.status_code == requests.codes.created
@@ -56,7 +56,7 @@ def get_job_meta(job_id: int, token: str):
     response = requests.get(
         f"{settings.API_URL}/api/jobs/job-metadata/{job_id}/",
         headers=headers,
-        timeout=10,
+        timeout=60,
     )
     if response.status_code != requests.codes.ok:
         return None
@@ -118,7 +118,7 @@ def post_results(job_id, token: str, json_data=None, file_data=None, file_name=N
             f"{settings.API_URL}/api/jobs/save-job-data/{job_id}/",
             json={"json_data": json_data},
             headers=headers,
-            timeout=10,
+            timeout=60,
         )
         if response.status_code != requests.codes.created:
             fail = True
@@ -130,7 +130,7 @@ def post_results(job_id, token: str, json_data=None, file_data=None, file_name=N
             f"{settings.API_URL}/api/jobs/save-job-data/{job_id}/",
             files=files,
             headers=headers,
-            timeout=10,
+            timeout=60,
         )
         if response.status_code != requests.codes.created:
             fail = True

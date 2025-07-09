@@ -82,9 +82,15 @@ if env("USE_DOCKER") == "yes":
 INSTALLED_APPS += ["django_extensions"]
 # Celery
 # ------------------------------------------------------------------------------
-
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-eager-propagates
 CELERY_TASK_EAGER_PROPAGATES = True
+# https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-soft-time-limit
+# TODO: set to whatever value is adequate in your circumstances
+CELERY_TASK_SOFT_TIME_LIMIT = 60 * 60
+# https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-time-limit
+# TODO: set to whatever value is adequate in your circumstances
+CELERY_TASK_TIME_LIMIT = CELERY_TASK_SOFT_TIME_LIMIT + (5 * 60)
+
 # Your stuff...
 # ------------------------------------------------------------------------------
 

@@ -11,13 +11,36 @@ import {
 } from '../../apiClient/jobService';
 import { VizContainerProps } from '../types';
 
+// How long to wait between job status polls to the server
+const POLL_INTERVAL = 3000;
+
 export interface SpectrogramSettings {
   fftSize: number;
+  stdDev: number;
+  hopSize: number;
+  colormap: string;
+  subchannel?: number;
 }
+
+export type JobStatus =
+  | 'pending'
+  | 'submitted'
+  | 'running'
+  | 'fetching_results'
+  | 'completed'
+  | 'failed'
+  | 'error';
+
+export const ACTIVE_JOB_STATUSES: JobStatus[] = [
+  'pending',
+  'submitted',
+  'running',
+  'fetching_results',
+];
 
 export interface JobInfo {
   job_id: number | null;
-  status: string | null;
+  status: JobStatus | null;
   message?: string;
   results_id?: string;
 }
@@ -28,6 +51,9 @@ const SpectrogramVizContainer = ({
   const [spectrogramSettings, setSpectrogramSettings] =
     useState<SpectrogramSettings>({
       fftSize: 1024,
+      stdDev: 100,
+      hopSize: 500,
+      colormap: 'magma',
     });
   const [spectrogramUrl, setSpectrogramUrl] = useState<string | null>(null);
   const [jobInfo, setJobInfo] = useState<JobInfo>({
@@ -46,10 +72,11 @@ const SpectrogramVizContainer = ({
         visualizationRecord.uuid,
         width,
         height,
+        spectrogramSettings,
       );
       setJobInfo({
         job_id: response.job_id ?? null,
-        status: response.status ?? null,
+        status: response.status as JobStatus | null,
         message: response.message ?? response.detail,
       });
     } catch (error) {
@@ -83,6 +110,44 @@ const SpectrogramVizContainer = ({
     }
   };
 
+  const handleSaveSpectrogram = async () => {
+    if (!spectrogramUrl) return;
+
+    try {
+      // Fetch the image blob
+      const response = await fetch(spectrogramUrl);
+      const blob = await response.blob();
+
+      // Create a download link
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+
+      // Generate filename based on timestamp and visualization UUID
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `spectrogram-${visualizationRecord.uuid}-${timestamp}.png`;
+
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error saving spectrogram:', error);
+      setJobInfo((prevStatus) => ({
+        ...prevStatus,
+        status: 'error',
+        message: 'Failed to save spectrogram',
+      }));
+    }
+  };
+
+  // Request a spectrogram on mount with the default settings
+  useEffect(() => {
+    createSpectrogramJob();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /**
    * Once a job is created, periodically poll the server to check its status
    */
@@ -114,7 +179,7 @@ const SpectrogramVizContainer = ({
           } else {
             setJobInfo((prevStatus) => ({
               ...prevStatus,
-              status: newStatus,
+              status: newStatus as JobStatus | null,
               message: response.message,
               results_id: resultsId,
             }));
@@ -132,7 +197,7 @@ const SpectrogramVizContainer = ({
             message: error instanceof Error ? error.message : 'Unknown error',
           }));
         }
-      }, 2000);
+      }, POLL_INTERVAL);
     }
 
     return () => {
@@ -162,6 +227,9 @@ const SpectrogramVizContainer = ({
             <SpectrogramControls
               settings={spectrogramSettings}
               setSettings={setSpectrogramSettings}
+              numSubchannels={
+                visualizationRecord.captures?.[0]?.subchannels ?? undefined
+              }
             />
             <Button onClick={createSpectrogramJob} disabled={isSubmitting}>
               Generate Spectrogram
@@ -172,7 +240,14 @@ const SpectrogramVizContainer = ({
         <Col>
           <SpectrogramVisualization
             imageUrl={spectrogramUrl}
+            isLoading={
+              isSubmitting ||
+              (jobInfo.status
+                ? ACTIVE_JOB_STATUSES.includes(jobInfo.status)
+                : false)
+            }
             hasError={jobInfo.status === 'failed' || jobInfo.status === 'error'}
+            onSave={handleSaveSpectrogram}
           />
         </Col>
       </Row>

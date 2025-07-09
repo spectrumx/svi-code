@@ -140,26 +140,31 @@ class TestVisualizationDetailSerializer:
         fake_uuid_1 = "11111111-1111-1111-1111-111111111111"
         fake_uuid_2 = "22222222-2222-2222-2222-222222222222"
 
-        mock_get_sds_captures.return_value = [
-            {
-                "uuid": fake_uuid_1,
-                "owner": user.uuid,
-                "name": "Test SDS Capture 1",
-                "files": radiohound_files,
-                "timestamp": 0,
-                "type": "rh",
-                "source": "sds",
-            },
-            {
-                "uuid": fake_uuid_2,
-                "owner": user.uuid,
-                "name": "Test SDS Capture 2",
-                "files": radiohound_files,
-                "timestamp": 1,
-                "type": "rh",
-                "source": "sds",
-            },
-        ]
+        mock_get_sds_captures.return_value = (
+            # Captures
+            [
+                {
+                    "uuid": fake_uuid_1,
+                    "owner": user.uuid,
+                    "name": "Test SDS Capture 1",
+                    "files": radiohound_files,
+                    "timestamp": 0,
+                    "type": "rh",
+                    "source": "sds",
+                },
+                {
+                    "uuid": fake_uuid_2,
+                    "owner": user.uuid,
+                    "name": "Test SDS Capture 2",
+                    "files": radiohound_files,
+                    "timestamp": 1,
+                    "type": "rh",
+                    "source": "sds",
+                },
+            ],
+            # Errors
+            [],
+        )
 
         visualization = Visualization.objects.create(
             owner=user,
@@ -182,9 +187,7 @@ class TestVisualizationDetailSerializer:
         assert result[0]["uuid"] == fake_uuid_2
         assert result[0]["name"] == "Test SDS Capture 2"
 
-        request = api_request_factory
-
-        mock_get_sds_captures.assert_called_once_with(request)
+        mock_get_sds_captures.assert_called_once_with(user, [fake_uuid_2])
 
     def test_validate_capture_ids_loop(self, api_request_factory: APIRequestFactory):
         test_cases = [

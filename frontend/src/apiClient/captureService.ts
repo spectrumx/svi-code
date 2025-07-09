@@ -66,10 +66,14 @@ export const CaptureSchema = zod.object({
   max_freq: zod.number().optional().nullable(),
   scan_time: zod.number().optional().nullable(),
   end_time: zod.string().optional().nullable(),
+  subchannels: zod.number().optional().nullable(),
 });
 export type Capture = zod.infer<typeof CaptureSchema>;
 
-const CapturesResponseSchema = zod.array(CaptureSchema);
+const CapturesResponseSchema = zod.object({
+  captures: zod.array(CaptureSchema),
+  error: zod.array(zod.string()).optional().nullable(),
+});
 
 export const getCapturesWithFilters = async (filters?: {
   min_frequency?: string;
@@ -94,7 +98,10 @@ export const getCapturesWithFilters = async (filters?: {
     const response = await apiClient.get(
       `/api/captures/list/?${params.toString()}`,
     );
-    const captures = CapturesResponseSchema.parse(response.data);
+    const { captures, error } = CapturesResponseSchema.parse(response.data);
+    if (error) {
+      console.error('Server error fetching captures:', error);
+    }
     const sortedCaptures = captures.sort((a, b) =>
       sortByDate(a, b, 'timestamp'),
     );
