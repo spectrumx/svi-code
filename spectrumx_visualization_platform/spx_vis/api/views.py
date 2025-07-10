@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import requests
-import spectrumx
 from django.conf import settings
 from django.http import FileResponse
 from rest_framework import filters
@@ -45,9 +44,6 @@ from spectrumx_visualization_platform.spx_vis.source_utils.sds import get_sds_ca
 if TYPE_CHECKING:
     from spectrumx_visualization_platform.users.models import User
 
-if settings.DEBUG:
-    spectrumx.enable_logging()
-
 
 @api_view(["GET"])
 def capture_list(request: Request) -> Response:
@@ -63,9 +59,9 @@ def capture_list(request: Request) -> Response:
     error_messages = []
 
     if not source_filter or "sds" in source_filter:
-        sds_captures, sds_error = get_sds_captures(request.user)
-        if sds_error:
-            error_messages.extend(sds_error)
+        sds_captures, sds_errors = get_sds_captures(request.user)
+        if sds_errors:
+            error_messages.extend(sds_errors)
 
     # Combine captures
     combined_capture_list = sds_captures

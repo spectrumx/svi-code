@@ -3,5 +3,9 @@
 set -o errexit
 set -o nounset
 
+# Set resource limits for the worker
+export C_FORCE_ROOT=true
 
-exec watchfiles --filter python celery.__main__.main --args '-A config.celery_app worker -l INFO'
+# Start Celery worker with enhanced configuration
+exec watchfiles --filter python celery.__main__.main \
+    --args '-A config.celery_app worker -l INFO -Q default,large_jobs --concurrency=2 --max-memory-per-child=1073741824'

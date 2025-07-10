@@ -5,6 +5,7 @@ This module provides endpoints for job submission, status updates, metadata retr
 and data management. All endpoints requiring authentication use Token Authentication.
 """
 
+import traceback
 from datetime import datetime
 from typing import Literal
 from typing import TypedDict
@@ -81,16 +82,36 @@ def create_job_status_update(request):
     Create a new status update for a job.
 
     Args:
-        request: HTTP request containing job status update data
+        request: HTTP request object containing job status information
 
     Returns:
-        Response: Serialized job status update data if successful, errors otherwise
+        Response: Success status and created status update details
     """
     serializer = JobStatusUpdateSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
+        job_status_update = serializer.save()
+        return Response(
+            {
+                "status": "success",
+                "message": "Job status update created successfully",
+                "data": {
+                    "id": job_status_update.id,
+                    "job_id": job_status_update.job.id,
+                    "status": job_status_update.status,
+                    "info": job_status_update.info,
+                    "created_at": job_status_update.created_at,
+                },
+            },
+            status=201,
+        )
+    return Response(
+        {
+            "status": "error",
+            "message": "Invalid data provided",
+            "errors": serializer.errors,
+        },
+        status=400,
+    )
 
 
 class LocalFile(TypedDict):
@@ -126,7 +147,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
 
     Args:
         request: HTTP request object
-        id: Job ID to retrieve metadata for
+        job_id: Job ID to retrieve metadata for
 
     Returns:
         JsonResponse: Job metadata including type, status, timestamps, and
@@ -137,6 +158,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
     """
     try:
         job = Job.objects.get(id=job_id)
+
         # Get latest status update
         status_update = (
             JobStatusUpdate.objects.filter(job=job).order_by("-created_at").first()
@@ -144,6 +166,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
 
         # make sure the owner of this job is the person requesting it
         if job.owner != request.user:
+            print(f"Job {job_id}: Access denied for user {request.user.id}")
             raise_does_not_exist(Job)
 
         # Get associated files
@@ -157,8 +180,12 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
 
         if status_update and isinstance(status_update.info, dict):
             results_id = status_update.info.get("results_id", None)
+            memory_warning = status_update.info.get("memory_warning", None)
+            error = status_update.info.get("error", None)
         else:
             results_id = None
+            memory_warning = None
+            error = None
 
         return JsonResponse(
             {
@@ -173,18 +200,30 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
                     "local_files": local_files,
                     "remote_files": remote_files,
                     "config": job.config,
+                    "memory_warning": memory_warning,
                     "results_id": results_id,
+                    "error": error,
                 },
             },
         )
-
     except Job.DoesNotExist:
+        print(f"Job {job_id}: Job not found in database")
         return JsonResponse(
             {
                 "status": "error",
                 "message": "Job not found",
             },
             status=404,
+        )
+    except Exception as e:
+        print(f"Error getting job metadata for job {job_id}: {e}")
+        print(traceback.format_exc())
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Error getting job metadata",
+            },
+            status=500,
         )
 
 
@@ -382,5 +421,8 @@ def save_job_data(request, job_id):
     )
 
 
-def raise_does_not_exist(model):
-    raise model.DoesNotExist
+def raise_does_not_exist(model_class):
+    """Raise a 404 error for a model that doesn't exist."""
+    from django.http import Http404
+
+    raise Http404(f"{model_class.__name__} not found")
