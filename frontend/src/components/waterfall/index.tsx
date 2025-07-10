@@ -3,7 +3,6 @@ import _ from 'lodash';
 
 import { Periodogram } from './Periodogram';
 import { WaterfallPlot } from './WaterfallPlot';
-import { WaterfallSettings } from './WaterfallVizContainer';
 import {
   Chart,
   Data,
@@ -13,8 +12,10 @@ import {
   ScanWaterfallType,
   WaterfallFile,
   Display,
+  WaterfallSettings,
 } from './types';
 import { formatHertz } from '../../utils/utils';
+import { WATERFALL_MAX_ROWS } from './WaterfallVizContainer';
 
 // const initialOptions: ScanOptionsType = {
 //   selectedNodes: [],
@@ -130,8 +131,6 @@ const initialScan: ScanState = {
   scaleMin: undefined as number | undefined,
   scaleMax: undefined as number | undefined,
 };
-
-export const WATERFALL_MAX_ROWS = 80;
 
 interface WaterfallVisualizationProps {
   waterfallFiles: WaterfallFile[];
@@ -556,16 +555,31 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   };
 
   useEffect(() => {
+    console.log('Waterfall files length', waterfallFiles.length);
+    console.log('Processed data length', processedData.length);
+    console.log('Current waterfall range', currentWaterfallRange);
+    console.log('Desired waterfall range', desiredWaterfallRange);
+    console.log('Is loading waterfall range', isLoadingWaterfallRange);
+    console.log('file index', settings.fileIndex);
+
     // Process single file for periodogram
     if (
       isLoadingWaterfallRange ||
-      !_.isEqual(desiredWaterfallRange, currentWaterfallRange)
-    )
+      !_.isEqual(desiredWaterfallRange, currentWaterfallRange) ||
+      waterfallFiles.length === 0 ||
+      processedData.length === 0 ||
+      settings.fileIndex < currentWaterfallRange.startIndex ||
+      settings.fileIndex > currentWaterfallRange.endIndex
+    ) {
+      console.log('Not processing periodogram data');
       return;
+    }
+
+    console.log('Processing periodogram data');
 
     processPeriodogramData(
-      waterfallFiles[settings.fileIndex],
-      processedData[settings.fileIndex],
+      waterfallFiles[settings.fileIndex - currentWaterfallRange.startIndex],
+      processedData[settings.fileIndex - currentWaterfallRange.startIndex],
     );
   }, [
     waterfallFiles,
@@ -602,7 +616,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         Math.floor(settings.fileIndex / pageSize) * pageSize;
       const lastPossibleStartIndex = Math.max(0, totalFiles - pageSize);
       const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
-      const endIndex = Math.min(totalFiles, startIndex + pageSize);
+      const endIndex = Math.min(totalFiles - 1, startIndex + pageSize - 1);
 
       // Only reprocess waterfall if the range has changed
       if (
@@ -756,7 +770,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
               paddingBottom: 0,
             }}
             yAxisTitle="dBm per bin"
-            isLoading={isLoadingWaterfallRange}
           />
           <WaterfallPlot
             scan={scan}
@@ -770,7 +783,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             totalFiles={waterfallFiles.length}
             colorLegendWidth={PLOTS_LEFT_MARGIN}
             indexLegendWidth={PLOTS_RIGHT_MARGIN}
-            isLoading={isLoadingWaterfallRange}
           />
         </div>
       </div>

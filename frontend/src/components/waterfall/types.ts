@@ -162,6 +162,13 @@ export interface ScanState {
 
 export interface ScanWaterfallType
   extends Pick<ScanState, 'periodogram' | 'xMin' | 'xMax'>,
-    Partial<
-      Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax' | 'allData'>
-    > {}
+  Partial<
+    Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax' | 'allData'>
+  > { }
+
+export interface WaterfallSettings {
+  fileIndex: number;
+  isPlaying: boolean;
+  playbackSpeed: string;
+  subchannel?: number;
+}

@@ -4,7 +4,7 @@ import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
 import LoadingBlock from '../LoadingBlock';
 import { ScanState, ScanWaterfallType, Display } from './types';
-import { WATERFALL_MAX_ROWS } from './index';
+import { WATERFALL_MAX_ROWS } from './WaterfallVizContainer';
 
 const SCROLL_INDICATOR_SIZE = 15;
 const WATERFALL_HEIGHT = 500;

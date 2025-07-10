@@ -1,9 +1,9 @@
 import base64
 import logging
 import mimetypes
-import os
 import re
 import zipfile
+from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 
@@ -18,6 +18,46 @@ logger = logging.getLogger(__name__)
 
 # Constants for DigitalRF processing
 SAMPLES_PER_SLICE = 1024  # Number of samples per waterfall slice
+
+
+@dataclass
+class DigitalRFContext:
+    """Context object containing DigitalRF reader and channel information."""
+
+    reader: DigitalRFReader
+    channel: str
+    sample_rate: float
+    center_freq: float
+    start_sample: int
+    end_sample: int
+
+
+@dataclass
+class ProcessingConfig:
+    """Configuration for DigitalRF processing."""
+
+    fft_size: int = 1024
+    samples_per_slice: int = SAMPLES_PER_SLICE
+    start_idx: int | None = None
+    end_idx: int | None = None
+
+
+@dataclass
+class FrequencyRange:
+    """Frequency range information."""
+
+    min_frequency: float
+    max_frequency: float
+    center_frequency: float
+
+    @classmethod
+    def from_sample_rate_and_center(
+        cls, sample_rate: float, center_freq: float
+    ) -> "FrequencyRange":
+        """Create frequency range from sample rate and center frequency."""
+        min_freq = center_freq - sample_rate / 2
+        max_freq = center_freq + sample_rate / 2
+        return cls(min_freq, max_freq, center_freq)
 
 
 class DigitalRFUtility(CaptureUtility):
@@ -125,11 +165,47 @@ class DigitalRFUtility(CaptureUtility):
         return ".".join(files[0].name.split(".")[:-1])
 
     @staticmethod
+    def _create_context(drf_data_path: str) -> DigitalRFContext:
+        """Create a DigitalRF context object.
+
+        Args:
+            drf_data_path: Path to the DigitalRF data directory
+
+        Returns:
+            DigitalRFContext: Context object with reader and metadata
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        reader = DigitalRFReader(drf_data_path)
+        channels = reader.get_channels()
+
+        if not channels:
+            raise ValueError("No channels found in DigitalRF data")
+
+        channel = channels[0]
+        start_sample, end_sample = reader.get_bounds(channel)
+
+        # Get metadata from DigitalRF properties
+        drf_props_path = f"{drf_data_path}/{channel}/drf_properties.h5"
+        with h5py.File(drf_props_path, "r") as f:
+            sample_rate = (
+                f.attrs["sample_rate_numerator"] / f.attrs["sample_rate_denominator"]
+            )
+            center_freq = f.attrs.get("center_freq", 0)
+
+        return DigitalRFContext(
+            reader=reader,
+            channel=channel,
+            sample_rate=sample_rate,
+            center_freq=center_freq,
+            start_sample=start_sample,
+            end_sample=end_sample,
+        )
+
+    @staticmethod
     def to_waterfall_file(
         drf_data_path: str,
-        subchannel: int = 0,
-        start_sample: int | None = None,
-        num_samples: int | None = None,
         fft_size: int = 1024,
         start_idx: int | None = None,
         end_idx: int | None = None,
@@ -142,12 +218,9 @@ class DigitalRFUtility(CaptureUtility):
 
         Args:
             drf_data_path: Path to the DigitalRF data directory
-            subchannel: Subchannel index to process (default: 0)
-            start_sample: Starting sample index (default: None, uses first available)
-            num_samples: Number of samples to process (default: None, uses available)
             fft_size: FFT size for processing (default: 1024)
-            start_idx: Start index for the sliding window (default: None, processes all data)
-            end_idx: End index for the sliding window (default: None, processes all data)
+            start_idx: Start index for the sliding window (default: None, uses 0)
+            end_idx: End index for the sliding window (default: None, uses last available slice)
             samples_per_slice: Number of samples per waterfall slice (default: 1024)
 
         Returns:
@@ -157,74 +230,31 @@ class DigitalRFUtility(CaptureUtility):
             ValueError: If required fields are missing or invalid
         """
         try:
-            # Print the drf_data_path dir tree
-            for root, dirs, files in os.walk(drf_data_path):
-                print(root)
-                print(dirs)
-                print(files)
-                print("-" * 100)
-
-            # Initialize DigitalRF reader
-            logger.info(f"Initializing DigitalRF reader with path: {drf_data_path}")
-            reader = DigitalRFReader(drf_data_path)
-            logger.info("Reader initialized successfully")
-            channels = reader.get_channels()
-
-            if not channels:
-                raise ValueError("No channels found in DigitalRF data")
-
-            # Use the first channel (or specified channel)
-            channel = channels[0]
-
-            # Get sample bounds
-            if start_sample is None or num_samples is None:
-                start_sample, end_sample = reader.get_bounds(channel)
-                if num_samples is None:
-                    num_samples = end_sample - start_sample
-
-            # Get metadata from DigitalRF properties
-            drf_props_path = f"{drf_data_path}/{channel}/drf_properties.h5"
-            with h5py.File(drf_props_path, "r") as f:
-                sample_rate = (
-                    f.attrs["sample_rate_numerator"]
-                    / f.attrs["sample_rate_denominator"]
-                )
-                center_freq = f.attrs.get("center_freq", 0)
+            # Create context and configuration
+            context = DigitalRFUtility._create_context(drf_data_path)
+            config = ProcessingConfig(
+                fft_size=fft_size,
+                samples_per_slice=samples_per_slice,
+                start_idx=start_idx,
+                end_idx=end_idx,
+            )
 
             # Calculate frequency range
-            freq_step = sample_rate / fft_size
-            min_frequency = center_freq - sample_rate / 2
-            max_frequency = center_freq + sample_rate / 2
+            freq_range = FrequencyRange.from_sample_rate_and_center(
+                context.sample_rate, context.center_freq
+            )
 
-            # If window parameters are provided, process multiple slices
-            if start_idx is not None and end_idx is not None:
-                return DigitalRFUtility._process_window_slices(
-                    reader,
-                    channel,
-                    subchannel,
-                    start_sample,
-                    sample_rate,
-                    min_frequency,
-                    max_frequency,
-                    fft_size,
-                    start_idx,
-                    end_idx,
-                    samples_per_slice,
-                )
-            else:
-                # Process single slice and return as list
-                waterfall_file = DigitalRFUtility._process_single_slice(
-                    reader,
-                    channel,
-                    subchannel,
-                    start_sample,
-                    num_samples,
-                    sample_rate,
-                    min_frequency,
-                    max_frequency,
-                    fft_size,
-                )
-                return [waterfall_file]
+            # Calculate total slices and set defaults
+            total_samples = context.end_sample - context.start_sample
+            total_slices = total_samples // config.samples_per_slice
+
+            if config.start_idx is None:
+                config.start_idx = 0
+            if config.end_idx is None:
+                config.end_idx = total_slices - 1
+
+            # Process the specified slice range
+            return DigitalRFUtility._process_window_slices(context, config, freq_range)
 
         except Exception as e:
             error_message = (
@@ -234,38 +264,79 @@ class DigitalRFUtility(CaptureUtility):
             raise ValueError(error_message)
 
     @staticmethod
+    def _process_window_slices(
+        context: DigitalRFContext,
+        config: ProcessingConfig,
+        freq_range: FrequencyRange,
+    ) -> list[dict]:
+        """Process multiple slices of DigitalRF data for a sliding window.
+
+        Args:
+            context: DigitalRF context object
+            config: Processing configuration
+            freq_range: Frequency range information
+
+        Returns:
+            list[dict]: List of WaterfallFile format data
+        """
+        waterfall_files = []
+
+        # Calculate the number of slices to process
+        num_slices = config.end_idx - config.start_idx + 1
+
+        for i in range(num_slices):
+            # Calculate the sample range for this slice
+            slice_start_sample = (
+                context.start_sample + (config.start_idx + i) * config.samples_per_slice
+            )
+            slice_num_samples = min(
+                config.samples_per_slice,
+                context.end_sample - slice_start_sample,
+            )
+
+            if slice_num_samples <= 0:
+                break
+
+            # Process this slice
+            waterfall_file = DigitalRFUtility._process_single_slice(
+                context,
+                config,
+                freq_range,
+                slice_start_sample,
+                slice_num_samples,
+            )
+
+            waterfall_files.append(waterfall_file)
+
+        return waterfall_files
+
+    @staticmethod
     def _process_single_slice(
-        reader: DigitalRFReader,
-        channel: str,
-        subchannel: int,
-        start_sample: int,
-        num_samples: int,
-        sample_rate: float,
-        min_frequency: float,
-        max_frequency: float,
-        fft_size: int,
+        context: DigitalRFContext,
+        config: ProcessingConfig,
+        freq_range: FrequencyRange,
+        slice_start_sample: int,
+        slice_num_samples: int,
     ) -> dict:
         """Process a single slice of DigitalRF data.
 
         Args:
-            reader: DigitalRF reader instance
-            channel: Channel name
-            subchannel: Subchannel index
-            start_sample: Starting sample index
-            num_samples: Number of samples to process
-            sample_rate: Sample rate in Hz
-            min_frequency: Minimum frequency
-            max_frequency: Maximum frequency
-            fft_size: FFT size
+            context: DigitalRF context object
+            config: Processing configuration
+            freq_range: Frequency range information
+            slice_start_sample: Starting sample index for this slice
+            slice_num_samples: Number of samples to process for this slice
 
         Returns:
             dict: WaterfallFile format data
         """
         # Read the data
-        data_array = reader.read_vector(start_sample, num_samples, channel, subchannel)
+        data_array = context.reader.read_vector(
+            slice_start_sample, slice_num_samples, context.channel, 0
+        )
 
         # Perform FFT processing
-        fft_data = np.fft.fft(data_array, n=fft_size)
+        fft_data = np.fft.fft(data_array, n=config.fft_size)
         power_spectrum = np.abs(fft_data) ** 2
 
         # Convert to dB
@@ -277,7 +348,7 @@ class DigitalRFUtility(CaptureUtility):
 
         # Create timestamp from sample index
         timestamp = datetime.fromtimestamp(
-            start_sample / sample_rate, tz=UTC
+            slice_start_sample / context.sample_rate, tz=UTC
         ).isoformat()
 
         # Build WaterfallFile format
@@ -285,93 +356,23 @@ class DigitalRFUtility(CaptureUtility):
             "data": data_string,
             "data_type": "float32",
             "timestamp": timestamp,
-            "min_frequency": min_frequency,
-            "max_frequency": max_frequency,
-            "num_samples": fft_size,
-            "sample_rate": sample_rate,
-            "mac_address": f"drf_{channel}_{subchannel}",
-            "center_frequency": (min_frequency + max_frequency) / 2,
+            "min_frequency": freq_range.min_frequency,
+            "max_frequency": freq_range.max_frequency,
+            "num_samples": config.fft_size,
+            "sample_rate": context.sample_rate,
+            "mac_address": f"drf_{context.channel}_0",
+            "center_frequency": freq_range.center_frequency,
             "custom_fields": {
                 "num_subchannels": 1,  # Will be updated by caller
-                "channel_name": channel,
-                "subchannel": subchannel,
-                "start_sample": start_sample,
-                "num_samples": num_samples,
-                "fft_size": fft_size,
+                "channel_name": context.channel,
+                "subchannel": 0,
+                "start_sample": slice_start_sample,
+                "num_samples": slice_num_samples,
+                "fft_size": config.fft_size,
             },
         }
 
         return waterfall_file
-
-    @staticmethod
-    def _process_window_slices(
-        reader: DigitalRFReader,
-        channel: str,
-        subchannel: int,
-        start_sample: int,
-        sample_rate: float,
-        min_frequency: float,
-        max_frequency: float,
-        fft_size: int,
-        start_idx: int,
-        end_idx: int,
-        samples_per_slice: int,
-    ) -> list[dict]:
-        """Process multiple slices of DigitalRF data for a sliding window.
-
-        Args:
-            reader: DigitalRF reader instance
-            channel: Channel name
-            subchannel: Subchannel index
-            start_sample: Starting sample index
-            sample_rate: Sample rate in Hz
-            min_frequency: Minimum frequency
-            max_frequency: Maximum frequency
-            fft_size: FFT size
-            start_idx: Start index for the sliding window
-            end_idx: End index for the sliding window
-            samples_per_slice: Number of samples per slice
-
-        Returns:
-            list[dict]: List of WaterfallFile format data
-        """
-        waterfall_files = []
-
-        # Calculate the number of slices to process
-        num_slices = end_idx - start_idx
-
-        for i in range(num_slices):
-            # Calculate the sample range for this slice
-            slice_start_sample = start_sample + (start_idx + i) * samples_per_slice
-            slice_num_samples = min(
-                samples_per_slice,
-                start_sample + (end_idx * samples_per_slice) - slice_start_sample,
-            )
-
-            if slice_num_samples <= 0:
-                break
-
-            # Process this slice
-            waterfall_file = DigitalRFUtility._process_single_slice(
-                reader,
-                channel,
-                subchannel,
-                slice_start_sample,
-                slice_num_samples,
-                sample_rate,
-                min_frequency,
-                max_frequency,
-                fft_size,
-            )
-
-            # Update the timestamp to reflect the slice position
-            waterfall_file["timestamp"] = datetime.fromtimestamp(
-                slice_start_sample / sample_rate, tz=UTC
-            ).isoformat()
-
-            waterfall_files.append(waterfall_file)
-
-        return waterfall_files
 
     @staticmethod
     def get_total_slices(
@@ -390,23 +391,9 @@ class DigitalRFUtility(CaptureUtility):
             ValueError: If required fields are missing or invalid
         """
         try:
-            # Initialize DigitalRF reader
-            reader = DigitalRFReader(drf_data_path)
-            channels = reader.get_channels()
-
-            if not channels:
-                raise ValueError("No channels found in DigitalRF data")
-
-            # Use the first channel
-            channel = channels[0]
-
-            # Get sample bounds
-            start_sample, end_sample = reader.get_bounds(channel)
-            total_samples = end_sample - start_sample
-
-            # Calculate total slices
+            context = DigitalRFUtility._create_context(drf_data_path)
+            total_samples = context.end_sample - context.start_sample
             total_slices = total_samples // samples_per_slice
-
             return max(1, total_slices)  # Ensure at least 1 slice
 
         except Exception as e:

@@ -224,7 +224,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
     captures = serializers.SerializerMethodField(read_only=True)
     is_saved = serializers.BooleanField(read_only=True)
     expiration_date = serializers.DateTimeField(read_only=True)
-    total_slices = serializers.SerializerMethodField(read_only=True)
 
     # Define supported capture types for each visualization type
     SUPPORTED_CAPTURE_TYPES = {
@@ -251,7 +250,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "captures",
             "is_saved",
             "expiration_date",
-            "total_slices",
         ]
         read_only_fields = [
             "uuid",
@@ -260,7 +258,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             "captures",
             "is_saved",
             "expiration_date",
-            "total_slices",
         ]
 
     def _handle_sds_errors(self, sds_errors: list[str]) -> None:
@@ -319,156 +316,6 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
                     continue
 
         return captures
-
-    def get_total_slices(self, obj: Visualization) -> int | None:
-        """Get the total number of slices for DigitalRF captures.
-
-        Args:
-            obj: The Visualization instance being serialized.
-
-        Returns:
-            int | None: Total number of slices for DigitalRF captures, None for other types.
-        """
-        # Only calculate total slices for DigitalRF waterfall visualizations
-        if (
-            obj.capture_type != CaptureType.DigitalRF
-            or obj.type != VisualizationType.Waterfall
-        ):
-            return None
-
-        request = self.context.get("request")
-        if not request:
-            return None
-
-        try:
-            if obj.capture_source == CaptureSource.SDS:
-                # For SDS captures, we need to get the capture data and calculate total slices
-                sds_captures, sds_errors = get_sds_captures(request.user)
-                if sds_errors:
-                    logger.warning(
-                        f"SDS errors when calculating total slices: {sds_errors}"
-                    )
-                    return None
-
-                # Find the specific capture
-                capture = next(
-                    (c for c in sds_captures if str(c["uuid"]) in obj.capture_ids), None
-                )
-                if not capture:
-                    logger.warning("Capture not found for total slices calculation")
-                    return None
-
-                # Download the DigitalRF data to calculate total slices
-                import os
-                import shutil
-                import tempfile
-                from pathlib import Path
-
-                from spectrumx_visualization_platform.spx_vis.capture_utils.digital_rf import (
-                    DigitalRFUtility,
-                )
-
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    # Use the SDS client to download files
-                    sds_client = request.user.sds_client()
-
-                    # Get the capture from SDS client
-                    sds_captures = sds_client.captures.listing(
-                        capture_type=obj.capture_type
-                    )
-                    sds_capture = next(
-                        (c for c in sds_captures if str(c.uuid) == obj.capture_ids[0]),
-                        None,
-                    )
-
-                    if not sds_capture:
-                        logger.warning("Capture not found in SDS client")
-                        return None
-
-                    # Create a directory for this capture
-                    local_path = Path(temp_dir) / obj.capture_ids[0]
-                    local_path.mkdir(parents=True)
-
-                    # Download files using the SDS client
-                    from jobs.tasks import safe_sds_client_download
-
-                    file_results = safe_sds_client_download(
-                        sds_client, sds_capture.top_level_dir, local_path
-                    )
-
-                    downloaded_files = [result() for result in file_results if result]
-                    download_errors = [
-                        result.error_info for result in file_results if not result
-                    ]
-
-                    if download_errors:
-                        logger.warning(
-                            f"Failed to download SDS files: {download_errors}"
-                        )
-                        return None
-
-                    # For DigitalRF, maintain the directory structure
-                    if obj.capture_type == CaptureType.DigitalRF:
-                        # Get the UUIDs of the files in the capture for comparison
-                        file_uuids = [file.uuid for file in sds_capture.files]
-
-                        # Clean up unnecessary files and directories
-                        matching_files = []
-                        for f in downloaded_files:
-                            if f.uuid in file_uuids:
-                                matching_files.append(f)
-                            else:
-                                f.local_path.unlink()
-
-                        if not matching_files:
-                            logger.warning(
-                                f"No matching files found for capture {obj.capture_ids[0]}"
-                            )
-                            return None
-
-                        # Maintain directory structure like in tasks.py
-                        file_paths = [str(f.local_path) for f in matching_files]
-                        common_path = os.path.commonpath(file_paths)
-                        shutil.move(common_path, local_path)
-
-                        # Remove the SDS root directory if it exists
-                        sds_root = (
-                            str(sds_capture.files[0].directory).strip("/").split("/")[0]
-                        )
-                        sds_root_path = local_path / sds_root
-                        if sds_root_path.exists():
-                            shutil.rmtree(sds_root_path)
-
-                        # Find the DigitalRF data directory
-                        drf_data_path = None
-                        for root, dirs, files in os.walk(local_path):
-                            if "drf_properties.h5" in files:
-                                # The DigitalRF directory is the parent of the channel directory
-                                # (top-level directory containing channel directories)
-                                drf_data_path = os.path.dirname(root)
-                                break
-
-                        if drf_data_path:
-                            # Calculate total slices using the DigitalRF utility
-                            total_slices = DigitalRFUtility.get_total_slices(
-                                drf_data_path
-                            )
-                            return total_slices
-                        else:
-                            logger.warning("Could not find DigitalRF data directory")
-                            return None
-
-            else:
-                # For local captures, we would need to access the actual files
-                # This is more complex and would require file system access
-                logger.warning(
-                    "Total slices calculation not yet implemented for local DigitalRF captures"
-                )
-                return None
-
-        except Exception as e:
-            logger.error(f"Error calculating total slices: {e}")
-            return None
 
     def validate_capture_ids(self, value) -> list[str]:
         """Validate that capture_ids is a non-empty list of strings.

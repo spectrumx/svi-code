@@ -68,7 +68,6 @@ const VisualizationRecordDetailSchema = BaseVisualizationRecordSchema.extend({
   captures: zod.array(CaptureSchema),
   is_saved: zod.boolean(),
   expiration_date: zod.string().nullable(),
-  total_slices: zod.number().nullable().optional(),
 });
 
 export type VisualizationRecordDetail = zod.infer<
@@ -90,20 +89,6 @@ export const getVisualizations = async (): Promise<VisualizationRecord[]> => {
     return zod.array(VisualizationRecordSchema).parse(response.data);
   } catch (error) {
     console.error('Error fetching visualizations:', error);
-    throw error;
-  }
-};
-
-export const getDetailedVisualizations = async (): Promise<
-  VisualizationRecordDetail[]
-> => {
-  try {
-    const response = await apiClient.get('/api/visualizations/', {
-      params: { detailed: true },
-    });
-    return zod.array(VisualizationRecordDetailSchema).parse(response.data);
-  } catch (error) {
-    console.error('Error fetching detailed visualizations:', error);
     throw error;
   }
 };
@@ -240,6 +225,25 @@ export const useVisualizationFiles = (vizRecord: VisualizationRecordDetail) => {
 };
 
 /**
+ * Fetches the total number of slices for a DigitalRF waterfall visualization.
+ * @param id - The ID of the visualization
+ * @returns The total number of slices available
+ * @throws Error if the request fails or the response data is invalid
+ */
+export const getTotalSlices = async (id: string): Promise<number> => {
+  try {
+    const response = await apiClient.get(
+      `/api/visualizations/${id}/get_total_slices/`,
+    );
+
+    return zod.number().parse(response.data.total_slices);
+  } catch (error) {
+    console.error('Error fetching total slices:', error);
+    throw error;
+  }
+};
+
+/**
  * Fetches waterfall data for a visualization from the backend.
  * @param id - The ID of the visualization
  * @param subchannel - Optional subchannel index for DigitalRF captures
@@ -276,6 +280,30 @@ export const getWaterfallData = async (
     console.error('Error fetching waterfall data:', error);
     throw error;
   }
+};
+
+export const useTotalSlices = (id: string) => {
+  const [totalSlices, setTotalSlices] = useState<number | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTotalSlices = async () => {
+      setIsLoading(true);
+      try {
+        const slices = await getTotalSlices(id);
+        setTotalSlices(slices);
+      } catch (error) {
+        console.error('Error fetching total slices:', error);
+        setError('Failed to fetch total slices');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTotalSlices();
+  }, [id]);
+
+  return { totalSlices, isLoading, error };
 };
 
 export const useWaterfallData = (

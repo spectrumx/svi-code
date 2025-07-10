@@ -606,6 +606,93 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
+    def get_total_slices(self, request: Request, uuid=None) -> Response:
+        """Get the total number of slices for waterfall visualizations.
+
+        This endpoint calculates the total number of slices available in a capture
+        without downloading the actual waterfall data. This is useful for setting up
+        the UI controls before loading the actual waterfall data.
+
+        For DigitalRF captures: calculates total slices based on sample count
+        For RadioHound captures: counts the number of JSON files in the capture
+
+        Args:
+            request: The HTTP request
+            uuid: The UUID of the visualization
+
+        Returns:
+            Response: A dictionary containing total_slices for supported capture types
+
+        Raises:
+            Response: 400 if the visualization type is not supported
+            Response: 400 if there's an error calculating total slices
+        """
+        visualization: Visualization = self.get_object()
+
+        # Only support waterfall visualizations
+        if visualization.type != VisualizationType.Waterfall:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Total slices calculation is only supported for waterfall visualizations",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only support DigitalRF and RadioHound captures
+        if visualization.capture_type not in [
+            CaptureType.DigitalRF,
+            CaptureType.RadioHound,
+        ]:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Total slices calculation is only supported for DigitalRF and RadioHound captures",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only support SDS captures
+        if visualization.capture_source != "sds":
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Only SDS captures are currently supported",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Create a BytesIO object to store the ZIP file
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                if visualization.capture_type == CaptureType.RadioHound:
+                    self._handle_sds_captures(visualization, request, zip_file)
+                elif visualization.capture_type == CaptureType.DigitalRF:
+                    self._handle_sds_captures(
+                        visualization, request, zip_file, preserve_structure=True
+                    )
+
+            # Reset buffer position to start
+            zip_buffer.seek(0)
+
+            # Process the ZIP file to calculate total slices
+            with zipfile.ZipFile(zip_buffer, "r") as zip_file:
+                total_slices = self._calculate_total_slices(
+                    zip_file, visualization.capture_ids, visualization.capture_type
+                )
+
+            return Response({"total_slices": total_slices})
+
+        except Exception as e:
+            logging.exception("Error calculating total slices")
+            return Response(
+                {"error": f"Failed to calculate total slices: {e}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["get"])
     def get_waterfall_data(self, request: Request, uuid=None) -> Response:
         """Get waterfall data for a visualization.
 
@@ -678,8 +765,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                         zip_file, visualization.capture_ids
                     )
                 elif visualization.capture_type == CaptureType.DigitalRF:
-                    # Get subchannel and window parameters from query parameters
-                    subchannel = int(request.query_params.get("subchannel", 0))
+                    # Get window parameters from query parameters
                     start_index = request.query_params.get("start_index")
                     end_index = request.query_params.get("end_index")
 
@@ -690,7 +776,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     waterfall_files = self._process_digitalrf_files(
                         zip_file,
                         visualization.capture_ids,
-                        subchannel,
                         start_idx,
                         end_idx,
                     )
@@ -744,11 +829,97 @@ class VisualizationViewSet(viewsets.ModelViewSet):
 
         return waterfall_files
 
+    def _calculate_total_slices(
+        self,
+        zip_file: zipfile.ZipFile,
+        capture_ids: list[str],
+        capture_type: CaptureType,
+    ) -> int:
+        """Calculate the total number of slices for waterfall visualizations.
+
+        Args:
+            zip_file: ZIP file containing waterfall data
+            capture_ids: List of capture IDs to process (only one capture supported)
+            capture_type: Type of capture (DigitalRF or RadioHound)
+
+        Returns:
+            int: Total number of slices available
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture_dir = f"{capture_id}/"
+
+        # Find the DigitalRF data directory
+        for file_info in zip_file.infolist():
+            if file_info.filename.startswith(
+                capture_dir
+            ) and file_info.filename.endswith("drf_properties.h5"):
+                # Extract the DigitalRF data to a temporary directory
+                import os
+                import shutil
+                import tempfile
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Extract all files for this capture
+                    for extract_info in zip_file.infolist():
+                        if extract_info.filename.startswith(capture_dir):
+                            # Create the directory structure
+                            file_path = os.path.join(
+                                temp_dir, extract_info.filename[len(capture_dir) :]
+                            )
+                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                            # Extract the file
+                            with (
+                                zip_file.open(extract_info) as source,
+                                open(file_path, "wb") as target,
+                            ):
+                                shutil.copyfileobj(source, target)
+
+                    # Find the DigitalRF root directory (parent of the channel directory)
+                    for root, dirs, files in os.walk(temp_dir):
+                        if "drf_properties.h5" in files:
+                            drf_data_path = str(Path(root).parent)
+                            break
+
+                    if drf_data_path:
+                        try:
+                            # Calculate total slices using the DigitalRF utility
+                            total_slices = DigitalRFUtility.get_total_slices(
+                                drf_data_path
+                            )
+                            return total_slices
+                        except ValueError as e:
+                            logging.error(
+                                f"Failed to calculate total slices for DigitalRF data: {e}"
+                            )
+                            raise
+
+                    break  # Only process the first drf_properties.h5 file
+
+        # For RadioHound, count the number of JSON files
+        if capture_type == CaptureType.RadioHound:
+            count = 0
+            for file_info in zip_file.infolist():
+                if file_info.filename.startswith(
+                    capture_dir
+                ) and file_info.filename.endswith(".json"):
+                    count += 1
+            if count == 0:
+                raise ValueError(
+                    "No JSON files found for RadioHound total slices calculation"
+                )
+            return count
+
+        raise ValueError("No waterfall data found for total slices calculation")
+
     def _process_digitalrf_files(
         self,
         zip_file: zipfile.ZipFile,
         capture_ids: list[str],
-        subchannel: int,
         start_idx: int | None = None,
         end_idx: int | None = None,
     ) -> list[dict]:
@@ -808,7 +979,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                             # Process the DigitalRF data
                             waterfall_result = DigitalRFUtility.to_waterfall_file(
                                 drf_data_path,
-                                subchannel=subchannel,
                                 start_idx=start_idx,
                                 end_idx=end_idx,
                             )

@@ -1,18 +1,18 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Alert, Row, Col } from 'react-bootstrap';
+import { useCallback, useState, useEffect } from 'react';
+import { Row, Col, Alert } from 'react-bootstrap';
 
-import { WaterfallVisualization } from '.';
-import WaterfallControls from './WaterfallControls';
-import ScanDetailsTable from './ScanDetailsTable';
-import { VizContainerProps } from '../types';
-import { useWaterfallData } from '../../apiClient/visualizationService';
 import LoadingBlock from '../LoadingBlock';
+import { WaterfallControls } from './WaterfallControls';
+import { WaterfallVisualization } from './index';
+import { WaterfallSettings } from './types';
+import { useWaterfallData, useTotalSlices } from '../../apiClient/visualizationService';
+import { VisualizationRecordDetail } from '../../apiClient/visualizationService';
+import ScanDetailsTable from './ScanDetailsTable';
 
-export interface WaterfallSettings {
-  fileIndex: number;
-  isPlaying: boolean;
-  playbackSpeed: string;
-  subchannel?: number;
+export const WATERFALL_MAX_ROWS = 80;
+
+interface VizContainerProps {
+  visualizationRecord: VisualizationRecordDetail;
 }
 
 export const WaterfallVizContainer = ({
@@ -28,48 +28,32 @@ export const WaterfallVizContainer = ({
   // Track the current window range for DigitalRF captures (from WaterfallVisualization)
   const [waterfallRange, setWaterfallRange] = useState({
     startIndex: 0,
-    endIndex: 80, // WATERFALL_MAX_ROWS
+    endIndex: WATERFALL_MAX_ROWS - 1,
   });
 
-  // Track if we're loading new waterfall data due to range changes
-  const [isLoadingWaterfallRange, setIsLoadingWaterfallRange] = useState(false);
+  // Get total slices (only called once when component mounts)
+  const { totalSlices, isLoading: isLoadingTotalSlices } = useTotalSlices(
+    visualizationRecord.uuid
+  );
 
-  // Determine if this is a DigitalRF visualization
-  const isDigitalRF = visualizationRecord.capture_type === 'drf';
-
-  const { waterfallData, isLoading, error } = useWaterfallData(
+  const { waterfallData, isLoading: isLoadingWaterfallData, error } = useWaterfallData(
     visualizationRecord.uuid,
     settings.subchannel,
-    isDigitalRF ? waterfallRange.startIndex : undefined,
-    isDigitalRF ? waterfallRange.endIndex : undefined,
+    waterfallRange.startIndex,
+    waterfallRange.endIndex,
   );
 
   // Callback to receive waterfall range updates from WaterfallVisualization
   const handleWaterfallRangeChange = useCallback(
     (range: { startIndex: number; endIndex: number }) => {
-      if (isDigitalRF) {
-        // Set loading state when range changes
-        setIsLoadingWaterfallRange(true);
-        setWaterfallRange(range);
-      }
+      setWaterfallRange(range);
     },
-    [isDigitalRF],
+    [],
   );
 
-  // Clear loading state when new data arrives or when there's an error
-  useEffect(() => {
-    if (isLoadingWaterfallRange) {
-      if (!isLoading && waterfallData.length > 0) {
-        // Data loaded successfully
-        setIsLoadingWaterfallRange(false);
-      } else if (error) {
-        // Error occurred, clear loading state
-        setIsLoadingWaterfallRange(false);
-      }
-    }
-  }, [isLoadingWaterfallRange, isLoading, waterfallData.length, error]);
+  const isLoadingWaterfallRange = isLoadingWaterfallData && waterfallData.length > 0;
 
-  if (isLoading) {
+  if ((isLoadingWaterfallData || isLoadingTotalSlices) && waterfallData.length === 0) {
     return <LoadingBlock message="Getting visualization files..." />;
   }
 
@@ -195,11 +179,7 @@ export const WaterfallVizContainer = ({
             <WaterfallControls
               settings={settings}
               setSettings={setSettings}
-              numFiles={
-                isDigitalRF
-                  ? visualizationRecord.total_slices || waterfallFiles.length
-                  : waterfallFiles.length
-              }
+              numFiles={totalSlices}
               numSubchannels={numSubchannels}
             />
           </div>
@@ -213,11 +193,7 @@ export const WaterfallVizContainer = ({
                 setSettings={setSettings}
                 onSave={handleSaveWaterfall}
                 onWaterfallRangeChange={handleWaterfallRangeChange}
-                totalSlices={
-                  isDigitalRF
-                    ? visualizationRecord.total_slices || undefined
-                    : undefined
-                }
+                totalSlices={totalSlices}
                 isLoadingWaterfallRange={isLoadingWaterfallRange}
               />
               {isLoadingWaterfallRange && (
