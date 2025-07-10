@@ -2,7 +2,6 @@ import { useRef, useEffect, useState } from 'react';
 import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
-import LoadingBlock from '../LoadingBlock';
 import { ScanState, ScanWaterfallType, Display } from './types';
 import { WATERFALL_MAX_ROWS } from './WaterfallVizContainer';
 
@@ -56,10 +55,6 @@ interface WaterfallPlotProps {
    */
   colorLegendWidth: number;
   indexLegendWidth: number;
-  /**
-   * Whether the waterfall data is currently being loaded
-   */
-  isLoading?: boolean;
 }
 
 export function WaterfallPlot({
@@ -74,7 +69,6 @@ export function WaterfallPlot({
   totalFiles,
   colorLegendWidth,
   indexLegendWidth,
-  isLoading = false,
 }: WaterfallPlotProps) {
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -599,24 +593,6 @@ export function WaterfallPlot({
           onMouseMove={handleCanvasMouseMove}
           onMouseLeave={handleCanvasMouseLeave}
         />
-        {isLoading && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(255, 255, 255, 0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-            }}
-          >
-            <LoadingBlock message="Loading waterfall data" />
-          </div>
-        )}
       </div>
       <div style={indicatorContainerStyle}>
         {fileRange.startIndex > 0 && (
