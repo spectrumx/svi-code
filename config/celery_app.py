@@ -15,3 +15,11 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
+
+# Configure periodic tasks
+app.conf.beat_schedule = {
+    "check-zombie-jobs": {
+        "task": "jobs.tasks.check_zombie_jobs",
+        "schedule": 60.0,  # Run every 60 seconds (1 minute)
+    },
+}

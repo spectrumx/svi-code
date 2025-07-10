@@ -64,10 +64,13 @@ def format_sds_rh_capture(sds_capture: dict, user_id: int):
         dict: Formatted capture data
     """
     capture_props = sds_capture["capture_props"]
-    metadata = capture_props["metadata"]
+    metadata = capture_props.get("metadata", {})
 
-    timestamp = capture_props["timestamp"]
-    scan_time = metadata["scan_time"] or None
+    timestamp = capture_props.get("timestamp", None)
+    scan_time = metadata.get("scan_time", None)
+    end_time = (
+        calculate_end_time(timestamp, scan_time) if timestamp and scan_time else None
+    )
 
     files = [
         {
@@ -88,10 +91,10 @@ def format_sds_rh_capture(sds_capture: dict, user_id: int):
         "timestamp": timestamp,
         "type": sds_capture["capture_type"],
         "source": "sds",
-        "min_freq": metadata["fmin"],
-        "max_freq": metadata["fmax"],
+        "min_freq": metadata.get("fmin", None),
+        "max_freq": metadata.get("fmax", None),
         "scan_time": scan_time,
-        "end_time": calculate_end_time(timestamp, scan_time),
+        "end_time": end_time or None,
     }
 
 
@@ -107,17 +110,19 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
     """
     capture_props = sds_capture["capture_props"]
 
-    start_bound: int = capture_props["start_bound"]
-    end_bound: int = capture_props["end_bound"]
-    scan_time = end_bound - start_bound
-    timestamp = datetime.fromtimestamp(start_bound, tz=UTC).isoformat()
-    end_time = datetime.fromtimestamp(end_bound, tz=UTC).isoformat()
+    start_bound: int = capture_props.get("start_bound", None)
+    end_bound: int = capture_props.get("end_bound", None)
+    scan_time = end_bound - start_bound if start_bound and end_bound else None
+    timestamp = (
+        datetime.fromtimestamp(start_bound, tz=UTC).isoformat() if start_bound else None
+    )
+    end_time = (
+        datetime.fromtimestamp(end_bound, tz=UTC).isoformat() if end_bound else None
+    )
 
     center_freq = capture_props.get("center_frequencies", [None])[
         0
     ] or capture_props.get("center_freq", None)
-    if center_freq is None:
-        raise ValueError(f"No center frequency found for capture {sds_capture['uuid']}")
 
     bandwidth: int | None = capture_props.get("bandwidth", None)
     if not bandwidth:
@@ -127,9 +132,8 @@ def format_sds_drf_capture(sds_capture: dict, user_id: int):
         fmin = center_freq - bandwidth / 2
         fmax = center_freq + bandwidth / 2
     else:
-        raise ValueError(
-            f"No bandwidth or sample rate found for capture {sds_capture['uuid']}"
-        )
+        fmin = None
+        fmax = None
 
     files = [
         {

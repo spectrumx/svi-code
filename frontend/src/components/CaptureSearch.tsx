@@ -45,14 +45,18 @@ export const CaptureSearch = ({
   useEffect(() => {
     if (captures.length > 0) {
       // Find min and max timestamps
-      const timestamps = captures.map((capture) =>
-        new Date(capture.timestamp).getTime(),
-      );
-      const minTimestamp = new Date(Math.min(...timestamps));
-      const maxTimestamp = new Date(Math.max(...timestamps));
+      const timestamps = captures
+        .map((capture) =>
+          capture.timestamp ? new Date(capture.timestamp).getTime() : undefined,
+        )
+        .filter((timestamp) => timestamp !== undefined) as number[];
+      if (timestamps.length > 0) {
+        const minTimestamp = new Date(Math.min(...timestamps));
+        const maxTimestamp = new Date(Math.max(...timestamps));
 
-      setStartDatetime(minTimestamp.toISOString());
-      setEndDatetime(maxTimestamp.toISOString());
+        setStartDatetime(minTimestamp.toISOString());
+        setEndDatetime(maxTimestamp.toISOString());
+      }
     }
   }, [captures]);
 
@@ -70,8 +74,10 @@ export const CaptureSearch = ({
       //   selectedSources.size === 0 || selectedSources.has(capture.source);
       const matchesSource = true;
 
-      const captureDate = new Date(capture.timestamp).getTime();
-      const matchesTimeRange =
+      const captureDate = capture.timestamp
+        ? new Date(capture.timestamp).getTime()
+        : undefined;
+      const matchesTimeRange = captureDate !== undefined &&
         (!startDatetime || captureDate >= new Date(startDatetime).getTime()) &&
         (!endDatetime || captureDate <= new Date(endDatetime).getTime());
 

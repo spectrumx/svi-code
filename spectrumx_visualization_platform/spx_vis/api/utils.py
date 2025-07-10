@@ -35,14 +35,6 @@ def datetime_check(value) -> datetime | None:
     return None
 
 
-def float_check(value, default=0.0):
-    """Safely convert a value to float."""
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
-
-
 def filter_capture(capture: dict, filters: dict) -> bool:
     """Filter a single capture based on given criteria.
 
@@ -58,14 +50,18 @@ def filter_capture(capture: dict, filters: dict) -> bool:
     Returns:
         bool: True if capture matches all filters
     """
-    capture_min_freq = float_check(capture.get("min_freq"))
-    capture_max_freq = float_check(capture.get("max_freq"))
+    capture_min_freq = capture.get("min_freq")
+    capture_max_freq = capture.get("max_freq")
     capture_start_time = datetime_check(capture.get("timestamp"))
     capture_end_time = datetime_check(capture.get("end_time"))
 
-    if filters.get("min_freq") and capture_max_freq < filters["min_freq"]:
+    if filters.get("min_freq") and (
+        capture_max_freq is None or capture_max_freq < filters["min_freq"]
+    ):
         return False
-    if filters.get("max_freq") and capture_min_freq > filters["max_freq"]:
+    if filters.get("max_freq") and (
+        capture_min_freq is None or capture_min_freq > filters["max_freq"]
+    ):
         return False
     if filters.get("start_time") and (
         capture_end_time is None or capture_end_time < filters["start_time"]

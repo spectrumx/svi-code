@@ -70,9 +70,7 @@ def _load_sigmf_data(file_paths: list[str]) -> SpectrogramData:
     """Load data from SigMF format.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         file_paths: List of file paths to search through
-        config: Dictionary containing job configuration
 
     Returns:
         SpectrogramData: Container with loaded data and metadata
@@ -110,7 +108,6 @@ def _load_digital_rf_data(
     """Load data from DigitalRF format.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         file_paths: List of file paths to search through
         config: Dictionary containing job configuration
 
@@ -151,7 +148,12 @@ def _load_digital_rf_data(
                 f.attrs["sample_rate_numerator"] / f.attrs["sample_rate_denominator"]
             )
 
-        num_samples = end_sample - start_sample
+        num_samples = int(end_sample - start_sample)
+
+        # Validate sample count
+        if num_samples <= 0:
+            _raise_error(f"Invalid sample count: {num_samples}. Must be positive.")
+
         data_array = reader.read_vector(start_sample, num_samples, channel, subchannel)
 
         return SpectrogramData(
@@ -182,8 +184,6 @@ def _generate_spectrogram(
     std_dev = config.get("stdDev", 100)
     fft_size = config.get("fftSize", 1024)
     gaussian_window = gaussian(fft_size, std=std_dev, sym=True)
-    width = config["width"]
-    height = config["height"]
 
     short_time_fft = ShortTimeFFT(
         gaussian_window,
@@ -194,15 +194,40 @@ def _generate_spectrogram(
     )
 
     spectrogram = short_time_fft.spectrogram(spectrogram_data.data_array)
+
+    return _create_spectrogram_figure(
+        spectrogram, short_time_fft, spectrogram_data, config
+    )
+
+
+def _create_spectrogram_figure(
+    spectrogram: np.ndarray,
+    short_time_fft: ShortTimeFFT,
+    spectrogram_data: SpectrogramData,
+    config: dict[str, Any],
+) -> plt.Figure:
+    """Create the final spectrogram figure.
+
+    Args:
+        spectrogram: The computed spectrogram array
+        short_time_fft: The ShortTimeFFT object used for computation
+        spectrogram_data: Container with data and metadata
+        config: Dictionary containing job configuration
+
+    Returns:
+        matplotlib.figure.Figure: The generated spectrogram figure
+    """
     extent = short_time_fft.extent(spectrogram_data.sample_count)
     time_min, time_max = extent[:2]
+    width = config["width"]
+    height = config["height"]
 
     # Create figure
     figure, axes = plt.subplots(figsize=(width, height))
 
     # Set title with channel name if available
     title = rf"Spectrogram ({short_time_fft.m_num*short_time_fft.T:g}$\,s$ Gaussian "
-    title += rf"window, $\sigma_t={std_dev*short_time_fft.T:g}\,$s)"
+    title += rf"window, $\sigma_t={config.get('stdDev', 100)*short_time_fft.T:g}\,$s)"
     if spectrogram_data.channel_name:
         title = f"{spectrogram_data.channel_name} - {title}"
     axes.set_title(title, fontsize=16)

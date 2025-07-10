@@ -8,11 +8,15 @@ import {
   postSpectrogramJob,
   getJobMetadata,
   getJobResults,
+  JobStatus,
+  ACTIVE_JOB_STATUSES,
 } from '../../apiClient/jobService';
 import { VizContainerProps } from '../types';
 
 // How long to wait between job status polls to the server
-const POLL_INTERVAL = 3000;
+const POLL_INTERVAL = 5000; // 5 seconds
+const STALE_JOB_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const MAX_POLL_RETRIES = 10;
 
 export interface SpectrogramSettings {
   fftSize: number;
@@ -22,27 +26,13 @@ export interface SpectrogramSettings {
   subchannel?: number;
 }
 
-export type JobStatus =
-  | 'pending'
-  | 'submitted'
-  | 'running'
-  | 'fetching_results'
-  | 'completed'
-  | 'failed'
-  | 'error';
-
-export const ACTIVE_JOB_STATUSES: JobStatus[] = [
-  'pending',
-  'submitted',
-  'running',
-  'fetching_results',
-];
-
 export interface JobInfo {
   job_id: number | null;
   status: JobStatus | null;
+  requested_at?: number;
   message?: string;
   results_id?: string;
+  memory_warning?: string;
 }
 
 const SpectrogramVizContainer = ({
@@ -61,11 +51,13 @@ const SpectrogramVizContainer = ({
     status: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pollRetries, setPollRetries] = useState(0);
 
   const createSpectrogramJob = async () => {
     setIsSubmitting(true);
     const width = window.innerWidth / 100;
     const height = window.innerHeight / 100;
+    const requested_at = Date.now();
 
     try {
       const response = await postSpectrogramJob(
@@ -78,6 +70,8 @@ const SpectrogramVizContainer = ({
         job_id: response.job_id ?? null,
         status: response.status as JobStatus | null,
         message: response.message ?? response.detail,
+        requested_at,
+        memory_warning: undefined,
       });
     } catch (error) {
       console.error('Error creating spectrogram job:', error);
@@ -150,6 +144,7 @@ const SpectrogramVizContainer = ({
 
   /**
    * Once a job is created, periodically poll the server to check its status
+   * with timeout and stale job handling
    */
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -162,10 +157,24 @@ const SpectrogramVizContainer = ({
             return;
           }
 
+          // Check if the job has been running too long (stale job detection)
+          const timeSinceJobStart = jobInfo.requested_at ? Date.now() - jobInfo.requested_at : 0;
+          if (timeSinceJobStart > STALE_JOB_TIMEOUT) {
+            clearInterval(interval);
+            setJobInfo((prevStatus) => ({
+              ...prevStatus,
+              status: 'failed',
+              message: 'Job appears to be stale and may have been abandoned. Please try again.',
+            }));
+            return;
+          }
+
           const response = await getJobMetadata(jobInfo.job_id);
 
           const newStatus = response.data?.status ?? null;
+          const memoryWarning = response.data?.memory_warning;
           const resultsId = response.data?.results_id;
+          const error = response.data?.error;
 
           if (newStatus === 'completed' && resultsId) {
             clearInterval(interval);
@@ -174,14 +183,15 @@ const SpectrogramVizContainer = ({
               status: 'fetching_results',
               results_id: resultsId,
               message: undefined,
+              memory_warning: undefined,
             }));
             await fetchSpectrogramImage(resultsId);
           } else {
             setJobInfo((prevStatus) => ({
               ...prevStatus,
               status: newStatus as JobStatus | null,
-              message: response.message,
-              results_id: resultsId,
+              message: prevStatus.message ?? error ?? response.message,
+              memory_warning: prevStatus.memory_warning ?? memoryWarning,
             }));
           }
 
@@ -189,13 +199,16 @@ const SpectrogramVizContainer = ({
             clearInterval(interval);
           }
         } catch (error) {
-          console.error('Error fetching job status:', error);
-          clearInterval(interval);
-          setJobInfo((prevStatus) => ({
-            ...prevStatus,
-            status: 'failed',
-            message: error instanceof Error ? error.message : 'Unknown error',
-          }));
+          console.error(`Error polling job ${jobInfo.job_id} status:`, error);
+          setPollRetries(pollRetries + 1);
+          if (pollRetries >= MAX_POLL_RETRIES) {
+            clearInterval(interval);
+            setJobInfo((prevStatus) => ({
+              ...prevStatus,
+              status: 'failed',
+              message: 'Failed to get job status.',
+            }));
+          }
         }
       }, POLL_INTERVAL);
     }
@@ -208,7 +221,7 @@ const SpectrogramVizContainer = ({
         URL.revokeObjectURL(spectrogramUrl);
       }
     };
-  }, [jobInfo.job_id, spectrogramUrl]);
+  }, [jobInfo.job_id, jobInfo.requested_at, spectrogramUrl, pollRetries]);
 
   if (!visualizationRecord.uuid) {
     return (
@@ -227,9 +240,9 @@ const SpectrogramVizContainer = ({
             <SpectrogramControls
               settings={spectrogramSettings}
               setSettings={setSpectrogramSettings}
-              numSubchannels={
-                visualizationRecord.captures?.[0]?.subchannels ?? undefined
-              }
+              // numSubchannels={
+              //   visualizationRecord.captures?.[0]?.subchannels ?? undefined
+              // }
             />
             <Button onClick={createSpectrogramJob} disabled={isSubmitting}>
               Generate Spectrogram

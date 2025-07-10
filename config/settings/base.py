@@ -291,18 +291,46 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std:setting-result_serializer
 CELERY_RESULT_SERIALIZER = "json"
+
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-soft-time-limit
-# TODO: set to whatever value is adequate in your circumstances
-CELERY_TASK_SOFT_TIME_LIMIT = 5 * 60
+CELERY_TASK_SOFT_TIME_LIMIT = env.int(
+    "CELERY_TASK_SOFT_TIME_LIMIT", default=10 * 60
+)  # 30 minutes
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-time-limit
-# TODO: set to whatever value is adequate in your circumstances
-CELERY_TASK_TIME_LIMIT = CELERY_TASK_SOFT_TIME_LIMIT + (1 * 60)
-# https://docs.celeryq.dev/en/stable/userguide/configuration.html#beat-scheduler
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-# https://docs.celeryq.dev/en/stable/userguide/configuration.html#worker-send-task-events
+CELERY_TASK_TIME_LIMIT = CELERY_TASK_SOFT_TIME_LIMIT + (5 * 60)  # 5 minute grace period
+
+# Memory management settings
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = env.int(
+    "CELERY_WORKER_MAX_MEMORY_PER_CHILD", default=1024 * 1024 * 1024
+)  # 1GB
+CELERY_WORKER_PREFETCH_MULTIPLIER = env.int(
+    "CELERY_WORKER_PREFETCH_MULTIPLIER", default=1
+)
+
+# Worker monitoring and recovery
 CELERY_WORKER_SEND_TASK_EVENTS = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-task_send_sent_event
 CELERY_TASK_SEND_SENT_EVENT = True
+CELERY_WORKER_DISABLE_RATE_LIMITS = True
+
+# Task routing for large jobs
+CELERY_TASK_ROUTES = {
+    "jobs.tasks.submit_job": {"queue": "large_jobs"},
+}
+
+# Beat scheduler
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# Job monitoring settings
+JOB_MONITORING = {
+    "STALE_JOB_TIMEOUT": env.int("JOB_STALE_TIMEOUT", default=30 * 60),  # 30 minutes
+}
+
+# Memory safeguard settings
+MEMORY_SAFEGUARD_THRESHOLD = env.float(
+    "MEMORY_SAFEGUARD_THRESHOLD", default=95.0
+)  # 95% memory usage threshold
+
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
