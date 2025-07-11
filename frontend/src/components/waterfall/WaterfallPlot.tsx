@@ -231,7 +231,7 @@ export function WaterfallPlot({
       // Show every 5th index
       for (let i = fileRange.endIndex; i >= fileRange.startIndex; i--) {
         const displayedIndex = i + 1;
-        const row = fileRange.endIndex - i;
+        const row = fileRange.endIndex - i + 1;
         const y = margin.top + row * rectHeight;
         const x = canvasWidth / pixelRatio - indexLegendWidth + 5;
 
@@ -434,6 +434,7 @@ export function WaterfallPlot({
           // Apply the correct transform for the main plot
           context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
           context.translate(colorLegendWidth, margin.top);
+          console.log('allData length:', allData.length);
 
           // Draw all data points in reverse order
           allData.forEach((row, rowIndex) => {
@@ -492,6 +493,9 @@ export function WaterfallPlot({
 
     // Validate the index is within bounds
     if (clickedIndex >= 0 && clickedIndex < allData.length) {
+      console.log('clickedIndex:', clickedIndex);
+      console.log('fileRange.startIndex:', fileRange.startIndex);
+      console.log('clickedIndex + fileRange.startIndex:', clickedIndex + fileRange.startIndex);
       onRowSelect(fileRange.startIndex + clickedIndex);
     }
   };
@@ -508,12 +512,12 @@ export function WaterfallPlot({
 
     // Calculate hovered row
     const hoveredRow = Math.floor((y - margin.top) / rectHeight);
-    const hoveredIndex = fileRange.endIndex - 1 - hoveredRow;
+    const hoveredIndex = fileRange.endIndex - hoveredRow;
 
     // Update hover state if within bounds
     if (
       hoveredIndex >= fileRange.startIndex &&
-      hoveredIndex < fileRange.endIndex
+      hoveredIndex <= fileRange.endIndex
     ) {
       setHoveredIndex(hoveredIndex);
     } else {
@@ -570,12 +574,12 @@ export function WaterfallPlot({
   return (
     <div style={{ width: '100%' }}>
       <div style={indicatorContainerStyle}>
-        {fileRange.endIndex < totalFiles && (
+        {fileRange.endIndex < totalFiles - 1 && (
           <div
             style={upIndicatorStyle}
             title="More recent scans above"
             onClick={() => {
-              const newIndex = Math.min(totalFiles - 1, fileRange.endIndex);
+              const newIndex = Math.min(totalFiles - 1, fileRange.endIndex + 1);
               onRowSelect(newIndex);
             }}
           />

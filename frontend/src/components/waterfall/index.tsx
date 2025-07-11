@@ -502,6 +502,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let xMin = Infinity;
     let xMax = -Infinity;
 
+    console.log('waterfallFiles length:', waterfallFiles.length);
+
     waterfallFiles.forEach((waterfallFile, index) => {
       const processedFile = processedValues[index];
       const yValues = processedFile.dbValues;
@@ -541,6 +543,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       scaleMin: globalMinValue,
       scaleMax: globalMaxValue,
     }));
+
+    console.log('processedWaterfallData length:', processedWaterfallData.length);
 
     // Update waterfall state
     const newWaterfall: ScanWaterfallType = {
@@ -609,6 +613,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       const lastPossibleStartIndex = Math.max(0, totalFiles - pageSize);
       const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
       const endIndex = Math.min(totalFiles - 1, startIndex + pageSize - 1);
+      console.log('startIndex:', startIndex);
+      console.log('endIndex:', endIndex);
 
       // Only reprocess waterfall if the range has changed
       if (
@@ -623,14 +629,13 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           }
         } else {
           // If we have all the files, we can just use the waterfallFiles
-          const relevantFiles = waterfallFiles.slice(startIndex, endIndex);
+          const relevantFiles = waterfallFiles.slice(startIndex, endIndex + 1);
           const relevantProcessedValues = processedData.slice(
             startIndex,
-            endIndex,
+            endIndex + 1,
           );
           setDesiredWaterfallRange({ startIndex, endIndex });
           setCurrentWaterfallRange({ startIndex, endIndex });
-          console.log('Processing waterfall data after simple range change');
           processWaterfallData(relevantFiles, relevantProcessedValues);
         }
       }
@@ -769,7 +774,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             currentFileIndex={settings.fileIndex}
             onRowSelect={handleRowSelect}
             fileRange={currentWaterfallRange}
-            totalFiles={waterfallFiles.length}
+            totalFiles={totalSlices ?? WATERFALL_MAX_ROWS}
             colorLegendWidth={PLOTS_LEFT_MARGIN}
             indexLegendWidth={PLOTS_RIGHT_MARGIN}
           />

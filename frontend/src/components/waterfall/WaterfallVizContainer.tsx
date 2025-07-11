@@ -51,7 +51,9 @@ export const WaterfallVizContainer = ({
     [],
   );
 
-  const isLoadingWaterfallRange = isLoadingWaterfallData && waterfallData.length > 0;
+  const allFilesLoaded = waterfallData.length === totalSlices;
+  const isLoadingWaterfallRange =
+    isLoadingWaterfallData && waterfallData.length > 0 && !allFilesLoaded;
 
   if ((isLoadingWaterfallData || isLoadingTotalSlices) && waterfallData.length === 0) {
     return <LoadingBlock message="Getting visualization files..." />;
@@ -192,7 +194,7 @@ export const WaterfallVizContainer = ({
                 settings={settings}
                 setSettings={setSettings}
                 onSave={handleSaveWaterfall}
-                onWaterfallRangeChange={handleWaterfallRangeChange}
+                onWaterfallRangeChange={!allFilesLoaded ? handleWaterfallRangeChange : undefined}
                 totalSlices={totalSlices}
                 isLoadingWaterfallRange={isLoadingWaterfallRange}
               />
