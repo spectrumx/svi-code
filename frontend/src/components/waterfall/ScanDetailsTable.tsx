@@ -1,8 +1,9 @@
 import { Table } from 'react-bootstrap';
 import _ from 'lodash';
 
-import { formatHertz } from '../../utils/utils';
+import { formatHertz, formatTime } from '../../utils/utils';
 import { WaterfallFile } from './types';
+import { CaptureType } from '../../apiClient/captureService';
 
 interface DetailRowProps {
   label: string;
@@ -20,9 +21,13 @@ function DetailRow({ label, value }: DetailRowProps): JSX.Element {
 
 interface ScanDetailsProps {
   waterfallFile: WaterfallFile;
+  captureType: CaptureType;
 }
 
-export function ScanDetails({ waterfallFile }: ScanDetailsProps): JSX.Element {
+export function ScanDetails({
+  waterfallFile,
+  captureType,
+}: ScanDetailsProps): JSX.Element {
   // const downloadUrl = useMemo(() => {
   //   const blob = new Blob([JSON.stringify(capture, null, 4)], {
   //     type: 'application/json',
@@ -67,11 +72,7 @@ export function ScanDetails({ waterfallFile }: ScanDetailsProps): JSX.Element {
             label="Scan Time"
             value={
               getScanValue('custom_fields.scan_time')
-                ? `${
-                    Math.round(
-                      Number(getScanValue('custom_fields.scan_time')) * 1000,
-                    ) / 1000
-                  }s`
+                ? formatTime(Number(getScanValue('custom_fields.scan_time')))
                 : undefined
             }
           />
@@ -109,7 +110,7 @@ export function ScanDetails({ waterfallFile }: ScanDetailsProps): JSX.Element {
                 : undefined
             }
           />
-          <DetailRow
+          {captureType === 'rh' && (<DetailRow
             label="GPS Lock"
             value={
               getScanValue('custom_fields.gps_lock') !== undefined
@@ -118,7 +119,7 @@ export function ScanDetails({ waterfallFile }: ScanDetailsProps): JSX.Element {
                   : 'False'
                 : undefined
             }
-          />
+          />)}
           <DetailRow
             label="Job"
             value={getScanValue('custom_fields.job_name')}
