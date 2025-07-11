@@ -222,6 +222,7 @@ export const WaterfallVizContainer = ({
           <Row>
             <ScanDetailsTable
               waterfallFile={waterfallFiles[settings.fileIndex]}
+              captureType={visualizationRecord.capture_type}
             />
           </Row>
         </Col>

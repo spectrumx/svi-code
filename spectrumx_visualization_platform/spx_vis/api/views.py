@@ -663,24 +663,13 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # Create a BytesIO object to store the ZIP file
-            zip_buffer = io.BytesIO()
-
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                if visualization.capture_type == CaptureType.RadioHound:
-                    self._handle_sds_captures(visualization, request, zip_file)
-                elif visualization.capture_type == CaptureType.DigitalRF:
-                    self._handle_sds_captures(
-                        visualization, request, zip_file, preserve_structure=True
-                    )
-
-            # Reset buffer position to start
-            zip_buffer.seek(0)
-
-            # Process the ZIP file to calculate total slices
-            with zipfile.ZipFile(zip_buffer, "r") as zip_file:
-                total_slices = self._calculate_total_slices(
-                    zip_file, visualization.capture_ids, visualization.capture_type
+            if visualization.capture_type == CaptureType.RadioHound:
+                total_slices = RadioHoundUtility.get_total_slices(
+                    request.user, visualization.capture_ids
+                )
+            elif visualization.capture_type == CaptureType.DigitalRF:
+                total_slices = DigitalRFUtility.get_total_slices(
+                    request.user, visualization.capture_ids
                 )
 
             return Response({"total_slices": total_slices})
@@ -828,93 +817,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                         continue
 
         return waterfall_files
-
-    def _calculate_total_slices(
-        self,
-        zip_file: zipfile.ZipFile,
-        capture_ids: list[str],
-        capture_type: CaptureType,
-    ) -> int:
-        """Calculate the total number of slices for waterfall visualizations.
-
-        Args:
-            zip_file: ZIP file containing waterfall data
-            capture_ids: List of capture IDs to process (only one capture supported)
-            capture_type: Type of capture (DigitalRF or RadioHound)
-
-        Returns:
-            int: Total number of slices available
-
-        Raises:
-            ValueError: If required fields are missing or invalid
-        """
-        # We only support one capture per visualization
-        capture_id = capture_ids[0]
-        capture_dir = f"{capture_id}/"
-
-        # Find the DigitalRF data directory
-        for file_info in zip_file.infolist():
-            if file_info.filename.startswith(
-                capture_dir
-            ) and file_info.filename.endswith("drf_properties.h5"):
-                # Extract the DigitalRF data to a temporary directory
-                import os
-                import shutil
-                import tempfile
-
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    # Extract all files for this capture
-                    for extract_info in zip_file.infolist():
-                        if extract_info.filename.startswith(capture_dir):
-                            # Create the directory structure
-                            file_path = os.path.join(
-                                temp_dir, extract_info.filename[len(capture_dir) :]
-                            )
-                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-                            # Extract the file
-                            with (
-                                zip_file.open(extract_info) as source,
-                                open(file_path, "wb") as target,
-                            ):
-                                shutil.copyfileobj(source, target)
-
-                    # Find the DigitalRF root directory (parent of the channel directory)
-                    for root, dirs, files in os.walk(temp_dir):
-                        if "drf_properties.h5" in files:
-                            drf_data_path = str(Path(root).parent)
-                            break
-
-                    if drf_data_path:
-                        try:
-                            # Calculate total slices using the DigitalRF utility
-                            total_slices = DigitalRFUtility.get_total_slices(
-                                drf_data_path
-                            )
-                            return total_slices
-                        except ValueError as e:
-                            logging.error(
-                                f"Failed to calculate total slices for DigitalRF data: {e}"
-                            )
-                            raise
-
-                    break  # Only process the first drf_properties.h5 file
-
-        # For RadioHound, count the number of JSON files
-        if capture_type == CaptureType.RadioHound:
-            count = 0
-            for file_info in zip_file.infolist():
-                if file_info.filename.startswith(
-                    capture_dir
-                ) and file_info.filename.endswith(".json"):
-                    count += 1
-            if count == 0:
-                raise ValueError(
-                    "No JSON files found for RadioHound total slices calculation"
-                )
-            return count
-
-        raise ValueError("No waterfall data found for total slices calculation")
 
     def _process_digitalrf_files(
         self,

@@ -1,11 +1,14 @@
 import base64
 import logging
 import mimetypes
+import os
 import re
+import tempfile
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -30,6 +33,11 @@ class DigitalRFContext:
     center_freq: float
     start_sample: int
     end_sample: int
+    # Additional metadata fields from DigitalMetadataReader
+    device_name: str | None = None
+    gain: float | None = None
+    job_name: str | None = None
+    comments: str | None = None
 
 
 @dataclass
@@ -165,6 +173,30 @@ class DigitalRFUtility(CaptureUtility):
         return ".".join(files[0].name.split(".")[:-1])
 
     @staticmethod
+    def get_frequency_range(drf_data_path: str) -> tuple[float, float]:
+        """Get the frequency range for a DigitalRF capture.
+
+        Args:
+            drf_data_path: Path to the DigitalRF data directory
+
+        Returns:
+            tuple[float, float]: The frequency range (min_freq, max_freq)
+
+        Raises:
+            ValueError: If the frequency range cannot be determined
+        """
+        try:
+            context = DigitalRFUtility._create_context(drf_data_path)
+            freq_range = FrequencyRange.from_sample_rate_and_center(
+                context.sample_rate, context.center_freq
+            )
+            return (freq_range.min_frequency, freq_range.max_frequency)
+        except Exception as e:
+            error_message = f"Error getting frequency range for DigitalRF data: {e}"
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+    @staticmethod
     def _create_context(drf_data_path: str) -> DigitalRFContext:
         """Create a DigitalRF context object.
 
@@ -194,6 +226,54 @@ class DigitalRFUtility(CaptureUtility):
             )
             center_freq = f.attrs.get("center_freq", 0)
 
+        # Try to get additional metadata using DigitalRFReader's read_metadata method
+        device_name = None
+        gain = None
+        job_name = None
+        comments = None
+
+        # Get metadata for the first sample range
+        metadata_dict = DigitalRFUtility._extract_metadata(
+            reader, channel, start_sample, min(1000, end_sample - start_sample)
+        )
+
+        # Extract metadata from the dictionary
+        device_name = metadata_dict.get("device_name")
+        gain = metadata_dict.get("gain")
+        job_name = metadata_dict.get("job_name")
+        comments = metadata_dict.get("comments")
+        center_freq = metadata_dict.get("center_freq")
+
+        # Fallback: try to get metadata from HDF5 files if DigitalMetadataReader didn't work
+        if not any([device_name, gain, job_name, comments]):
+            try:
+                # Look for metadata files in the channel directory
+                metadata_path = f"{drf_data_path}/{channel}"
+                if os.path.exists(metadata_path):
+                    # Try to find metadata files
+                    for filename in os.listdir(metadata_path):
+                        if filename.endswith(".h5") and "metadata" in filename.lower():
+                            metadata_file_path = os.path.join(metadata_path, filename)
+                            try:
+                                with h5py.File(metadata_file_path, "r") as meta_f:
+                                    # Extract metadata attributes if available
+                                    if "device_name" in meta_f.attrs:
+                                        device_name = meta_f.attrs["device_name"]
+                                    if "gain" in meta_f.attrs:
+                                        gain = meta_f.attrs["gain"]
+                                    if "job_name" in meta_f.attrs:
+                                        job_name = meta_f.attrs["job_name"]
+                                    if "comments" in meta_f.attrs:
+                                        comments = meta_f.attrs["comments"]
+                                    break
+                            except Exception as e:
+                                logger.debug(
+                                    f"Could not read metadata from {filename}: {e}"
+                                )
+                                continue
+            except Exception as e:
+                logger.debug(f"Could not access metadata directory: {e}")
+
         return DigitalRFContext(
             reader=reader,
             channel=channel,
@@ -201,7 +281,59 @@ class DigitalRFUtility(CaptureUtility):
             center_freq=center_freq,
             start_sample=start_sample,
             end_sample=end_sample,
+            device_name=device_name,
+            gain=gain,
+            job_name=job_name,
+            comments=comments,
         )
+
+    @staticmethod
+    def _extract_metadata(
+        reader: DigitalRFReader, channel: str, start_sample: int, num_samples: int
+    ) -> dict:
+        """Extract metadata using DigitalRFReader's read_metadata method.
+
+        Args:
+            reader: DigitalRFReader instance
+            channel: Channel name
+            start_sample: Starting sample index
+            num_samples: Number of samples to read metadata for
+
+        Returns:
+            dict: Dictionary containing extracted metadata
+        """
+        metadata = {}
+
+        try:
+            # Use the reader's read_metadata method to get metadata for the sample range
+            metadata_samples = reader.read_metadata(
+                start_sample=start_sample,
+                end_sample=start_sample + num_samples,
+                channel_name=channel,
+            )
+
+            # Extract metadata from the first available sample
+            for sample_metadata in metadata_samples.values():
+                if sample_metadata:
+                    # Extract common metadata fields
+                    for key, value in sample_metadata.items():
+                        if key in [
+                            "device_name",
+                            "gain",
+                            "job_name",
+                        ]:
+                            metadata[key] = value
+                        if key == "center_frequencies":
+                            metadata["center_freq"] = value[0]
+                        if key == "description":
+                            metadata["comments"] = value
+                    # Only need metadata from the first sample
+                    break
+
+        except Exception as e:
+            logger.debug(f"Could not read metadata using DigitalRFReader: {e}")
+
+        return metadata
 
     @staticmethod
     def to_waterfall_file(
@@ -351,37 +483,54 @@ class DigitalRFUtility(CaptureUtility):
             slice_start_sample / context.sample_rate, tz=UTC
         ).isoformat()
 
-        # Build WaterfallFile format
+        # Build WaterfallFile format with enhanced metadata
         waterfall_file = {
             "data": data_string,
             "data_type": "float32",
             "timestamp": timestamp,
             "min_frequency": freq_range.min_frequency,
             "max_frequency": freq_range.max_frequency,
-            "num_samples": config.fft_size,
+            "num_samples": slice_num_samples,
             "sample_rate": context.sample_rate,
             "mac_address": f"drf_{context.channel}_0",
             "center_frequency": freq_range.center_frequency,
-            "custom_fields": {
-                "num_subchannels": 1,  # Will be updated by caller
-                "channel_name": context.channel,
-                "subchannel": 0,
-                "start_sample": slice_start_sample,
-                "num_samples": slice_num_samples,
-                "fft_size": config.fft_size,
-            },
         }
 
+        # Add optional fields if available
+        if context.device_name:
+            waterfall_file["device_name"] = context.device_name
+
+        # Build custom fields with all available metadata
+        custom_fields = {
+            "channel_name": context.channel,
+            "start_sample": slice_start_sample,
+            "num_samples": slice_num_samples,
+            "fft_size": config.fft_size,
+            "scan_time": slice_num_samples / context.sample_rate,
+        }
+
+        # Add metadata fields that match RadioHound format
+        if context.gain is not None:
+            custom_fields["gain"] = context.gain
+        if context.job_name:
+            custom_fields["job_name"] = context.job_name
+        if context.comments:
+            custom_fields["comments"] = context.comments
+
+        waterfall_file["custom_fields"] = custom_fields
         return waterfall_file
 
     @staticmethod
-    def get_total_slices(
-        drf_data_path: str, samples_per_slice: int = SAMPLES_PER_SLICE
+    def get_total_slices_from_zip(
+        zip_file: zipfile.ZipFile,
+        capture_ids: list[str],
+        samples_per_slice: int = SAMPLES_PER_SLICE,
     ) -> int:
-        """Calculate the total number of slices available in a DigitalRF capture.
+        """Calculate the total number of slices available in a DigitalRF capture from ZIP.
 
         Args:
-            drf_data_path: Path to the DigitalRF data directory
+            zip_file: ZIP file containing DigitalRF data
+            capture_ids: List of capture IDs to process (only one capture supported)
             samples_per_slice: Number of samples per slice
 
         Returns:
@@ -390,13 +539,148 @@ class DigitalRFUtility(CaptureUtility):
         Raises:
             ValueError: If required fields are missing or invalid
         """
-        try:
-            context = DigitalRFUtility._create_context(drf_data_path)
-            total_samples = context.end_sample - context.start_sample
-            total_slices = total_samples // samples_per_slice
-            return max(1, total_slices)  # Ensure at least 1 slice
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture_dir = f"{capture_id}/"
 
-        except Exception as e:
-            error_message = f"Error calculating total slices for DigitalRF data: {e}"
-            logger.error(error_message)
-            raise ValueError(error_message)
+        # Find the DigitalRF data directory
+        for file_info in zip_file.infolist():
+            if file_info.filename.startswith(
+                capture_dir
+            ) and file_info.filename.endswith("drf_properties.h5"):
+                # Extract the DigitalRF data to a temporary directory
+                import os
+                import shutil
+                import tempfile
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Extract all files for this capture
+                    for extract_info in zip_file.infolist():
+                        if extract_info.filename.startswith(capture_dir):
+                            # Create the directory structure
+                            file_path = os.path.join(
+                                temp_dir, extract_info.filename[len(capture_dir) :]
+                            )
+                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                            # Extract the file
+                            with (
+                                zip_file.open(extract_info) as source,
+                                open(file_path, "wb") as target,
+                            ):
+                                shutil.copyfileobj(source, target)
+
+                    # Find the DigitalRF root directory (parent of the channel directory)
+                    for root, dirs, files in os.walk(temp_dir):
+                        if "drf_properties.h5" in files:
+                            drf_data_path = str(Path(root).parent)
+                            break
+
+                    if drf_data_path:
+                        try:
+                            context = DigitalRFUtility._create_context(drf_data_path)
+                            total_samples = context.end_sample - context.start_sample
+                            total_slices = total_samples // samples_per_slice
+                            return max(1, total_slices)  # Ensure at least 1 slice
+
+                        except Exception as e:
+                            error_message = f"Error calculating total slices for DigitalRF data: {e}"
+                            logger.error(error_message)
+                            raise ValueError(error_message)
+
+                    break  # Only process the first drf_properties.h5 file
+
+        raise ValueError("No waterfall data found for total slices calculation")
+
+    @staticmethod
+    def get_total_slices(
+        user, capture_ids: list[str], samples_per_slice: int = SAMPLES_PER_SLICE
+    ) -> int:
+        """Calculate total slices for DigitalRF captures from SDS.
+
+        This method handles the entire process of downloading files from SDS
+        and calculating total slices.
+
+        Args:
+            user: The user object
+            capture_ids: List of capture IDs to process (only one capture supported)
+            samples_per_slice: Number of samples per slice
+
+        Returns:
+            int: Total number of slices available
+
+        Raises:
+            ValueError: If capture is not found or has no files
+        """
+        import io
+        import zipfile
+
+        from spectrumx_visualization_platform.spx_vis.source_utils.sds import (
+            get_sds_captures,
+        )
+
+        # Get SDS captures info
+        sds_captures, sds_errors = get_sds_captures(user, capture_ids)
+        if sds_errors:
+            raise ValueError(f"Error getting SDS captures: {sds_errors}")
+
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture = next(
+            (c for c in sds_captures if str(c["uuid"]) == str(capture_id)), None
+        )
+
+        if capture is None:
+            raise ValueError(f"Capture ID {capture_id} not found in SDS")
+
+        files = capture.get("files", [])
+        if not files:
+            raise ValueError(f"No files found for capture ID {capture_id}")
+
+        # For DigitalRF, we need to download files to calculate total slices
+        # Create a BytesIO object to store the ZIP file
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            # Download and add files to ZIP
+            sds_client = user.sds_client()
+            seen_filenames: set[str] = set()
+
+            for file in files:
+                file_uuid = file["uuid"]
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    local_path = Path(temp_dir) / file["name"]
+                    sds_file = sds_client.download_file(
+                        file_uuid=file_uuid, to_local_path=local_path
+                    )
+                    if not sds_file.local_path.exists():
+                        raise ValueError(f"Failed to download file {file_uuid}")
+
+                    filename = sds_file.name
+
+                    # Use the file's directory path from SDS (preserve structure)
+                    file_directory = sds_file.directory
+                    # Remove leading slash and create path relative to capture
+                    relative_path = str(file_directory).lstrip("/")
+                    zip_path = f"{capture_id}/{relative_path}/{filename}"
+
+                    # Check for duplicate filename
+                    if zip_path in seen_filenames:
+                        raise ValueError(
+                            f"Duplicate filename found for capture with ID {capture_id}. "
+                            f"File name: {zip_path}"
+                        )
+                    seen_filenames.add(zip_path)
+
+                    # Add file to ZIP
+                    zip_file.write(sds_file.local_path, arcname=zip_path)
+
+        # Reset buffer position to start
+        zip_buffer.seek(0)
+
+        # Use the DigitalRF utility to calculate total slices from ZIP
+        with zipfile.ZipFile(zip_buffer, "r") as zip_file:
+            return DigitalRFUtility.get_total_slices_from_zip(
+                zip_file, capture_ids, samples_per_slice
+            )

@@ -261,6 +261,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     waterfallFile: WaterfallFile,
     processedValues: (typeof processedData)[number],
   ) => {
+    console.log('waterfallFile', waterfallFile);
+    console.log('processedValues', processedValues);
     let fMin: number;
     let fMax: number;
 
@@ -555,13 +557,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   };
 
   useEffect(() => {
-    console.log('Waterfall files length', waterfallFiles.length);
-    console.log('Processed data length', processedData.length);
-    console.log('Current waterfall range', currentWaterfallRange);
-    console.log('Desired waterfall range', desiredWaterfallRange);
-    console.log('Is loading waterfall range', isLoadingWaterfallRange);
-    console.log('file index', settings.fileIndex);
-
     // Process single file for periodogram
     if (
       isLoadingWaterfallRange ||
@@ -571,11 +566,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       settings.fileIndex < currentWaterfallRange.startIndex ||
       settings.fileIndex > currentWaterfallRange.endIndex
     ) {
-      console.log('Not processing periodogram data');
       return;
     }
-
-    console.log('Processing periodogram data');
 
     processPeriodogramData(
       waterfallFiles[settings.fileIndex - currentWaterfallRange.startIndex],
@@ -638,9 +630,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
           );
           setDesiredWaterfallRange({ startIndex, endIndex });
           setCurrentWaterfallRange({ startIndex, endIndex });
-          if (onWaterfallRangeChange) {
-            onWaterfallRangeChange({ startIndex, endIndex });
-          }
           console.log('Processing waterfall data after simple range change');
           processWaterfallData(relevantFiles, relevantProcessedValues);
         }
