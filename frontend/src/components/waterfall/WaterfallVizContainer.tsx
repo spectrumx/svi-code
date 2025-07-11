@@ -215,7 +215,7 @@ export const WaterfallVizContainer = ({
                   }}
                 >
                   <LoadingBlock
-                    message={`Loading waterfall data for range ${waterfallRange.startIndex} - ${waterfallRange.endIndex}`}
+                    message='Loading waterfall data...'
                   />
                 </div>
               )}

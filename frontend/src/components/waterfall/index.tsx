@@ -655,6 +655,14 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed !== 'realtime') return;
 
+    if (isLoadingWaterfallRange) {
+      setSettings((prev) => ({
+        ...prev,
+        isPlaying: false,
+      }));
+      return;
+    }
+
     const totalFiles = totalSlices || waterfallFiles.length;
 
     // Pre-compute timestamps for all files
@@ -697,11 +705,20 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     waterfallFiles.length,
     totalSlices,
     setSettings,
+    isLoadingWaterfallRange,
   ]);
 
   // Handle constant FPS playback
   useEffect(() => {
     if (!settings.isPlaying || settings.playbackSpeed === 'realtime') return;
+
+    if (isLoadingWaterfallRange) {
+      setSettings((prev) => ({
+        ...prev,
+        isPlaying: false,
+      }));
+      return;
+    }
 
     const totalFiles = totalSlices || waterfallFiles.length;
 
@@ -728,6 +745,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     waterfallFiles.length,
     totalSlices,
     setSettings,
+    isLoadingWaterfallRange,
   ]);
 
   const handleRowSelect = (index: number) => {
