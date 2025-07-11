@@ -122,7 +122,6 @@ const WaterfallCustomFieldsSchema = zod
     gps_lock: zod.boolean().optional(),
     job_name: zod.string().optional(),
     comments: zod.string().optional(),
-    num_subchannels: zod.number().optional(),
   })
   .catchall(zod.unknown());
 
@@ -134,7 +133,7 @@ export const WaterfallFileSchema = zod.object({
   max_frequency: zod.number(),
   num_samples: zod.number(),
   sample_rate: zod.number(),
-  mac_address: zod.string(),
+  mac_address: zod.string().optional(),
   device_name: zod.string().optional(),
   center_frequency: zod.number().optional(),
   custom_fields: WaterfallCustomFieldsSchema.optional(),

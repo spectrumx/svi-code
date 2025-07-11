@@ -182,7 +182,6 @@ export const WaterfallVizContainer = ({
               settings={settings}
               setSettings={setSettings}
               numFiles={totalSlices}
-              numSubchannels={numSubchannels}
             />
           </div>
         </Col>

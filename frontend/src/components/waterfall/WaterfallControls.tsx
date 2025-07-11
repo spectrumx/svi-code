@@ -11,14 +11,12 @@ interface WaterfallControlsProps {
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
   numFiles?: number;
-  numSubchannels?: number;
 }
 
 export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
   settings,
   setSettings,
   numFiles,
-  numSubchannels,
 }: WaterfallControlsProps) => {
   const captureIndexTextInputRef = React.useRef<HTMLInputElement>(null);
   // Local state for immediate UI updates
@@ -112,31 +110,6 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
             }
           />
         </div>
-        {numSubchannels && numSubchannels > 1 && (
-          <>
-            <br />
-            <div>
-              <Form.Label htmlFor="subchannelSelect">Subchannel</Form.Label>
-              <Form.Select
-                id="subchannelSelect"
-                value={settings.subchannel || 0}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    subchannel: Number(e.target.value),
-                  }))
-                }
-                aria-label="Select subchannel"
-              >
-                {Array.from({ length: numSubchannels }, (_, i) => (
-                  <option key={i} value={i}>
-                    Subchannel {i}
-                  </option>
-                ))}
-              </Form.Select>
-            </div>
-          </>
-        )}
         <br />
         <div
           className="d-flex align-items-center gap-2"

@@ -1,7 +1,6 @@
 import base64
 import logging
 import mimetypes
-import os
 import re
 import tempfile
 import zipfile
@@ -33,10 +32,7 @@ class DigitalRFContext:
     center_freq: float
     start_sample: int
     end_sample: int
-    # Additional metadata fields from DigitalMetadataReader
-    device_name: str | None = None
     gain: float | None = None
-    job_name: str | None = None
     comments: str | None = None
 
 
@@ -224,12 +220,9 @@ class DigitalRFUtility(CaptureUtility):
             sample_rate = (
                 f.attrs["sample_rate_numerator"] / f.attrs["sample_rate_denominator"]
             )
-            center_freq = f.attrs.get("center_freq", 0)
 
         # Try to get additional metadata using DigitalRFReader's read_metadata method
-        device_name = None
         gain = None
-        job_name = None
         comments = None
 
         # Get metadata for the first sample range
@@ -238,41 +231,9 @@ class DigitalRFUtility(CaptureUtility):
         )
 
         # Extract metadata from the dictionary
-        device_name = metadata_dict.get("device_name")
         gain = metadata_dict.get("gain")
-        job_name = metadata_dict.get("job_name")
         comments = metadata_dict.get("comments")
         center_freq = metadata_dict.get("center_freq")
-
-        # Fallback: try to get metadata from HDF5 files if DigitalMetadataReader didn't work
-        if not any([device_name, gain, job_name, comments]):
-            try:
-                # Look for metadata files in the channel directory
-                metadata_path = f"{drf_data_path}/{channel}"
-                if os.path.exists(metadata_path):
-                    # Try to find metadata files
-                    for filename in os.listdir(metadata_path):
-                        if filename.endswith(".h5") and "metadata" in filename.lower():
-                            metadata_file_path = os.path.join(metadata_path, filename)
-                            try:
-                                with h5py.File(metadata_file_path, "r") as meta_f:
-                                    # Extract metadata attributes if available
-                                    if "device_name" in meta_f.attrs:
-                                        device_name = meta_f.attrs["device_name"]
-                                    if "gain" in meta_f.attrs:
-                                        gain = meta_f.attrs["gain"]
-                                    if "job_name" in meta_f.attrs:
-                                        job_name = meta_f.attrs["job_name"]
-                                    if "comments" in meta_f.attrs:
-                                        comments = meta_f.attrs["comments"]
-                                    break
-                            except Exception as e:
-                                logger.debug(
-                                    f"Could not read metadata from {filename}: {e}"
-                                )
-                                continue
-            except Exception as e:
-                logger.debug(f"Could not access metadata directory: {e}")
 
         return DigitalRFContext(
             reader=reader,
@@ -281,9 +242,7 @@ class DigitalRFUtility(CaptureUtility):
             center_freq=center_freq,
             start_sample=start_sample,
             end_sample=end_sample,
-            device_name=device_name,
             gain=gain,
-            job_name=job_name,
             comments=comments,
         )
 
@@ -314,19 +273,16 @@ class DigitalRFUtility(CaptureUtility):
 
             # Extract metadata from the first available sample
             for sample_metadata in metadata_samples.values():
+                logger.info(f"sample_metadata: {sample_metadata}")
                 if sample_metadata:
                     # Extract common metadata fields
                     for key, value in sample_metadata.items():
-                        if key in [
-                            "device_name",
-                            "gain",
-                            "job_name",
-                        ]:
-                            metadata[key] = value
+                        logger.info(f"key: {key}, value: {value}")
                         if key == "center_frequencies":
                             metadata["center_freq"] = value[0]
-                        if key == "description":
-                            metadata["comments"] = value
+                        if key == "receiver":
+                            metadata["gain"] = value.get("gain")
+                            metadata["comments"] = value.get("description")
                     # Only need metadata from the first sample
                     break
 
@@ -492,13 +448,8 @@ class DigitalRFUtility(CaptureUtility):
             "max_frequency": freq_range.max_frequency,
             "num_samples": slice_num_samples,
             "sample_rate": context.sample_rate,
-            "mac_address": f"drf_{context.channel}_0",
             "center_frequency": freq_range.center_frequency,
         }
-
-        # Add optional fields if available
-        if context.device_name:
-            waterfall_file["device_name"] = context.device_name
 
         # Build custom fields with all available metadata
         custom_fields = {
@@ -512,8 +463,6 @@ class DigitalRFUtility(CaptureUtility):
         # Add metadata fields that match RadioHound format
         if context.gain is not None:
             custom_fields["gain"] = context.gain
-        if context.job_name:
-            custom_fields["job_name"] = context.job_name
         if context.comments:
             custom_fields["comments"] = context.comments
 

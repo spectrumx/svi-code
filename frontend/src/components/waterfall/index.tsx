@@ -300,11 +300,11 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     const dataArray = processedValues.floatArray;
 
     if (
-      display.maxHoldValues[waterfallFile.mac_address] === undefined ||
+      display.maxHoldValues[waterfallFile.mac_address ?? ''] === undefined ||
       dataArray?.length !==
-        display.maxHoldValues[waterfallFile.mac_address].length
+        display.maxHoldValues[waterfallFile.mac_address ?? ''].length
     ) {
-      tmpDisplay.maxHoldValues[waterfallFile.mac_address] = [];
+      tmpDisplay.maxHoldValues[waterfallFile.mac_address ?? ''] = [];
     }
 
     const yValues = processedValues.dbValues;
@@ -322,18 +322,18 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
           if (display.max_hold) {
             if (
-              tmpDisplay.maxHoldValues[waterfallFile.mac_address].length <= i
+              tmpDisplay.maxHoldValues[waterfallFile.mac_address ?? ''].length <= i
             ) {
-              tmpDisplay.maxHoldValues[waterfallFile.mac_address].push({
+              tmpDisplay.maxHoldValues[waterfallFile.mac_address ?? ''].push({
                 x: xValue,
                 y: yValue,
               });
             } else {
               const maxHoldValuesY =
-                tmpDisplay.maxHoldValues[waterfallFile.mac_address][i].y;
+                tmpDisplay.maxHoldValues[waterfallFile.mac_address ?? ''][i].y;
 
               if (maxHoldValuesY && yValue > maxHoldValuesY) {
-                tmpDisplay.maxHoldValues[waterfallFile.mac_address][i] = {
+                tmpDisplay.maxHoldValues[waterfallFile.mac_address ?? ''][i] = {
                   x: xValue,
                   y: yValue,
                 };
@@ -354,7 +354,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     } else {
       //Find index for this node
       nextIndex = tmpChart.data.findIndex(
-        (element) => element._id === waterfallFile.mac_address,
+        (element) => element._id === (waterfallFile.mac_address ?? ''),
       );
       if (nextIndex === -1) {
         nextIndex = tmpChart.data.length;
@@ -367,13 +367,14 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       type: 'line',
       axisXType: 'secondary',
       showInLegend: true,
-      name:
-        waterfallFile.device_name +
-        ' (' +
-        waterfallFile.mac_address.substring(
-          waterfallFile.mac_address.length - 4,
-        ) +
-        ')',
+      name: (waterfallFile.device_name ?
+        waterfallFile.device_name : '') +
+        (waterfallFile.mac_address ?
+          ' (' +
+          waterfallFile.mac_address.substring(
+            waterfallFile.mac_address.length - 4,
+          ) +
+          ')' : ''),
       toolTipContent: waterfallFile.device_name + ': {x}, {y}',
       _id: waterfallFile.mac_address,
     };
@@ -401,7 +402,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
     if (
       display.max_hold &&
-      display.maxHoldValues[waterfallFile.mac_address].length > 0
+      display.maxHoldValues[waterfallFile.mac_address ?? ''].length > 0
     ) {
       nextIndex = tmpChart.data.findIndex(
         (element) => element._id === 'maxhold_' + waterfallFile.mac_address,
@@ -413,13 +414,15 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       tmpChart.data[nextIndex] = {
         ..._.cloneDeep(tmpChart.data[nextIndex - 1]),
         name:
-          'Max Hold (' +
-          waterfallFile.mac_address.substring(
-            waterfallFile.mac_address.length - 4,
-          ) +
-          ')',
+          'Max Hold' +
+          (waterfallFile.mac_address ?
+            ' (' +
+            waterfallFile.mac_address.substring(
+              waterfallFile.mac_address.length - 4,
+            ) +
+            ')' : ''),
         _id: 'maxhold_' + waterfallFile.mac_address,
-        dataPoints: tmpDisplay.maxHoldValues[waterfallFile.mac_address],
+        dataPoints: tmpDisplay.maxHoldValues[waterfallFile.mac_address ?? ''],
         toolTipContent: 'Max : {x}, {y}',
       };
 
