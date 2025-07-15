@@ -312,7 +312,7 @@ export const useWaterfallData = (
   startIndex?: number,
   endIndex?: number,
 ) => {
-  const [waterfallData, setWaterfallData] = useState<WaterfallFile[]>([]);
+  const [waterfallData, setWaterfallData] = useState<WaterfallFile[] | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

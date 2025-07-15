@@ -20,6 +20,7 @@ function Periodogram({
     yAxisOptions && !Array.isArray(yAxisOptions)
       ? (yAxisOptions.margin ?? 10)
       : 10;
+  console.log('chartOptions', chartOptions);
 
   return (
     <div id="chartCanvas" style={{ width: '100%', position: 'relative' }}>

@@ -77,7 +77,7 @@ export function ScanDetails({
             }
           />
           <DetailRow label="Sample Rate" value={getScanValue('sample_rate')} />
-          <DetailRow label="Gain" value={getScanValue('gain')} />
+          <DetailRow label="Gain" value={getScanValue('custom_fields.gain')} />
           <DetailRow
             label="Frequency Minimum"
             value={
@@ -120,10 +120,10 @@ export function ScanDetails({
                 : undefined
             }
           />)}
-          <DetailRow
+          {captureType === 'rh' && (<DetailRow
             label="Job"
             value={getScanValue('custom_fields.job_name')}
-          />
+          />)}
           <DetailRow
             label="Comments"
             value={getScanValue('custom_fields.comments')}

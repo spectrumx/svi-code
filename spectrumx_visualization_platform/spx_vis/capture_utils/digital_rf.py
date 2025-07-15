@@ -32,6 +32,7 @@ class DigitalRFContext:
     center_freq: float
     start_sample: int
     end_sample: int
+    device_name: str | None = None
     gain: float | None = None
     comments: str | None = None
 
@@ -222,8 +223,10 @@ class DigitalRFUtility(CaptureUtility):
             )
 
         # Try to get additional metadata using DigitalRFReader's read_metadata method
+        device_name = None
         gain = None
         comments = None
+        center_freq = None
 
         # Get metadata for the first sample range
         metadata_dict = DigitalRFUtility._extract_metadata(
@@ -231,6 +234,7 @@ class DigitalRFUtility(CaptureUtility):
         )
 
         # Extract metadata from the dictionary
+        device_name = metadata_dict.get("device_name")
         gain = metadata_dict.get("gain")
         comments = metadata_dict.get("comments")
         center_freq = metadata_dict.get("center_freq")
@@ -242,6 +246,7 @@ class DigitalRFUtility(CaptureUtility):
             center_freq=center_freq,
             start_sample=start_sample,
             end_sample=end_sample,
+            device_name=device_name,
             gain=gain,
             comments=comments,
         )
@@ -281,6 +286,7 @@ class DigitalRFUtility(CaptureUtility):
                         if key == "center_frequencies":
                             metadata["center_freq"] = value[0]
                         if key == "receiver":
+                            metadata["device_name"] = value.get("id")
                             metadata["gain"] = value.get("gain")
                             metadata["comments"] = value.get("description")
                     # Only need metadata from the first sample
@@ -461,6 +467,8 @@ class DigitalRFUtility(CaptureUtility):
         }
 
         # Add metadata fields that match RadioHound format
+        if context.device_name is not None:
+            waterfall_file["device_name"] = context.device_name
         if context.gain is not None:
             custom_fields["gain"] = context.gain
         if context.comments:

@@ -31,16 +31,16 @@ export const WaterfallVizContainer = ({
     endIndex: WATERFALL_MAX_ROWS - 1,
   });
 
-  // Get total slices (only called once when component mounts)
-  const { totalSlices, isLoading: isLoadingTotalSlices } = useTotalSlices(
-    visualizationRecord.uuid
-  );
-
   const { waterfallData, isLoading: isLoadingWaterfallData, error } = useWaterfallData(
     visualizationRecord.uuid,
     settings.subchannel,
     waterfallRange.startIndex,
     waterfallRange.endIndex,
+  );
+
+  // Get total slices (only called once when component mounts)
+  const { totalSlices, isLoading: isLoadingTotalSlices } = useTotalSlices(
+    visualizationRecord.uuid
   );
 
   // Callback to receive waterfall range updates from WaterfallVisualization
@@ -51,11 +51,11 @@ export const WaterfallVizContainer = ({
     [],
   );
 
-  const allFilesLoaded = waterfallData.length === totalSlices;
+  const allFilesLoaded = waterfallData && totalSlices && waterfallData.length === totalSlices;
   const isLoadingWaterfallRange =
-    isLoadingWaterfallData && waterfallData.length > 0 && !allFilesLoaded;
+    Boolean(isLoadingWaterfallData && waterfallData && !allFilesLoaded);
 
-  if ((isLoadingWaterfallData || isLoadingTotalSlices) && waterfallData.length === 0) {
+  if (isLoadingTotalSlices || isLoadingWaterfallData || waterfallData === undefined) {
     return <LoadingBlock message="Getting visualization files..." />;
   }
 
@@ -65,7 +65,7 @@ export const WaterfallVizContainer = ({
     );
   }
 
-  if (waterfallData.length === 0) {
+  if (waterfallData?.length === 0) {
     return (
       <Alert variant="warning">
         <Alert.Heading>No Data Found</Alert.Heading>
@@ -74,14 +74,9 @@ export const WaterfallVizContainer = ({
     );
   }
 
-  // We currently only support one capture per visualization, so grab the first
-  // capture and use its files
-  const waterfallFiles = waterfallData.sort(
+  const waterfallFiles = waterfallData?.sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-  );
-
-  // Extract subchannel information from the first file if available
-  const numSubchannels = waterfallFiles[0]?.custom_fields?.num_subchannels;
+  ) ?? [];
 
   const handleSaveWaterfall = async () => {
     try {

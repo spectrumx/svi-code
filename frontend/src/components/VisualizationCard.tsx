@@ -127,9 +127,6 @@ export const VisualizationCard: React.FC<VisualizationCardProps> = ({
           <strong>Capture Type:</strong>{' '}
           {CAPTURE_TYPE_INFO[vizRecord.capture_type].name}
           <br />
-          <strong>Source:</strong>{' '}
-          {CAPTURE_SOURCES[vizRecord.capture_source].name}
-          <br />
           <strong>Total Files:</strong>{' '}
           {isLoading ? (
             <span className="text-muted">Loading...</span>

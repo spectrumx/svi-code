@@ -345,6 +345,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     }
 
     const tmpChart = _.cloneDeep(chart);
+    const id = waterfallFile.mac_address || waterfallFile.device_name || '0';
     let nextIndex = 0;
 
     if (tmpChart.data === undefined) {
@@ -352,9 +353,9 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     } else if (tmpChart.data[0].name === 'template') {
       nextIndex = 1;
     } else {
-      //Find index for this node
+      // Find index for this node
       nextIndex = tmpChart.data.findIndex(
-        (element) => element._id === (waterfallFile.mac_address ?? ''),
+        (element) => element._id === id,
       );
       if (nextIndex === -1) {
         nextIndex = tmpChart.data.length;
@@ -375,8 +376,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             waterfallFile.mac_address.length - 4,
           ) +
           ')' : ''),
-      toolTipContent: waterfallFile.device_name + ': {x}, {y}',
-      _id: waterfallFile.mac_address,
+      toolTipContent: (waterfallFile.device_name || waterfallFile.mac_address || '0') + ': {x}, {y}',
+      _id: id,
     };
 
     // Ensure axisX exists and isn't an array.
@@ -405,7 +406,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       display.maxHoldValues[waterfallFile.mac_address ?? ''].length > 0
     ) {
       nextIndex = tmpChart.data.findIndex(
-        (element) => element._id === 'maxhold_' + waterfallFile.mac_address,
+        (element) => element._id === 'maxhold_' + id,
       );
       if (nextIndex === -1) {
         nextIndex = tmpChart.data.length;
@@ -762,8 +763,12 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
   return (
     <div>
-      {onSave && (
-        <div className="d-flex justify-content-end mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h5 style={{ marginBottom: 0 }}>
+          Scan {displayedFileIndex + 1} (
+          {waterfallFiles[displayedFileIndex].timestamp})
+        </h5>
+        {onSave && (
           <button
             className="btn btn-primary"
             onClick={onSave}
@@ -772,8 +777,8 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
             <i className="bi bi-download me-2" />
             Export
           </button>
-        </div>
-      )}
+        )}
+      </div>
       <div style={{ position: 'relative' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <Periodogram
