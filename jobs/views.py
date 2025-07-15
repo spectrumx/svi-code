@@ -5,6 +5,7 @@ This module provides endpoints for job submission, status updates, metadata retr
 and data management. All endpoints requiring authentication use Token Authentication.
 """
 
+import sys
 import traceback
 from datetime import datetime
 from typing import Literal
@@ -51,7 +52,7 @@ def submit_job(request):
     return Response({"status": "success"})
 
 
-def test_connection(request, connection_id):
+def test_connection(request, connection_id):  # noqa: ARG001
     """
     Test broker connection for a specific job submission.
 
@@ -166,7 +167,10 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
 
         # make sure the owner of this job is the person requesting it
         if job.owner != request.user:
-            print(f"Job {job_id}: Access denied for user {request.user.id}")
+            print(  # noqa: T201
+                f"Job {job_id}: Access denied for user {request.user.id}",
+                file=sys.stderr,
+            )
             raise_does_not_exist(Job)
 
         # Get associated files
@@ -207,7 +211,7 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
             },
         )
     except Job.DoesNotExist:
-        print(f"Job {job_id}: Job not found in database")
+        print(f"Job {job_id}: Job not found in database", file=sys.stderr)  # noqa: T201
         return JsonResponse(
             {
                 "status": "error",
@@ -216,8 +220,8 @@ def get_job_metadata(request: Request, job_id: int) -> JobMetadataResponse:
             status=404,
         )
     except Exception as e:
-        print(f"Error getting job metadata for job {job_id}: {e}")
-        print(traceback.format_exc())
+        print(f"Error getting job metadata for job {job_id}: {e}", file=sys.stderr)  # noqa: T201
+        print(traceback.format_exc(), file=sys.stderr)  # noqa: T201
         return JsonResponse(
             {
                 "status": "error",

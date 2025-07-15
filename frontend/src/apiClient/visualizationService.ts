@@ -246,7 +246,6 @@ export const getTotalSlices = async (id: string): Promise<number> => {
 /**
  * Fetches waterfall data for a visualization from the backend.
  * @param id - The ID of the visualization
- * @param subchannel - Optional subchannel index for DigitalRF captures
  * @param startIndex - Optional start index for DigitalRF sliding window
  * @param endIndex - Optional end index for DigitalRF sliding window
  * @returns An array of WaterfallFile objects containing the waterfall data
@@ -254,15 +253,12 @@ export const getTotalSlices = async (id: string): Promise<number> => {
  */
 export const getWaterfallData = async (
   id: string,
-  subchannel?: number,
   startIndex?: number,
   endIndex?: number,
 ): Promise<WaterfallFile[]> => {
   try {
     const params: Record<string, any> = {};
-    if (subchannel !== undefined) {
-      params.subchannel = subchannel;
-    }
+
     if (startIndex !== undefined) {
       params.start_index = startIndex;
     }
@@ -308,7 +304,6 @@ export const useTotalSlices = (id: string) => {
 
 export const useWaterfallData = (
   id: string,
-  subchannel?: number,
   startIndex?: number,
   endIndex?: number,
 ) => {
@@ -322,7 +317,6 @@ export const useWaterfallData = (
       try {
         const data = await getWaterfallData(
           id,
-          subchannel,
           startIndex,
           endIndex,
         );
@@ -335,7 +329,7 @@ export const useWaterfallData = (
       }
     };
     fetchWaterfallData();
-  }, [id, subchannel, startIndex, endIndex]);
+  }, [id, startIndex, endIndex]);
 
   return { waterfallData, isLoading, error };
 };

@@ -44,7 +44,6 @@ c.DockerSpawner.notebook_dir = notebook_dir
 c.DockerSpawner.volumes = {"jupyterhub-user-{username}": notebook_dir}
 
 # Remove conflicting container removal settings
-# c.DockerSpawner.remove_containers = True  # Remove this line
 c.DockerSpawner.remove = False  # Set to False to avoid conflict with restart policy
 
 # For debugging arguments passed to spawned containers
@@ -91,12 +90,11 @@ c.Spawner.http_timeout = 60  # Increase from default 30 seconds
 c.Spawner.start_timeout = 60  # Increase startup timeout
 
 # Modify command configuration to ensure proper notebook startup
-# c.DockerSpawner.cmd = ["start-notebook.sh"]
+# c.DockerSpawner.cmd = ["start-notebook.sh"]  # noqa: ERA001
 # c.DockerSpawner.args = [
-#     "--NotebookApp.allow_origin='*'",
-#     f"--NotebookApp.base_url=/hub/user/{os.environ.get('JUPYTERHUB_USER', '')}",
-#     "--NotebookApp.token=''",  # Disable token authentication since we're using Auth0
-# ]
+#     "--NotebookApp.allow_origin='*'",  # noqa: ERA001
+#     f"--NotebookApp.base_url=/hub/user/{os.environ.get('JUPYTERHUB_USER', '')}",  # noqa: ERA001
+#     "--NotebookApp.token=''"]  # Disable token authentication since we're using Auth0
 
 # Ensure environment variables are passed to the container
 c.DockerSpawner.environment = {

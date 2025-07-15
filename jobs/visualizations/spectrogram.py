@@ -1,4 +1,3 @@
-import argparse
 import json
 import logging
 from dataclasses import dataclass
@@ -12,7 +11,6 @@ from digital_rf import DigitalRFReader
 from scipy.signal import ShortTimeFFT
 from scipy.signal.windows import gaussian
 
-# from sigmf import SigMFArchiveReader
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 
 
@@ -33,13 +31,10 @@ class SpectrogramData:
     channel_name: str | None = None
 
 
-def make_spectrogram(
-    job_metadata: dict[str, Any], config: dict[str, Any], file_paths: list[str]
-) -> plt.Figure:
+def make_spectrogram(config: dict[str, Any], file_paths: list[str]) -> plt.Figure:
     """Generate a spectrogram from either SigMF or DigitalRF data.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         config: Dictionary containing job configuration. Must contain 'capture_type' and
                'capture_ids' (list with single capture ID)
         file_paths: List of file paths to search through for data files
@@ -58,7 +53,7 @@ def make_spectrogram(
     if capture_type == CaptureType.SigMF:
         spectrogram_data = _load_sigmf_data(file_paths)
     elif capture_type == CaptureType.DigitalRF:
-        spectrogram_data = _load_digital_rf_data(file_paths, config)
+        spectrogram_data = _load_digital_rf_data(file_paths)
     else:
         raise ValueError(f"Unsupported capture type: {capture_type}")
 
@@ -102,14 +97,11 @@ def _load_sigmf_data(file_paths: list[str]) -> SpectrogramData:
     )
 
 
-def _load_digital_rf_data(
-    file_paths: list[str], config: dict[str, Any]
-) -> SpectrogramData:
+def _load_digital_rf_data(file_paths: list[str]) -> SpectrogramData:
     """Load data from DigitalRF format.
 
     Args:
         file_paths: List of file paths to search through
-        config: Dictionary containing job configuration
 
     Returns:
         SpectrogramData: Container with loaded data and metadata
@@ -139,7 +131,7 @@ def _load_digital_rf_data(
             _raise_error(msg)
 
         # Use the specified channel
-        subchannel = config.get("subchannel", 0)
+        subchannel = 0
         start_sample, end_sample = reader.get_bounds(channel)
 
         # Get sample rate from metadata
@@ -282,23 +274,3 @@ def _raise_error(msg: str) -> None:
     """
     logging.error(msg)
     raise ValueError(msg)
-
-
-if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(
-        description=(
-            "Make a spectrogram from SigMF or DigitalRF data. "
-            "Figure is saved to 'spectrogram.png'."
-        ),
-    )
-    arg_parser.add_argument("--type", type=str, required=True, choices=["sigmf", "drf"])
-    arg_parser.add_argument("--data", type=str, required=True)
-    arg_parser.add_argument("--meta", type=str, required=True)
-    args = arg_parser.parse_args()
-
-    job_data = {
-        "capture_type": args.type,
-        "data": {"local_files": [{"name": args.data}, {"name": args.meta}]},
-    }
-    fig = make_spectrogram(job_data)
-    fig.savefig("spectrogram.png")

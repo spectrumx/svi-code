@@ -98,7 +98,7 @@ class RadioHoundUtility(CaptureUtility):
         return (min_freq, max_freq)
 
     @staticmethod
-    def get_media_type(file: UploadedFile) -> str:
+    def get_media_type(file: UploadedFile) -> str:  # noqa: ARG004
         """Get the media type for a RadioHound file.
 
         Args:

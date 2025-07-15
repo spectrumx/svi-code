@@ -169,5 +169,4 @@ export interface WaterfallSettings {
   fileIndex: number;
   isPlaying: boolean;
   playbackSpeed: string;
-  subchannel?: number;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { Row, Col, Alert } from 'react-bootstrap';
 
 import LoadingBlock from '../LoadingBlock';
@@ -22,7 +22,6 @@ export const WaterfallVizContainer = ({
     fileIndex: 0,
     isPlaying: false,
     playbackSpeed: '1 fps',
-    subchannel: 0,
   });
 
   // Track the current window range for DigitalRF captures (from WaterfallVisualization)
@@ -33,7 +32,6 @@ export const WaterfallVizContainer = ({
 
   const { waterfallData, isLoading: isLoadingWaterfallData, error } = useWaterfallData(
     visualizationRecord.uuid,
-    settings.subchannel,
     waterfallRange.startIndex,
     waterfallRange.endIndex,
   );

@@ -80,7 +80,7 @@ def test_terminate_job_manual(monkeypatch) -> None:
     assert memory_manager.get_active_jobs_count() == 0
 
 
-def test_terminate_job_no_task(monkeypatch) -> None:
+def test_terminate_job_no_task() -> None:
     """Test terminate_job when no task_id is present (should still unregister)."""
     job_id = 101
     memory_manager.register_job(job_id, estimated_memory_mb=5, task_id=None)
@@ -104,14 +104,15 @@ def test_memory_monitor_triggers_termination(monkeypatch) -> None:
     monkeypatch.setattr(
         memory_manager, "get_process_memory_usage", lambda: {9999: 1000}
     )
-    monkeypatch.setattr(memory_manager, "_terminate_celery_task", lambda tid, jid: True)
+    monkeypatch.setattr(memory_manager, "_terminate_celery_task", lambda tid, jid: True)  # noqa: ARG005
 
     # Mock Job model
     mock_job = MagicMock()
     mock_job.owner = MagicMock()
     monkeypatch.setattr("jobs.memory_manager.Job", MagicMock())
     monkeypatch.setattr(
-        "jobs.memory_manager.Job.objects.get", lambda **kwargs: mock_job
+        "jobs.memory_manager.Job.objects.get",
+        lambda **kwargs: mock_job,  # noqa: ARG005
     )
 
     # Mock Token model with proper get_or_create return value
@@ -120,10 +121,13 @@ def test_memory_monitor_triggers_termination(monkeypatch) -> None:
     monkeypatch.setattr("jobs.memory_manager.Token", MagicMock())
     monkeypatch.setattr(
         "jobs.memory_manager.Token.objects.get_or_create",
-        lambda user: (mock_token, True),
+        lambda user, **kwargs: (mock_token, True),  # noqa: ARG005
     )
 
-    monkeypatch.setattr("jobs.memory_manager.update_job_status", lambda *a, **kw: True)
+    monkeypatch.setattr(
+        "jobs.memory_manager.update_job_status",
+        lambda *a, **kw: True,  # noqa: ARG005
+    )
 
     # Run the monitor worker once (not as a thread)
     memory_manager._memory_monitor_active = True

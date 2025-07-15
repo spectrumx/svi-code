@@ -210,7 +210,9 @@ class DigitalRFUtility(CaptureUtility):
         channels = reader.get_channels()
 
         if not channels:
-            raise ValueError("No channels found in DigitalRF data")
+            error_message = "No channels found in DigitalRF data"
+            logger.error(error_message)
+            raise ValueError(error_message)
 
         channel = channels[0]
         start_sample, end_sample = reader.get_bounds(channel)
@@ -515,10 +517,11 @@ class DigitalRFUtility(CaptureUtility):
                     for extract_info in zip_file.infolist():
                         if extract_info.filename.startswith(capture_dir):
                             # Create the directory structure
-                            file_path = os.path.join(
-                                temp_dir, extract_info.filename[len(capture_dir) :]
+                            file_path = (
+                                Path(temp_dir)
+                                / extract_info.filename[len(capture_dir) :]
                             )
-                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                            file_path.parent.mkdir(parents=True, exist_ok=True)
 
                             # Extract the file
                             with (
@@ -528,7 +531,7 @@ class DigitalRFUtility(CaptureUtility):
                                 shutil.copyfileobj(source, target)
 
                     # Find the DigitalRF root directory (parent of the channel directory)
-                    for root, dirs, files in os.walk(temp_dir):
+                    for root, _dirs, files in os.walk(temp_dir):
                         if "drf_properties.h5" in files:
                             drf_data_path = str(Path(root).parent)
                             break
@@ -547,7 +550,9 @@ class DigitalRFUtility(CaptureUtility):
 
                     break  # Only process the first drf_properties.h5 file
 
-        raise ValueError("No waterfall data found for total slices calculation")
+        error_message = "No waterfall data found for total slices calculation"
+        logger.error(error_message)
+        raise ValueError(error_message)
 
     @staticmethod
     def get_total_slices(

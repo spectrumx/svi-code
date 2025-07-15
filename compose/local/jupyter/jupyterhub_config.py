@@ -39,7 +39,6 @@ c.DockerSpawner.notebook_dir = notebook_dir
 c.DockerSpawner.volumes = {"jupyterhub-user-{username}": notebook_dir}
 
 # Remove conflicting container removal settings
-# c.DockerSpawner.remove_containers = True  # Remove this line
 c.DockerSpawner.remove = False  # Set to False to avoid conflict with restart policy
 
 # For debugging arguments passed to spawned containers

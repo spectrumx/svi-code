@@ -124,7 +124,7 @@ class CaptureViewSet(viewsets.ModelViewSet):
         """
         return Capture.objects.filter(owner=self.request.user, source="sds")
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):  # noqa: ARG002
         """Create a new capture.
 
         Returns:
@@ -137,14 +137,6 @@ class CaptureViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-        # serializer = self.get_serializer(data=request.data)
-        # serializer.is_valid(raise_exception=True)
-        # serializer.save()
-
-        # headers = self.get_success_headers(serializer.data)
-        # return Response(
-        #     serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        # )
 
 
 class FileViewSet(viewsets.ModelViewSet):
@@ -291,7 +283,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
     @action(detail=True, methods=["post"])
-    def create_spectrogram(self, request: Request, uuid=None) -> Response:
+    def create_spectrogram(self, request: Request, uuid=None) -> Response:  # noqa: ARG002
         """Create a spectrogram visualization job.
 
         Args:
@@ -379,22 +371,24 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         file: dict,
         capture_id: str,
         sds_client: SDSClient,
-        seen_filenames: set[str],
         zip_file: zipfile.ZipFile,
+        *,
         preserve_structure: bool = False,
-    ) -> None:
+    ) -> str:
         """Process a single SDS file and add it to the ZIP archive.
 
         Args:
             file: Dictionary containing file information from SDS
             capture_id: ID of the capture this file belongs to
             sds_client: SDS client
-            seen_filenames: Set of filenames already processed (to check duplicates)
             zip_file: ZIP archive to add the file to
             preserve_structure: Whether to preserve the SDS directory structure
 
+        Returns:
+            str: The ZIP path used for the file
+
         Raises:
-            ValueError: If duplicate filename is found or file download fails
+            ValueError: If file download fails
         """
         file_uuid = file["uuid"]
 
@@ -419,23 +413,17 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 # Original behavior: flatten to capture_id/filename
                 zip_path = f"{capture_id}/{filename}"
 
-            # Check for duplicate filename (only check basename for flattened structure)
-            check_filename = filename if not preserve_structure else zip_path
-            if check_filename in seen_filenames:
-                raise ValueError(
-                    f"Duplicate filename found for capture with ID {capture_id}. "
-                    f"File name: {check_filename}"
-                )
-            seen_filenames.add(check_filename)
-
             # Add file to ZIP
             zip_file.write(sds_file.local_path, arcname=zip_path)
+
+            return zip_path
 
     def _handle_sds_captures(
         self,
         visualization: Visualization,
         request: Request,
         zip_file: zipfile.ZipFile,
+        *,
         preserve_structure: bool = False,
     ) -> None:
         """Handle downloading and processing of all SDS captures.
@@ -475,15 +463,25 @@ class VisualizationViewSet(viewsets.ModelViewSet):
 
             for i, file in enumerate(files):
                 logging.info(f"Downloading file {i + 1} of {len(files)}")
+
                 try:
-                    self._process_sds_file(
+                    zip_path = self._process_sds_file(
                         file,
                         capture_id,
                         sds_client,
-                        seen_filenames,
                         zip_file,
-                        preserve_structure,
+                        preserve_structure=preserve_structure,
                     )
+
+                    # Check for duplicate filename after determining the actual path
+                    check_filename = zip_path if preserve_structure else file["name"]
+                    if check_filename in seen_filenames:
+                        raise ValueError(
+                            f"Duplicate filename found for capture with ID {capture_id}. "
+                            f"File name: {check_filename}"
+                        )
+                    seen_filenames.add(check_filename)
+
                 except requests.RequestException as e:
                     raise ValueError(
                         f"Failed to download file ID {file['uuid']} from capture ID {capture_id}: {e}"
@@ -536,7 +534,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 raise ValueError(error_message)
 
     @action(detail=True, methods=["get"])
-    def download_files(self, request: Request, uuid=None) -> Response:
+    def download_files(self, request: Request, uuid=None) -> Response:  # noqa: ARG002
         """Download all files associated with the visualization as a ZIP file.
 
         This endpoint retrieves all files from both local and SDS sources associated
@@ -587,7 +585,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=True, methods=["post"])
-    def save(self, request: Request, uuid=None) -> Response:
+    def save(self, request: Request, uuid=None) -> Response:  # noqa: ARG002
         """Save an existing unsaved visualization.
 
         Args:
@@ -606,7 +604,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
-    def get_total_slices(self, request: Request, uuid=None) -> Response:
+    def get_total_slices(self, request: Request, uuid=None) -> Response:  # noqa: ARG002
         """Get the total number of slices for waterfall visualizations.
 
         This endpoint calculates the total number of slices available in a capture
@@ -682,7 +680,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=True, methods=["get"])
-    def get_waterfall_data(self, request: Request, uuid=None) -> Response:
+    def get_waterfall_data(self, request: Request, uuid=None) -> Response:  # noqa: ARG002
         """Get waterfall data for a visualization.
 
         This endpoint retrieves files from the visualization's captures and converts them
@@ -690,7 +688,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         and DigitalRF captures from SDS sources.
 
         Query Parameters:
-            subchannel (int): For DigitalRF captures, the subchannel index to process (default: 0)
             start_index (int): For DigitalRF captures, the start index for the sliding window
             end_index (int): For DigitalRF captures, the end index for the sliding window
 
@@ -830,7 +827,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         Args:
             zip_file: ZIP file containing DigitalRF data
             capture_ids: List of capture IDs to process (only one capture supported)
-            subchannel: Subchannel index to process
             start_idx: Start index for the sliding window
             end_idx: End index for the sliding window
 
@@ -858,10 +854,11 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     for extract_info in zip_file.infolist():
                         if extract_info.filename.startswith(capture_dir):
                             # Create the directory structure
-                            file_path = os.path.join(
-                                temp_dir, extract_info.filename[len(capture_dir) :]
+                            file_path = (
+                                Path(temp_dir)
+                                / extract_info.filename[len(capture_dir) :]
                             )
-                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                            file_path.parent.mkdir(parents=True, exist_ok=True)
 
                             # Extract the file
                             with (
@@ -871,7 +868,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                                 shutil.copyfileobj(source, target)
 
                     # Find the DigitalRF root directory (parent of the channel directory)
-                    for root, dirs, files in os.walk(temp_dir):
+                    for root, _dirs, files in os.walk(temp_dir):
                         if "drf_properties.h5" in files:
                             drf_data_path = str(Path(root).parent)
                             break
