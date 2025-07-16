@@ -24,7 +24,6 @@ export const WaterfallVizContainer = ({
     playbackSpeed: '1 fps',
   });
 
-  // Track the current window range for DigitalRF captures (from WaterfallVisualization)
   const [waterfallRange, setWaterfallRange] = useState({
     startIndex: 0,
     endIndex: WATERFALL_MAX_ROWS - 1,

@@ -611,9 +611,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         without downloading the actual waterfall data. This is useful for setting up
         the UI controls before loading the actual waterfall data.
 
-        For DigitalRF captures: calculates total slices based on sample count
-        For RadioHound captures: counts the number of JSON files in the capture
-
         Args:
             request: The HTTP request
             uuid: The UUID of the visualization
@@ -684,8 +681,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         """Get waterfall data for a visualization.
 
         This endpoint retrieves files from the visualization's captures and converts them
-        to the WaterfallFile format expected by the frontend. Currently supports RadioHound
-        and DigitalRF captures from SDS sources.
+        to the WaterfallFile format expected by the frontend.
 
         Query Parameters:
             start_index (int): For DigitalRF captures, the start index for the sliding window

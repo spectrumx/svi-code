@@ -141,8 +141,8 @@ interface WaterfallVisualizationProps {
     startIndex: number;
     endIndex: number;
   }) => void;
-  totalSlices?: number; // For DigitalRF captures
-  isLoadingWaterfallRange?: boolean; // Loading state for waterfall range changes
+  totalSlices?: number;
+  isLoadingWaterfallRange?: boolean;
 }
 
 const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
@@ -261,8 +261,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     waterfallFile: WaterfallFile,
     processedValues: (typeof processedData)[number],
   ) => {
-    console.log('waterfallFile', waterfallFile);
-    console.log('processedValues', processedValues);
     let fMin: number;
     let fMax: number;
 
@@ -506,8 +504,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     let xMin = Infinity;
     let xMax = -Infinity;
 
-    console.log('waterfallFiles length:', waterfallFiles.length);
-
     waterfallFiles.forEach((waterfallFile, index) => {
       const processedFile = processedValues[index];
       const yValues = processedFile.dbValues;
@@ -547,8 +543,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       scaleMin: globalMinValue,
       scaleMax: globalMaxValue,
     }));
-
-    console.log('processedWaterfallData length:', processedWaterfallData.length);
 
     // Update waterfall state
     const newWaterfall: ScanWaterfallType = {
@@ -596,7 +590,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     if (isLoadingWaterfallRange) return;
 
     if (!_.isEqual(desiredWaterfallRange, currentWaterfallRange)) {
-      console.log('Processing waterfall data after loading new files');
       processWaterfallData(waterfallFiles, processedData);
       setCurrentWaterfallRange(desiredWaterfallRange);
       return;
@@ -617,8 +610,6 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
       const lastPossibleStartIndex = Math.max(0, totalFiles - pageSize);
       const startIndex = Math.min(idealStartIndex, lastPossibleStartIndex);
       const endIndex = Math.min(totalFiles - 1, startIndex + pageSize - 1);
-      console.log('startIndex:', startIndex);
-      console.log('endIndex:', endIndex);
 
       // Only reprocess waterfall if the range has changed
       if (
@@ -710,6 +701,7 @@ const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
     totalSlices,
     setSettings,
     isLoadingWaterfallRange,
+    waterfallFiles,
   ]);
 
   // Handle constant FPS playback

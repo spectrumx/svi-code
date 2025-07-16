@@ -302,7 +302,6 @@ export function WaterfallPlot({
         // Restore the transform
         context.restore();
 
-        //console.log("old ymin/max:",yMin,yMax);
         allData.forEach((row) => {
           row.forEach((value) => {
             if (yMin === undefined || value < yMin) {
@@ -313,7 +312,6 @@ export function WaterfallPlot({
             }
           });
         });
-        //console.log("new ymin/max:",yMin,yMax);
 
         //waterfall.display.scaleMin = Math.round(yMin * 100) / 100;
         //waterfall.display.scaleMax = Math.round(yMax * 100) / 100;
@@ -335,11 +333,9 @@ export function WaterfallPlot({
 
         // context.translate(labelWidth + margin.left, margin.top + 5);
 
-        // console.log('allData before draw:', allData);
         if (colorScale) {
           allData.forEach((row, rowIndex) => {
             row.forEach((value, colIndex) => {
-              // console.log('Drawing allDatacanvas square:', colIndex, value);
               drawCanvasSquare(
                 context,
                 colIndex,
@@ -434,7 +430,6 @@ export function WaterfallPlot({
           // Apply the correct transform for the main plot
           context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
           context.translate(colorLegendWidth, margin.top);
-          console.log('allData length:', allData.length);
 
           // Draw all data points in reverse order
           allData.forEach((row, rowIndex) => {
@@ -493,9 +488,6 @@ export function WaterfallPlot({
 
     // Validate the index is within bounds
     if (clickedIndex >= 0 && clickedIndex < allData.length) {
-      console.log('clickedIndex:', clickedIndex);
-      console.log('fileRange.startIndex:', fileRange.startIndex);
-      console.log('clickedIndex + fileRange.startIndex:', clickedIndex + fileRange.startIndex);
       onRowSelect(fileRange.startIndex + clickedIndex);
     }
   };

@@ -295,7 +295,7 @@ class DigitalRFUtility(CaptureUtility):
                     break
 
         except Exception as e:
-            logger.debug(f"Could not read metadata using DigitalRFReader: {e}")
+            logger.error(f"Could not read metadata using DigitalRFReader: {e}")
 
         return metadata
 
