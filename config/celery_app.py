@@ -21,5 +21,6 @@ app.conf.beat_schedule = {
     "check-zombie-jobs": {
         "task": "jobs.tasks.check_zombie_jobs",
         "schedule": 60.0,  # Run every 60 seconds (1 minute)
+        "options": {"queue": "scheduled"},
     },
 }
