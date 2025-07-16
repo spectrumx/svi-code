@@ -784,10 +784,7 @@ def check_zombie_jobs() -> dict[str, int]:
                     job=job,
                     status="failed",
                     info={
-                        "reason": "Job detected as zombie - not running on any worker",
-                        "detected_at": timezone.now().isoformat(),
-                        "previous_status": job.status,
-                        "detected_by": "periodic_zombie_check",
+                        "error": "Job detected as zombie - not running on any worker",
                     },
                 )
 

@@ -97,7 +97,7 @@ def test_check_zombie_jobs_periodic_task(running_job: Job) -> None:
 def test_zombie_job_status_updates(running_job: Job) -> None:
     """Test that zombie detection creates appropriate status updates."""
     # Run zombie detection
-    detect_zombie_job(running_job)
+    check_zombie_jobs()
 
     # Check if status updates were created
     status_updates = JobStatusUpdate.objects.filter(job=running_job)
