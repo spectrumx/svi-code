@@ -18,9 +18,6 @@ from spectrumx_visualization_platform.users.api.views import (
     test_sdk_connection,
     create_auth_token,
 )
-from spectrumx_visualization_platform.users.api.sds import (
-    get_sds_files,
-)
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
@@ -60,8 +57,6 @@ urlpatterns += [
         name="api-docs",
     ),
     path("api/test-sdk-connection/", test_sdk_connection),
-    # SDS API
-    path("api/sds/files", get_sds_files),
 ]
 
 if settings.DEBUG:

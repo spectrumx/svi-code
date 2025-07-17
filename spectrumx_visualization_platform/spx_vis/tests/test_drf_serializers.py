@@ -132,7 +132,6 @@ class TestVisualizationDetailSerializer:
         mock_get_sds_captures,
         user: User,
         radiohound_files: File,
-        api_request_factory: APIRequestFactory,
         visualization_detail_serializer: VisualizationDetailSerializer,
     ):
         # Arrange
@@ -187,7 +186,7 @@ class TestVisualizationDetailSerializer:
         assert result[0]["uuid"] == fake_uuid_2
         assert result[0]["name"] == "Test SDS Capture 2"
 
-        mock_get_sds_captures.assert_called_once_with(user)
+        mock_get_sds_captures.assert_called_once_with(user, [fake_uuid_2])
 
     def test_validate_capture_ids_loop(self, api_request_factory: APIRequestFactory):
         test_cases = [

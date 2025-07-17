@@ -98,7 +98,7 @@ class RadioHoundUtility(CaptureUtility):
         return (min_freq, max_freq)
 
     @staticmethod
-    def get_media_type(file: UploadedFile) -> str:
+    def get_media_type(file: UploadedFile) -> str:  # noqa: ARG004
         """Get the media type for a RadioHound file.
 
         Args:
@@ -136,6 +136,48 @@ class RadioHoundUtility(CaptureUtility):
 
         # Use the file name (without extension) as the capture name
         return ".".join(files[0].name.split(".")[:-1])
+
+    @staticmethod
+    def get_total_slices(user, capture_ids: list[str]) -> int:
+        """Calculate total slices for RadioHound captures from SDS.
+
+        This method handles the entire process of getting capture info from SDS
+        and calculating total slices without downloading files.
+
+        Args:
+            user: The user object
+            capture_ids: List of capture IDs to process (only one capture supported)
+
+        Returns:
+            int: Total number of slices available
+
+        Raises:
+            ValueError: If capture is not found or has no files
+        """
+        from spectrumx_visualization_platform.spx_vis.source_utils.sds import (
+            get_sds_captures,
+        )
+
+        # Get SDS captures info without downloading files
+        sds_captures, sds_errors = get_sds_captures(user, capture_ids)
+        if sds_errors:
+            raise ValueError(f"Error getting SDS captures: {sds_errors}")
+
+        # We only support one capture per visualization
+        capture_id = capture_ids[0]
+        capture = next(
+            (c for c in sds_captures if str(c["uuid"]) == str(capture_id)), None
+        )
+
+        if capture is None:
+            raise ValueError(f"Capture ID {capture_id} not found in SDS")
+
+        files = capture.get("files", [])
+        if not files:
+            raise ValueError(f"No files found for capture ID {capture_id}")
+
+        # Use the RadioHound utility to calculate total slices
+        return len(files)
 
     @staticmethod
     def to_waterfall_file(rh_data: dict) -> dict:

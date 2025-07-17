@@ -1,4 +1,3 @@
-import argparse
 import json
 import logging
 from dataclasses import dataclass
@@ -12,7 +11,6 @@ from digital_rf import DigitalRFReader
 from scipy.signal import ShortTimeFFT
 from scipy.signal.windows import gaussian
 
-# from sigmf import SigMFArchiveReader
 from spectrumx_visualization_platform.spx_vis.models import CaptureType
 
 
@@ -33,13 +31,10 @@ class SpectrogramData:
     channel_name: str | None = None
 
 
-def make_spectrogram(
-    job_metadata: dict[str, Any], config: dict[str, Any], file_paths: list[str]
-) -> plt.Figure:
+def make_spectrogram(config: dict[str, Any], file_paths: list[str]) -> plt.Figure:
     """Generate a spectrogram from either SigMF or DigitalRF data.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         config: Dictionary containing job configuration. Must contain 'capture_type' and
                'capture_ids' (list with single capture ID)
         file_paths: List of file paths to search through for data files
@@ -58,7 +53,7 @@ def make_spectrogram(
     if capture_type == CaptureType.SigMF:
         spectrogram_data = _load_sigmf_data(file_paths)
     elif capture_type == CaptureType.DigitalRF:
-        spectrogram_data = _load_digital_rf_data(file_paths, config)
+        spectrogram_data = _load_digital_rf_data(file_paths)
     else:
         raise ValueError(f"Unsupported capture type: {capture_type}")
 
@@ -70,9 +65,7 @@ def _load_sigmf_data(file_paths: list[str]) -> SpectrogramData:
     """Load data from SigMF format.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         file_paths: List of file paths to search through
-        config: Dictionary containing job configuration
 
     Returns:
         SpectrogramData: Container with loaded data and metadata
@@ -104,15 +97,11 @@ def _load_sigmf_data(file_paths: list[str]) -> SpectrogramData:
     )
 
 
-def _load_digital_rf_data(
-    file_paths: list[str], config: dict[str, Any]
-) -> SpectrogramData:
+def _load_digital_rf_data(file_paths: list[str]) -> SpectrogramData:
     """Load data from DigitalRF format.
 
     Args:
-        job_metadata: Dictionary containing job configuration and file information
         file_paths: List of file paths to search through
-        config: Dictionary containing job configuration
 
     Returns:
         SpectrogramData: Container with loaded data and metadata
@@ -142,7 +131,7 @@ def _load_digital_rf_data(
             _raise_error(msg)
 
         # Use the specified channel
-        subchannel = config.get("subchannel", 0)
+        subchannel = 0
         start_sample, end_sample = reader.get_bounds(channel)
 
         # Get sample rate from metadata
@@ -151,7 +140,12 @@ def _load_digital_rf_data(
                 f.attrs["sample_rate_numerator"] / f.attrs["sample_rate_denominator"]
             )
 
-        num_samples = end_sample - start_sample
+        num_samples = int(end_sample - start_sample)
+
+        # Validate sample count
+        if num_samples <= 0:
+            _raise_error(f"Invalid sample count: {num_samples}. Must be positive.")
+
         data_array = reader.read_vector(start_sample, num_samples, channel, subchannel)
 
         return SpectrogramData(
@@ -182,8 +176,6 @@ def _generate_spectrogram(
     std_dev = config.get("stdDev", 100)
     fft_size = config.get("fftSize", 1024)
     gaussian_window = gaussian(fft_size, std=std_dev, sym=True)
-    width = config["width"]
-    height = config["height"]
 
     short_time_fft = ShortTimeFFT(
         gaussian_window,
@@ -194,18 +186,43 @@ def _generate_spectrogram(
     )
 
     spectrogram = short_time_fft.spectrogram(spectrogram_data.data_array)
+
+    return _create_spectrogram_figure(
+        spectrogram, short_time_fft, spectrogram_data, config
+    )
+
+
+def _create_spectrogram_figure(
+    spectrogram: np.ndarray,
+    short_time_fft: ShortTimeFFT,
+    spectrogram_data: SpectrogramData,
+    config: dict[str, Any],
+) -> plt.Figure:
+    """Create the final spectrogram figure.
+
+    Args:
+        spectrogram: The computed spectrogram array
+        short_time_fft: The ShortTimeFFT object used for computation
+        spectrogram_data: Container with data and metadata
+        config: Dictionary containing job configuration
+
+    Returns:
+        matplotlib.figure.Figure: The generated spectrogram figure
+    """
     extent = short_time_fft.extent(spectrogram_data.sample_count)
     time_min, time_max = extent[:2]
+    width = config["width"]
+    height = config["height"]
 
     # Create figure
     figure, axes = plt.subplots(figsize=(width, height))
 
     # Set title with channel name if available
     title = rf"Spectrogram ({short_time_fft.m_num*short_time_fft.T:g}$\,s$ Gaussian "
-    title += rf"window, $\sigma_t={std_dev*short_time_fft.T:g}\,$s)"
+    title += rf"window, $\sigma_t={config.get('stdDev', 100)*short_time_fft.T:g}\,$s)"
     if spectrogram_data.channel_name:
         title = f"{spectrogram_data.channel_name} - {title}"
-    axes.set_title(title)
+    axes.set_title(title, fontsize=16)
 
     # Set axis labels and limits
     axes.set(
@@ -215,6 +232,13 @@ def _generate_spectrogram(
         rf"$\Delta f = {short_time_fft.delta_f:g}\,$Hz)",
         xlim=(time_min, time_max),
     )
+
+    # Increase font sizes for axis labels
+    axes.xaxis.label.set_size(14)
+    axes.yaxis.label.set_size(14)
+
+    # Increase font sizes for tick labels
+    axes.tick_params(axis="both", which="major", labelsize=12)
 
     # Plot spectrogram
     spectrogram_db_limited = 10 * np.log10(np.fmax(spectrogram, 1e-4))
@@ -227,10 +251,16 @@ def _generate_spectrogram(
     )
 
     # Add colorbar
-    figure.colorbar(
+    colorbar = figure.colorbar(
         image,
         label="Power Spectral Density " + r"$20\,\log_{10}|S_x(t, f)|$ in dB",
     )
+
+    # Increase font size for colorbar label and tick labels
+    colorbar.ax.set_ylabel(
+        "Power Spectral Density " + r"$20\,\log_{10}|S_x(t, f)|$ in dB", fontsize=14
+    )
+    colorbar.ax.tick_params(labelsize=12)
 
     figure.tight_layout()
     return figure
@@ -244,23 +274,3 @@ def _raise_error(msg: str) -> None:
     """
     logging.error(msg)
     raise ValueError(msg)
-
-
-if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(
-        description=(
-            "Make a spectrogram from SigMF or DigitalRF data. "
-            "Figure is saved to 'spectrogram.png'."
-        ),
-    )
-    arg_parser.add_argument("--type", type=str, required=True, choices=["sigmf", "drf"])
-    arg_parser.add_argument("--data", type=str, required=True)
-    arg_parser.add_argument("--meta", type=str, required=True)
-    args = arg_parser.parse_args()
-
-    job_data = {
-        "capture_type": args.type,
-        "data": {"local_files": [{"name": args.data}, {"name": args.meta}]},
-    }
-    fig = make_spectrogram(job_data)
-    fig.savefig("spectrogram.png")

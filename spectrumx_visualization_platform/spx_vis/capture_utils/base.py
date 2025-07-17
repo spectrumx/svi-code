@@ -60,3 +60,16 @@ class CaptureUtility(ABC):
         Returns:
             dict: The converted WaterfallFile
         """
+
+    @staticmethod
+    @abstractmethod
+    def get_total_slices(user, capture_ids: list[str]) -> int:
+        """Get the total number of slices for a capture file.
+
+        Args:
+            user: The user object
+            capture_ids: The list of capture IDs
+
+        Returns:
+            int: The total number of slices
+        """

@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { scaleLinear, interpolateHslLong, rgb } from 'd3';
 
 import { ScanState, ScanWaterfallType, Display } from './types';
-import { WATERFALL_MAX_ROWS } from './index';
+import { WATERFALL_MAX_ROWS } from './WaterfallVizContainer';
 
 const SCROLL_INDICATOR_SIZE = 15;
 const WATERFALL_HEIGHT = 500;
@@ -231,7 +231,7 @@ export function WaterfallPlot({
       // Show every 5th index
       for (let i = fileRange.endIndex; i >= fileRange.startIndex; i--) {
         const displayedIndex = i + 1;
-        const row = fileRange.endIndex - i;
+        const row = fileRange.endIndex - i + 1;
         const y = margin.top + row * rectHeight;
         const x = canvasWidth / pixelRatio - indexLegendWidth + 5;
 
@@ -302,7 +302,6 @@ export function WaterfallPlot({
         // Restore the transform
         context.restore();
 
-        //console.log("old ymin/max:",yMin,yMax);
         allData.forEach((row) => {
           row.forEach((value) => {
             if (yMin === undefined || value < yMin) {
@@ -313,7 +312,6 @@ export function WaterfallPlot({
             }
           });
         });
-        //console.log("new ymin/max:",yMin,yMax);
 
         //waterfall.display.scaleMin = Math.round(yMin * 100) / 100;
         //waterfall.display.scaleMax = Math.round(yMax * 100) / 100;
@@ -335,11 +333,9 @@ export function WaterfallPlot({
 
         // context.translate(labelWidth + margin.left, margin.top + 5);
 
-        // console.log('allData before draw:', allData);
         if (colorScale) {
           allData.forEach((row, rowIndex) => {
             row.forEach((value, colIndex) => {
-              // console.log('Drawing allDatacanvas square:', colIndex, value);
               drawCanvasSquare(
                 context,
                 colIndex,
@@ -508,12 +504,12 @@ export function WaterfallPlot({
 
     // Calculate hovered row
     const hoveredRow = Math.floor((y - margin.top) / rectHeight);
-    const hoveredIndex = fileRange.endIndex - 1 - hoveredRow;
+    const hoveredIndex = fileRange.endIndex - hoveredRow;
 
     // Update hover state if within bounds
     if (
       hoveredIndex >= fileRange.startIndex &&
-      hoveredIndex < fileRange.endIndex
+      hoveredIndex <= fileRange.endIndex
     ) {
       setHoveredIndex(hoveredIndex);
     } else {
@@ -570,12 +566,12 @@ export function WaterfallPlot({
   return (
     <div style={{ width: '100%' }}>
       <div style={indicatorContainerStyle}>
-        {fileRange.endIndex < totalFiles && (
+        {fileRange.endIndex < totalFiles - 1 && (
           <div
             style={upIndicatorStyle}
             title="More recent scans above"
             onClick={() => {
-              const newIndex = Math.min(totalFiles - 1, fileRange.endIndex);
+              const newIndex = Math.min(totalFiles - 1, fileRange.endIndex + 1);
               onRowSelect(newIndex);
             }}
           />

@@ -128,9 +128,9 @@ select = [
   "TID",
   "TCH",
   "INT",
-  # "ARG", # Unused function argument
+  "ARG",
   "PTH",
-  # "ERA", # CH: removing commented-out code rule for now
+  "ERA",
   "PD",
   "PGH",
   "PL",
@@ -146,10 +146,9 @@ select = [
 ignore = [
   "S101", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
   "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
-  "SIM102", # sometimes it's better to nest
-  "BLE001", # This is dumb and I don't like it
+  "SIM102", # Sometimes it's better to nest
+  "BLE001", # This is dumb and I don't like it (no catch-all excepts)
   "DJ001", # null=True is required for fields that are added after the model is created
-  "T201", # Allow print statements
   "COM812", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
   "ISC001", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
   "TRY400", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/

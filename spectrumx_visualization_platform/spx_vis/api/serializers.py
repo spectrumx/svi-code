@@ -231,7 +231,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             CaptureType.SigMF,
             CaptureType.DigitalRF,
         ],
-        VisualizationType.Waterfall: [CaptureType.RadioHound],
+        VisualizationType.Waterfall: [CaptureType.RadioHound, CaptureType.DigitalRF],
     }
 
     class Meta:
@@ -291,7 +291,9 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
 
         if obj.capture_source == CaptureSource.SDS:
             try:
-                sds_captures, sds_errors = get_sds_captures(request.user)
+                sds_captures, sds_errors = get_sds_captures(
+                    request.user, obj.capture_ids
+                )
                 self._handle_sds_errors(sds_errors)
                 captures = [
                     capture

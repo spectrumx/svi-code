@@ -65,7 +65,7 @@ class Command(BaseCommand):
             help="Limit the number of files to import",
         )
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:  # noqa: ARG002
         """
         Handle the command execution.
 

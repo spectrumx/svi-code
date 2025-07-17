@@ -57,16 +57,15 @@ export const CaptureSchema = zod.object({
   uuid: zod.string(),
   name: zod.string(),
   owner: zod.string(),
-  timestamp: zod.string(),
   type: CaptureTypeSchema,
   source: CaptureSourceSchema,
   files: zod.array(FileMetadataSchema),
+  timestamp: zod.string().optional().nullable(),
   created_at: zod.string().optional().nullable(),
   min_freq: zod.number().optional().nullable(),
   max_freq: zod.number().optional().nullable(),
   scan_time: zod.number().optional().nullable(),
   end_time: zod.string().optional().nullable(),
-  subchannels: zod.number().optional().nullable(),
 });
 export type Capture = zod.infer<typeof CaptureSchema>;
 

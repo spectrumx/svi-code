@@ -1,32 +1,58 @@
-import { useState } from 'react';
-import { Alert, Row, Col } from 'react-bootstrap';
+import { useCallback, useState } from 'react';
+import { Row, Col, Alert } from 'react-bootstrap';
 
-import { WaterfallVisualization } from '.';
-import WaterfallControls from './WaterfallControls';
-import ScanDetailsTable from './ScanDetailsTable';
-import { VizContainerProps } from '../types';
-import { useWaterfallData } from '../../apiClient/visualizationService';
 import LoadingBlock from '../LoadingBlock';
+import { WaterfallControls } from './WaterfallControls';
+import { WaterfallVisualization } from './index';
+import { WaterfallSettings } from './types';
+import { useWaterfallData, useTotalSlices } from '../../apiClient/visualizationService';
+import { VisualizationRecordDetail } from '../../apiClient/visualizationService';
+import ScanDetailsTable from './ScanDetailsTable';
 
-export interface WaterfallSettings {
-  fileIndex: number;
-  isPlaying: boolean;
-  playbackSpeed: string;
+export const WATERFALL_MAX_ROWS = 80;
+
+interface VizContainerProps {
+  visualizationRecord: VisualizationRecordDetail;
 }
 
 export const WaterfallVizContainer = ({
   visualizationRecord,
 }: VizContainerProps) => {
-  const { waterfallData, isLoading, error } = useWaterfallData(
-    visualizationRecord.uuid,
-  );
   const [settings, setSettings] = useState<WaterfallSettings>({
     fileIndex: 0,
     isPlaying: false,
     playbackSpeed: '1 fps',
   });
 
-  if (isLoading) {
+  const [waterfallRange, setWaterfallRange] = useState({
+    startIndex: 0,
+    endIndex: WATERFALL_MAX_ROWS - 1,
+  });
+
+  const { waterfallData, isLoading: isLoadingWaterfallData, error } = useWaterfallData(
+    visualizationRecord.uuid,
+    waterfallRange.startIndex,
+    waterfallRange.endIndex,
+  );
+
+  // Get total slices (only called once when component mounts)
+  const { totalSlices, isLoading: isLoadingTotalSlices } = useTotalSlices(
+    visualizationRecord.uuid
+  );
+
+  // Callback to receive waterfall range updates from WaterfallVisualization
+  const handleWaterfallRangeChange = useCallback(
+    (range: { startIndex: number; endIndex: number }) => {
+      setWaterfallRange(range);
+    },
+    [],
+  );
+
+  const allFilesLoaded = waterfallData && totalSlices && waterfallData.length === totalSlices;
+  const isLoadingWaterfallRange =
+    Boolean(isLoadingWaterfallData && waterfallData && !allFilesLoaded);
+
+  if (isLoadingTotalSlices || isLoadingWaterfallData || waterfallData === undefined) {
     return <LoadingBlock message="Getting visualization files..." />;
   }
 
@@ -36,7 +62,7 @@ export const WaterfallVizContainer = ({
     );
   }
 
-  if (waterfallData.length === 0) {
+  if (waterfallData?.length === 0) {
     return (
       <Alert variant="warning">
         <Alert.Heading>No Data Found</Alert.Heading>
@@ -45,11 +71,9 @@ export const WaterfallVizContainer = ({
     );
   }
 
-  // We currently only support one capture per visualization, so grab the first
-  // capture and use its files
-  const waterfallFiles = waterfallData.sort(
+  const waterfallFiles = waterfallData?.sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-  );
+  ) ?? [];
 
   const handleSaveWaterfall = async () => {
     try {
@@ -149,22 +173,49 @@ export const WaterfallVizContainer = ({
             <WaterfallControls
               settings={settings}
               setSettings={setSettings}
-              numFiles={waterfallFiles.length}
+              numFiles={totalSlices}
             />
           </div>
         </Col>
         <Col>
           <Row>
-            <WaterfallVisualization
-              waterfallFiles={waterfallFiles}
-              settings={settings}
-              setSettings={setSettings}
-              onSave={handleSaveWaterfall}
-            />
+            <div style={{ position: 'relative' }}>
+              <WaterfallVisualization
+                waterfallFiles={waterfallFiles}
+                settings={settings}
+                setSettings={setSettings}
+                onSave={handleSaveWaterfall}
+                onWaterfallRangeChange={!allFilesLoaded ? handleWaterfallRangeChange : undefined}
+                totalSlices={totalSlices}
+                isLoadingWaterfallRange={isLoadingWaterfallRange}
+              />
+              {isLoadingWaterfallRange && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    backdropFilter: 'blur(2px)',
+                  }}
+                >
+                  <LoadingBlock
+                    message='Loading waterfall data...'
+                  />
+                </div>
+              )}
+            </div>
           </Row>
           <Row>
             <ScanDetailsTable
               waterfallFile={waterfallFiles[settings.fileIndex]}
+              captureType={visualizationRecord.capture_type}
             />
           </Row>
         </Col>

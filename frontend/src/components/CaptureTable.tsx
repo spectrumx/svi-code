@@ -215,7 +215,7 @@ export const CaptureTable = ({
                 .toISOString()
                 .replace('Z', ' UTC')
                 .replace('T', ' ')
-            : 'None',
+            : '--',
         sortingFn: (a, b) => -sortByDate(a, b, 'original.timestamp'),
         size: 200,
       }),
@@ -241,13 +241,13 @@ export const CaptureTable = ({
       columnHelper.accessor('min_freq', {
         header: 'Min Freq',
         cell: (info) =>
-          info.getValue() ? formatHertz(info.getValue()) : 'Unknown',
+          info.getValue() ? formatHertz(info.getValue()) : '--',
         size: 120,
       }),
       columnHelper.accessor('max_freq', {
         header: 'Max Freq',
         cell: (info) =>
-          info.getValue() ? formatHertz(info.getValue()) : 'Unknown',
+          info.getValue() ? formatHertz(info.getValue()) : '--',
         size: 120,
       }),
     ];
@@ -372,7 +372,7 @@ export const CaptureTable = ({
                 Showing {table.getRowModel().rows.length} of {totalCaptures}{' '}
                 captures
                 {numHiddenCaptures
-                  ? ` (${numHiddenCaptures} hidden by filters)`
+                  ? ` (${numHiddenCaptures} hidden)`
                   : ''}
               </>
             ) : (
