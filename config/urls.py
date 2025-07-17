@@ -16,6 +16,7 @@ from spectrumx_visualization_platform.users.api.views import (
     get_session_info,
     api_token,
     test_sdk_connection,
+    create_auth_token,
 )
 
 urlpatterns = [
@@ -47,6 +48,7 @@ urlpatterns += [
     # DRF auth token
     path("api/auth-token/", obtain_auth_token),
     path("api/session-info/", get_session_info),
+    path("api/create-auth-token/", create_auth_token),
     path("api/api-token/", api_token),
     path("api/schema/", SpectacularAPIView.as_view(), name="api-schema"),
     path(
