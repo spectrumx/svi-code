@@ -36,14 +36,11 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-def estimate_memory_requirements(
-    file_paths: list[str], config: dict
-) -> dict[str, float]:
+def estimate_memory_requirements(file_paths: list[str]) -> dict[str, float]:
     """Estimate memory requirements for a spectrogram job.
 
     Args:
         file_paths: List of file paths to process
-        config: Job configuration
 
     Returns:
         dict: Estimated memory requirements in MB
@@ -224,9 +221,7 @@ def _process_local_files(job_id: int, token: str, job_metadata: dict) -> list[st
     return file_paths
 
 
-def _check_memory_requirements(
-    job_id: int, token: str, file_paths: list[str], config: dict
-) -> None:
+def _check_memory_requirements(job_id: int, token: str, file_paths: list[str]) -> None:
     """Check and log memory requirements for the job.
 
     Args:
@@ -235,7 +230,7 @@ def _check_memory_requirements(
         file_paths: List of file paths to process
         config: Job configuration
     """
-    memory_estimate = estimate_memory_requirements(file_paths, config or {})
+    memory_estimate = estimate_memory_requirements(file_paths)
     logger.info(
         f"Job {job_id}: Memory estimate - "
         f"Files: {memory_estimate['file_size_mb']:.1f}MB, "
@@ -313,11 +308,7 @@ def _generate_visualization(
         logger.info(f"Job {job_id}: Generating spectrogram")
         memory_manager.log_memory_usage("before_spectrogram", job_id)
 
-        figure = make_spectrogram(
-            job_metadata,
-            config,
-            file_paths=file_paths,
-        )
+        figure = make_spectrogram(config, file_paths)
 
         memory_manager.log_memory_usage("after_spectrogram", job_id)
         figure.savefig(f"jobs/job_results/{job_id}.png")
@@ -431,7 +422,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
     memory_manager.register_job(job_id, estimated_memory_mb=0, task_id=self.request.id)
 
     # Set up signal handlers for graceful shutdown
-    def signal_handler(signum, frame):
+    def signal_handler(signum, frame):  # noqa: ARG001
         logger.warning(
             f"Job {job_id}: Received signal {signum}, attempting graceful shutdown"
         )
@@ -450,7 +441,7 @@ def submit_job(self, job_id: int, token: str, config: dict | None = None):
             job_id, token, config or {}, job_metadata
         )
 
-        _check_memory_requirements(job_id, token, file_paths, config or {})
+        _check_memory_requirements(job_id, token, file_paths)
         _generate_visualization(job_id, token, job_metadata, config or {}, file_paths)
 
         # Upload job results to the main system
@@ -765,9 +756,9 @@ def check_zombie_jobs() -> dict[str, int]:
     """
     Periodic task to check for and fix zombie jobs.
 
-    This task runs every minute to detect jobs that appear to be running
-    but aren't actually executing on any Celery worker. Such jobs are
-    marked as failed with appropriate status updates.
+    This task detects jobs that appear to be running but aren't actually executing
+    on any Celery worker. Such jobs are marked as failed with appropriate status
+    updates.
 
     Returns:
         dict: Summary of zombie job detection results
@@ -793,10 +784,7 @@ def check_zombie_jobs() -> dict[str, int]:
                     job=job,
                     status="failed",
                     info={
-                        "reason": "Job detected as zombie - not running on any worker",
-                        "detected_at": timezone.now().isoformat(),
-                        "previous_status": job.status,
-                        "detected_by": "periodic_zombie_check",
+                        "error": "Job detected as zombie - not running on any worker",
                     },
                 )
 

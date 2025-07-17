@@ -231,7 +231,7 @@ class VisualizationDetailSerializer(serializers.ModelSerializer[Visualization]):
             CaptureType.SigMF,
             CaptureType.DigitalRF,
         ],
-        VisualizationType.Waterfall: [CaptureType.RadioHound],
+        VisualizationType.Waterfall: [CaptureType.RadioHound, CaptureType.DigitalRF],
     }
 
     class Meta:

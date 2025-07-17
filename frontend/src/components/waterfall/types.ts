@@ -133,7 +133,7 @@ export const WaterfallFileSchema = zod.object({
   max_frequency: zod.number(),
   num_samples: zod.number(),
   sample_rate: zod.number(),
-  mac_address: zod.string(),
+  mac_address: zod.string().optional(),
   device_name: zod.string().optional(),
   center_frequency: zod.number().optional(),
   custom_fields: WaterfallCustomFieldsSchema.optional(),
@@ -161,6 +161,12 @@ export interface ScanState {
 
 export interface ScanWaterfallType
   extends Pick<ScanState, 'periodogram' | 'xMin' | 'xMax'>,
-    Partial<
-      Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax' | 'allData'>
-    > {}
+  Partial<
+    Pick<ScanState, 'scaleMin' | 'scaleMax' | 'yMin' | 'yMax' | 'allData'>
+  > { }
+
+export interface WaterfallSettings {
+  fileIndex: number;
+  isPlaying: boolean;
+  playbackSpeed: string;
+}

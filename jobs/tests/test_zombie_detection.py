@@ -1,125 +1,152 @@
 """
-Test script for zombie job detection functionality.
+Test suite for zombie job detection functionality.
 
-This script simulates zombie job detection by creating a job that appears to be running
-but isn't actually on any worker.
-Run with: python test_zombie_detection.py
+This module tests zombie job detection by creating jobs that appear to be running
+but aren't actually on any worker.
 """
 
-import os
-import sys
-from pathlib import Path
+from unittest.mock import patch
 
-import django
 import pytest
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 
 from jobs.models import Job
 from jobs.models import JobStatusUpdate
-from jobs.tasks import check_job_running_on_worker
+from jobs.tasks import check_zombie_jobs
 from jobs.tasks import detect_zombie_job
-from spectrumx_visualization_platform.users.models import User
 
-# Add the project root to the Python path
-sys.path.append(str(Path(__file__).resolve().parent))
-
-# Set up Django
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
-django.setup()
+User = get_user_model()
 
 
-@pytest.mark.django_db(transaction=True)
-def test_zombie_detection():
-    """Test the zombie job detection functionality."""
-    print("=== Testing Zombie Job Detection ===")
-
-    # Get or create a test user
-    user, created = User.objects.get_or_create(
+@pytest.fixture()
+def test_user() -> AbstractUser:
+    """Create a test user for job testing."""
+    user, _ = User.objects.get_or_create(
         username="test_user",
         defaults={
             "email": "test@example.com",
             "name": "Test User",
         },
     )
+    return user
 
-    if created:
-        print(f"Created test user: {user.username}")
-    else:
-        print(f"Using existing test user: {user.username}")
 
-    # Create a job that appears to be running
-    job = Job.objects.create(
-        owner=user,
+@pytest.fixture()
+def running_job(test_user: AbstractUser) -> Job:
+    """Create a job that appears to be running."""
+    return Job.objects.create(
+        owner=test_user,
         type="spectrogram",
         status="running",
         config={"test": True},
     )
 
-    print(f"\nCreated test job {job.id} with status 'running'")
 
-    # Test 1: Check if job is running on worker (should be False for our test job)
-    print("\n--- Test 1: Check if job is running on worker ---")
-    is_running = check_job_running_on_worker(job.id)
-    print(f"Job {job.id} running on worker: {is_running}")
-
-    # Test 2: Detect zombie job
-    print("\n--- Test 2: Detect zombie job ---")
-    is_zombie = detect_zombie_job(job)
-    print(f"Job {job.id} is zombie: {is_zombie}")
-
-    if is_zombie:
-        print("✓ Zombie detection working correctly!")
-    else:
-        print("✗ Zombie detection failed - job should be detected as zombie")
-
-    # Test 3: Simulate periodic zombie detection task
-    print("\n--- Test 3: Simulate periodic zombie detection task ---")
-    from jobs.tasks import check_zombie_jobs
-
-    result = check_zombie_jobs()
-    print(f"Periodic task result: {result}")
-
-    # Check job status after periodic task
-    job.refresh_from_db()
-    print(f"Job {job.id} status after periodic task: {job.status}")
-
-    # Check if status update was created
-    status_updates = JobStatusUpdate.objects.filter(job=job)
-    print(f"Status updates created: {status_updates.count()}")
-
-    for update in status_updates:
-        print(f"  - Status: {update.status}, Info: {update.info}")
-
-    # Test 4: Test with a completed job (should not be detected as zombie)
-    print("\n--- Test 4: Test with completed job ---")
-    completed_job = Job.objects.create(
-        owner=user,
+@pytest.fixture()
+def completed_job(test_user: AbstractUser) -> Job:
+    """Create a completed job for testing."""
+    return Job.objects.create(
+        owner=test_user,
         type="spectrogram",
         status="completed",
         config={"test": True},
     )
 
+
+@pytest.fixture(autouse=True)
+def mock_check_job_running_on_worker():
+    """Mock check_job_running_on_worker to avoid Redis connection issues in tests."""
+    with patch("jobs.tasks.check_job_running_on_worker") as mock_func:
+        # Always return False to simulate no jobs running on workers
+        mock_func.return_value = False
+        yield mock_func
+
+
+@pytest.fixture(autouse=True)
+def mock_celery_app():
+    """Mock Celery app to avoid Redis connection issues in tests."""
+    with patch("celery.current_app") as mock_app:
+        # Mock the inspect method to avoid Redis connection
+        mock_inspect = mock_app.control.inspect.return_value
+        mock_inspect.active.return_value = {}
+        yield mock_app
+
+
+@pytest.mark.django_db(transaction=True)
+def test_detect_zombie_job(running_job: Job) -> None:
+    """Test that a running job not on worker is detected as zombie."""
+    is_zombie = detect_zombie_job(running_job)
+    assert is_zombie, f"Job {running_job.id} should be detected as zombie"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_detect_zombie_job_completed_job(completed_job: Job) -> None:
+    """Test that a completed job is not detected as zombie."""
     is_zombie = detect_zombie_job(completed_job)
-    print(f"Completed job {completed_job.id} is zombie: {is_zombie}")
-
-    if not is_zombie:
-        print("✓ Correctly ignored completed job!")
-    else:
-        print("✗ Incorrectly detected completed job as zombie")
-
-    # Clean up test jobs
-    print("\n--- Cleanup ---")
-    job.delete()
-    completed_job.delete()
-    print("Test jobs cleaned up")
-
-    print("\n=== Zombie Detection Tests Complete ===")
+    assert (
+        not is_zombie
+    ), f"Completed job {completed_job.id} should not be detected as zombie"
 
 
-if __name__ == "__main__":
-    try:
-        test_zombie_detection()
-    except Exception as e:
-        print(f"Test failed with error: {e}")
-        import traceback
+@pytest.mark.django_db(transaction=True)
+def test_check_zombie_jobs_periodic_task(running_job: Job) -> None:
+    """Test the periodic zombie detection task."""
+    # Run the periodic task
+    result = check_zombie_jobs()
 
-        traceback.print_exc()
+    # Refresh the job to get updated status
+    running_job.refresh_from_db()
+
+    # Verify the task completed successfully
+    assert result is not None, "Periodic task should return a result"
+
+    # Check if job status was updated (should be marked as failed or similar)
+    # Note: The exact status depends on the implementation of check_zombie_jobs
+    assert running_job.status != "running", "Zombie job status should be updated"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_zombie_job_status_updates(running_job: Job) -> None:
+    """Test that zombie detection creates appropriate status updates."""
+    # Run zombie detection
+    check_zombie_jobs()
+
+    # Check if status updates were created
+    status_updates = JobStatusUpdate.objects.filter(job=running_job)
+
+    # Should have at least one status update
+    assert status_updates.exists(), "Should create status updates for zombie job"
+
+    # Verify the status update content
+    latest_update = status_updates.latest("created_at")
+    assert latest_update is not None, "Should have a latest status update"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_multiple_zombie_jobs(test_user: AbstractUser) -> None:
+    """Test detection of multiple zombie jobs."""
+    # Create multiple running jobs
+    jobs = []
+    for i in range(3):
+        job = Job.objects.create(
+            owner=test_user,
+            type="spectrogram",
+            status="running",
+            config={"test": True, "index": i},
+        )
+        jobs.append(job)
+
+    # Check that all are detected as zombies
+    for job in jobs:
+        is_zombie = detect_zombie_job(job)
+        assert is_zombie, f"Job {job.id} should be detected as zombie"
+
+    # Run periodic task
+    result = check_zombie_jobs()
+    assert result is not None, "Periodic task should complete successfully"
+
+    # Verify all jobs were processed
+    for job in jobs:
+        job.refresh_from_db()
+        assert job.status != "running", f"Job {job.id} status should be updated"

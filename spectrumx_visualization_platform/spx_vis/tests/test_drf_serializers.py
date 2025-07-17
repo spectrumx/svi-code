@@ -132,7 +132,6 @@ class TestVisualizationDetailSerializer:
         mock_get_sds_captures,
         user: User,
         radiohound_files: File,
-        api_request_factory: APIRequestFactory,
         visualization_detail_serializer: VisualizationDetailSerializer,
     ):
         # Arrange

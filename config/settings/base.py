@@ -313,9 +313,10 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_WORKER_DISABLE_RATE_LIMITS = True
 
-# Task routing for large jobs
+# Task routing configuration
 CELERY_TASK_ROUTES = {
     "jobs.tasks.submit_job": {"queue": "large_jobs"},
+    "jobs.tasks.check_zombie_jobs": {"queue": "scheduled"},
 }
 
 # Beat scheduler

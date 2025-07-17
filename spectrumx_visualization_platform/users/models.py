@@ -104,7 +104,7 @@ class User(AbstractUser):
 
 
 @receiver(user_logged_in)
-def handle_user_login(sender: type, user: "User", request, **kwargs) -> None:
+def handle_user_login(sender: type, user: "User", request, **kwargs) -> None:  # noqa: ARG001
     """
     Signal receiver that handles post-login actions for users.
     Fetches the SDS token when a user logs in.

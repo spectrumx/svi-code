@@ -3,14 +3,14 @@ import { Form, InputGroup, Button } from 'react-bootstrap';
 import _ from 'lodash';
 import debounce from 'lodash/debounce';
 
-import { WaterfallSettings } from './WaterfallVizContainer';
+import { WaterfallSettings } from './types';
 import PlaybackControls from './PlaybackControls';
 import './waterfall.css';
 
 interface WaterfallControlsProps {
   settings: WaterfallSettings;
   setSettings: React.Dispatch<React.SetStateAction<WaterfallSettings>>;
-  numFiles: number;
+  numFiles?: number;
 }
 
 export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
@@ -50,6 +50,10 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
 
   const handleCaptureIndexChange = useCallback(
     (newValue: number) => {
+      if (!numFiles) {
+        return;
+      }
+
       // Update local state immediately
       setLocalCaptureIndex(newValue);
 
@@ -117,13 +121,14 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
             name="captureIndex"
             value={localCaptureIndex + 1}
             min={1}
-            max={numFiles}
+            max={numFiles || 0}
             onChange={(e) =>
               handleCaptureIndexChange(Number(e.target.value) - 1)
             }
             onKeyDown={handleCaptureIndexKeyDown}
             aria-label="Capture index slider"
             tabIndex={0}
+            disabled={!numFiles}
           />
           <span className="text-muted">{numFiles}</span>
         </div>
@@ -133,7 +138,7 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
               variant="secondary"
               onClick={() => handleCaptureIndexChange(localCaptureIndex - 1)}
               onKeyDown={handleCaptureIndexKeyDown}
-              disabled={localCaptureIndex === 0}
+              disabled={localCaptureIndex === 0 || !numFiles}
               aria-label="Previous capture"
             >
               <i className="bi bi-chevron-left" />
@@ -148,16 +153,17 @@ export const WaterfallControls: React.FC<WaterfallControlsProps> = ({
                 }
                 onKeyDown={handleCaptureIndexKeyDown}
                 min={1}
-                max={numFiles}
+                max={numFiles || 0}
                 className="capture-index-number-input"
                 aria-label="Capture index number input"
+                disabled={!numFiles}
               />
             </InputGroup.Text>
             <Button
               variant="secondary"
               onClick={() => handleCaptureIndexChange(localCaptureIndex + 1)}
               onKeyDown={handleCaptureIndexKeyDown}
-              disabled={localCaptureIndex === numFiles - 1}
+              disabled={!numFiles || localCaptureIndex === numFiles - 1}
               aria-label="Next capture"
             >
               <i className="bi bi-chevron-right" />

@@ -30,7 +30,7 @@ class TestUserUpdateView:
         https://github.com/pytest-dev/pytest-django/pull/258
     """
 
-    def dummy_get_response(self, request: HttpRequest):
+    def dummy_get_response(self, request: HttpRequest):  # noqa: ARG002
         return None
 
     def test_get_success_url(self, user: User, rf: RequestFactory):
@@ -69,17 +69,6 @@ class TestUserUpdateView:
 
         messages_sent = [m.message for m in messages.get_messages(request)]
         assert messages_sent == [_("Information successfully updated")]
-
-
-# class TestUserRedirectView:
-#     def test_get_redirect_url(self, user: User, rf: RequestFactory):
-#         view = UserRedirectView()
-#         request = rf.get("/fake-url")
-#         request.user = user
-
-#         view.request = request
-#         # assert view.get_redirect_url() == f"/users/{user.username}/"
-#         assert view.get_redirect_url() == "https://spectrumx-qa.crc.nd.edu"
 
 
 class TestUserDetailView:

@@ -10,5 +10,5 @@ def _media_storage(settings, tmpdir) -> None:
 
 
 @pytest.fixture()
-def user(db) -> User:
+def user(db) -> User:  # noqa: ARG001
     return UserFactory()

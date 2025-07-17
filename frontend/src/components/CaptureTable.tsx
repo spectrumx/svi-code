@@ -372,7 +372,7 @@ export const CaptureTable = ({
                 Showing {table.getRowModel().rows.length} of {totalCaptures}{' '}
                 captures
                 {numHiddenCaptures
-                  ? ` (${numHiddenCaptures} hidden by filters)`
+                  ? ` (${numHiddenCaptures} hidden)`
                   : ''}
               </>
             ) : (

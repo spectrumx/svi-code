@@ -23,7 +23,6 @@ export interface SpectrogramSettings {
   stdDev: number;
   hopSize: number;
   colormap: string;
-  subchannel?: number;
 }
 
 export interface JobInfo {
@@ -240,9 +239,6 @@ const SpectrogramVizContainer = ({
             <SpectrogramControls
               settings={spectrogramSettings}
               setSettings={setSpectrogramSettings}
-              // numSubchannels={
-              //   visualizationRecord.captures?.[0]?.subchannels ?? undefined
-              // }
             />
             <Button onClick={createSpectrogramJob} disabled={isSubmitting}>
               Generate Spectrogram
