@@ -726,40 +726,32 @@ class VisualizationViewSet(viewsets.ModelViewSet):
         try:
             waterfall_files = []
 
-            # Create a BytesIO object to store the ZIP file
-            zip_buffer = io.BytesIO()
-
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                if visualization.capture_type == CaptureType.RadioHound:
+            if visualization.capture_type == CaptureType.RadioHound:
+                # For RadioHound, continue with the existing on-the-fly processing
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                     self._handle_sds_captures(visualization, request, zip_file)
-                elif visualization.capture_type == CaptureType.DigitalRF:
-                    self._handle_sds_captures(
-                        visualization, request, zip_file, preserve_structure=True
-                    )
 
-            # Reset buffer position to start
-            zip_buffer.seek(0)
-
-            # Process the ZIP file based on capture type
-            with zipfile.ZipFile(zip_buffer, "r") as zip_file:
-                if visualization.capture_type == CaptureType.RadioHound:
+                zip_buffer.seek(0)
+                with zipfile.ZipFile(zip_buffer, "r") as zip_file:
                     waterfall_files = self._process_radiohound_files(
                         zip_file, visualization.capture_ids
                     )
-                elif visualization.capture_type == CaptureType.DigitalRF:
-                    # Get window parameters from query parameters
-                    start_index = request.query_params.get("start_index")
-                    end_index = request.query_params.get("end_index")
 
-                    # Convert to integers if provided
-                    start_idx = int(start_index) if start_index is not None else None
-                    end_idx = int(end_index) if end_index is not None else None
+            elif visualization.capture_type == CaptureType.DigitalRF:
+                # For DigitalRF, use post-processed data only
+                waterfall_files = self._get_postprocessed_waterfall_data(
+                    visualization, request
+                )
 
-                    waterfall_files = self._process_digitalrf_files(
-                        zip_file,
-                        visualization.capture_ids,
-                        start_idx,
-                        end_idx,
+                # If no post-processed data available, return error
+                if not waterfall_files:
+                    return Response(
+                        {
+                            "status": "error",
+                            "message": "No post-processed waterfall data available for this capture. Please ensure post-processing has been completed.",
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
                     )
 
             return Response(waterfall_files)
@@ -890,3 +882,95 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     break  # Only process the first drf_properties.h5 file
 
         return waterfall_files
+
+    def _get_postprocessed_waterfall_data(
+        self, visualization: Visualization, request: Request
+    ) -> list[dict]:
+        """Get DigitalRF waterfall data from post-processed data in SDS.
+
+        Args:
+            visualization: The visualization object
+            request: The HTTP request
+
+        Returns:
+            list[dict]: List of WaterfallFile objects, or empty list if not available
+        """
+        try:
+            # We only support one capture per visualization
+            capture_id = visualization.capture_ids[0]
+
+            # Make direct HTTP request to SDS API endpoint
+            try:
+                # Get the user's SDS token
+                token = request.user.sds_token
+
+                # Make HTTP request to the new SDS endpoint
+                sds_url = f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/{capture_id}/download_post_processed_data/?processing_type=waterfall"
+
+                response = requests.get(
+                    sds_url,
+                    headers={"Authorization": f"Api-Key: {token}"},
+                    timeout=30,
+                )
+
+                if response.status_code == 404:
+                    logging.warning(
+                        f"No post-processed waterfall data found for capture {capture_id}"
+                    )
+                    return []
+                if response.status_code != 200:
+                    logging.warning(
+                        f"Failed to download post-processed waterfall data: {response.status_code} - {response.text}"
+                    )
+                    return []
+
+                # Parse the JSON data from the downloaded file
+                import json
+                import os
+                import tempfile
+
+                # Save the response content to a temporary file
+                with tempfile.NamedTemporaryFile(
+                    suffix=".json", delete=False
+                ) as temp_file:
+                    temp_file.write(response.content)
+                    temp_file_path = temp_file.name
+
+                try:
+                    # Read and parse the JSON data
+                    with open(temp_file_path) as f:
+                        waterfall_data = json.load(f)
+                finally:
+                    # Clean up temporary file
+                    os.unlink(temp_file_path)
+
+                # Convert to WaterfallFile format
+                waterfall_files = []
+                for item in waterfall_data:
+                    waterfall_file = {
+                        "data": item.get("data", ""),
+                        "data_type": item.get("data_type", "float32"),
+                        "timestamp": item.get("timestamp", ""),
+                        "min_frequency": item.get("min_frequency"),
+                        "max_frequency": item.get("max_frequency"),
+                        "num_samples": item.get("num_samples"),
+                        "sample_rate": item.get("sample_rate"),
+                        "center_frequency": item.get("center_frequency"),
+                        "custom_fields": item.get("custom_fields", {}),
+                    }
+                    waterfall_files.append(waterfall_file)
+
+                logging.info(
+                    f"Successfully loaded {len(waterfall_files)} waterfall files from post-processed data"
+                )
+                return waterfall_files
+
+            except Exception as e:
+                logging.warning(
+                    f"Failed to download post-processed waterfall data: {e}"
+                )
+                return []
+
+        except Exception as e:
+            logging.error(f"Error getting post-processed waterfall data: {e}")
+            return []
