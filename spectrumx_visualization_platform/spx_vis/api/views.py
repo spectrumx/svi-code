@@ -751,7 +751,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                             "status": "error",
                             "message": "No post-processed waterfall data available for this capture. Please ensure post-processing has been completed.",
                         },
-                        status=status.HTTP_404_NOT_FOUND,
+                        status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     )
 
             return Response(waterfall_files)
@@ -905,7 +905,8 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                 token = request.user.sds_token
 
                 # Make HTTP request to the new SDS endpoint
-                sds_url = f"https://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/{capture_id}/download_post_processed_data/?processing_type=waterfall"
+                protocol = "http" if settings.USE_LOCAL_SDS else "https"
+                sds_url = f"{protocol}://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/{capture_id}/download_post_processed_data/?processing_type=waterfall"
 
                 response = requests.get(
                     sds_url,
