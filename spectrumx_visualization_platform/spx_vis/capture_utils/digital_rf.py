@@ -1,7 +1,6 @@
 import logging
 import mimetypes
 import re
-import tempfile
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC
@@ -376,91 +375,65 @@ class DigitalRFUtility(CaptureUtility):
     def get_total_slices(
         user, capture_ids: list[str], samples_per_slice: int = SAMPLES_PER_SLICE
     ) -> int:
-        """Calculate total slices for DigitalRF captures from SDS.
+        """Get total slices for DigitalRF captures from SDS post-processed metadata.
 
-        This method handles the entire process of downloading files from SDS
-        and calculating total slices.
+        This method gets the total slice count from the SDS post-processed waterfall
+        metadata.
 
         Args:
             user: The user object
             capture_ids: List of capture IDs to process (only one capture supported)
-            samples_per_slice: Number of samples per slice
+            samples_per_slice: Number of samples per slice (unused, for compatibility)
 
         Returns:
             int: Total number of slices available
 
         Raises:
-            ValueError: If capture is not found or has no files
+            ValueError: If capture is not found, has no post-processed data, or API call fails
         """
-        import io
-        import zipfile
-
-        from spectrumx_visualization_platform.spx_vis.source_utils.sds import (
-            get_sds_captures,
-        )
-
-        # Get SDS captures info
-        sds_captures, sds_errors = get_sds_captures(user, capture_ids)
-        if sds_errors:
-            raise ValueError(f"Error getting SDS captures: {sds_errors}")
+        import requests
+        from django.conf import settings
 
         # We only support one capture per visualization
         capture_id = capture_ids[0]
-        capture = next(
-            (c for c in sds_captures if str(c["uuid"]) == str(capture_id)), None
-        )
 
-        if capture is None:
-            raise ValueError(f"Capture ID {capture_id} not found in SDS")
+        try:
+            # Get the user's SDS token
+            token = user.sds_token
 
-        files = capture.get("files", [])
-        if not files:
-            raise ValueError(f"No files found for capture ID {capture_id}")
+            # Make HTTP request to the new SDS metadata endpoint
+            protocol = "http" if settings.USE_LOCAL_SDS else "https"
+            sds_url = f"{protocol}://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/{capture_id}/get_post_processed_metadata/?processing_type=waterfall"
 
-        # For DigitalRF, we need to download files to calculate total slices
-        # Create a BytesIO object to store the ZIP file
-        zip_buffer = io.BytesIO()
-
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            # Download and add files to ZIP
-            sds_client = user.sds_client()
-            seen_filenames: set[str] = set()
-
-            for file in files:
-                file_uuid = file["uuid"]
-
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    local_path = Path(temp_dir) / file["name"]
-                    sds_file = sds_client.download_file(
-                        file_uuid=file_uuid, to_local_path=local_path
-                    )
-                    if not sds_file.local_path.exists():
-                        raise ValueError(f"Failed to download file {file_uuid}")
-
-                    filename = sds_file.name
-
-                    # Use the file's directory path from SDS (preserve structure)
-                    file_directory = sds_file.directory
-                    # Remove leading slash and create path relative to capture
-                    relative_path = str(file_directory).lstrip("/")
-                    zip_path = f"{capture_id}/{relative_path}/{filename}"
-
-                    # Check for duplicate filename
-                    if zip_path in seen_filenames:
-                        raise ValueError(
-                            f"Duplicate filename found for capture with ID {capture_id}. "
-                            f"File name: {zip_path}"
-                        )
-                    seen_filenames.add(zip_path)
-
-                    # Add file to ZIP
-                    zip_file.write(sds_file.local_path, arcname=zip_path)
-
-        # Reset buffer position to start
-        zip_buffer.seek(0)
-
-        # Use the DigitalRF utility to calculate total slices from ZIP
-        with zipfile.ZipFile(zip_buffer, "r") as zip_file:
-            return DigitalRFUtility.get_total_slices_from_zip(
-                zip_file, capture_ids, samples_per_slice
+            response = requests.get(
+                sds_url,
+                headers={"Authorization": f"Api-Key: {token}"},
+                timeout=10,
             )
+
+            if response.status_code == 404:
+                raise ValueError(
+                    f"No post-processed waterfall data found for capture {capture_id}. "
+                    "Please ensure post-processing has been completed."
+                )
+            if response.status_code != 200:
+                raise ValueError(
+                    f"Failed to get post-processed metadata: {response.status_code} - {response.text}"
+                )
+
+            # Parse the response and extract total_slices from metadata
+            metadata_response = response.json()
+            metadata = metadata_response.get("metadata", {})
+            total_slices = metadata.get("total_slices")
+
+            if total_slices is None:
+                raise ValueError(
+                    f"No total_slices found in post-processed metadata for capture {capture_id}"
+                )
+
+            return int(total_slices)
+
+        except requests.RequestException as e:
+            raise ValueError(f"Failed to fetch post-processed metadata from SDS: {e}")
+        except (KeyError, AttributeError) as e:
+            raise ValueError(f"Invalid response format from SDS metadata endpoint: {e}")
