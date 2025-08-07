@@ -36,4 +36,4 @@ digital-rf==2.6.11  # https://github.com/MITHaystack/digitalrf
 h5py==3.13.0  # https://github.com/h5py/h5py
 
 # SpectrumX Data System SDK
-spectrumx==0.1.8  # https://pypi.org/project/spectrumx/
+spectrumx>=0.1.8  # https://pypi.org/project/spectrumx/

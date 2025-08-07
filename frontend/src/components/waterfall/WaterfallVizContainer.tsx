@@ -52,7 +52,7 @@ export const WaterfallVizContainer = ({
   const isLoadingWaterfallRange =
     Boolean(isLoadingWaterfallData && waterfallData && !allFilesLoaded);
 
-  if (isLoadingTotalSlices || isLoadingWaterfallData || waterfallData === undefined) {
+  if ((isLoadingTotalSlices || isLoadingWaterfallData || waterfallData === undefined) && !error) {
     return <LoadingBlock message="Getting visualization files..." />;
   }
 

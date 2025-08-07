@@ -66,10 +66,7 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
             del self.request.session["login_redirect_url"]
             return redirect_url
 
-        if settings.DEBUG:
-            return "http://localhost:3000"
-
-        return "https://svi-qa.crc.nd.edu"
+        return settings.LOGOUT_REDIRECT_URL
 
 
 user_redirect_view = UserRedirectView.as_view()
