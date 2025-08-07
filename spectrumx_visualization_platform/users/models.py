@@ -59,8 +59,8 @@ class User(AbstractUser):
             )
 
             # Override the host and port in the gateway for local development
-            sds._gateway.host = host
-            sds._gateway.port = port
+            sds._gateway.host = host  # noqa: SLF001
+            sds._gateway.port = port  # noqa: SLF001
         else:
             # Use standard configuration for production/remote SDS
             sds = SDSClient(

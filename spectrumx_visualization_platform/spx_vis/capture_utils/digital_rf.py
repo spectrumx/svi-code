@@ -373,7 +373,9 @@ class DigitalRFUtility(CaptureUtility):
 
     @staticmethod
     def get_total_slices(
-        user, capture_ids: list[str], samples_per_slice: int = SAMPLES_PER_SLICE
+        user,
+        capture_ids: list[str],
+        samples_per_slice: int = SAMPLES_PER_SLICE,  # noqa: ARG004
     ) -> int:
         """Get total slices for DigitalRF captures from SDS post-processed metadata.
 
@@ -411,12 +413,12 @@ class DigitalRFUtility(CaptureUtility):
                 timeout=10,
             )
 
-            if response.status_code == 404:
+            if response.status_code == requests.codes.not_found:
                 raise ValueError(
                     f"No post-processed waterfall data found for capture {capture_id}. "
                     "Please ensure post-processing has been completed."
                 )
-            if response.status_code != 200:
+            if response.status_code != requests.codes.ok:
                 raise ValueError(
                     f"Failed to get post-processed metadata: {response.status_code} - {response.text}"
                 )

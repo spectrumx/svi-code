@@ -914,12 +914,12 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                     timeout=30,
                 )
 
-                if response.status_code == 404:
+                if response.status_code == requests.codes.not_found:
                     logging.warning(
                         f"No post-processed waterfall data found for capture {capture_id}"
                     )
                     return []
-                if response.status_code != 200:
+                if response.status_code != requests.codes.ok:
                     logging.warning(
                         f"Failed to download post-processed waterfall data: {response.status_code} - {response.text}"
                     )
@@ -927,7 +927,6 @@ class VisualizationViewSet(viewsets.ModelViewSet):
 
                 # Parse the JSON data from the downloaded file
                 import json
-                import os
                 import tempfile
 
                 # Save the response content to a temporary file
@@ -943,7 +942,7 @@ class VisualizationViewSet(viewsets.ModelViewSet):
                         waterfall_data = json.load(f)
                 finally:
                     # Clean up temporary file
-                    os.unlink(temp_file_path)
+                    Path(temp_file_path).unlink()
 
                 # Convert to WaterfallFile format
                 waterfall_files = []
