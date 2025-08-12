@@ -1,4 +1,5 @@
 import logging
+import os
 from uuid import uuid4
 
 import requests
@@ -11,6 +12,11 @@ from django.dispatch import receiver
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from spectrumx import Client as SDSClient
+
+if settings.USE_LOCAL_SDS:
+    # Workaround to avoid the SSL certificate check when using
+    # the SDK client with a self-signed certificate (e.g. localhost).
+    os.environ["PYTEST_CURRENT_TEST"] = "1"
 
 
 class User(AbstractUser):
@@ -41,10 +47,29 @@ class User(AbstractUser):
         return self.username
 
     def sds_client(self) -> SDSClient:
-        sds = SDSClient(
-            host=settings.SDS_CLIENT_URL,
-            env_config={"SDS_SECRET_TOKEN": self.sds_token},
-        )
+        # Check if we're using a local SDS instance
+        if settings.USE_LOCAL_SDS:
+            # Parse host and port from SPECTRUMX_HOST for local development
+            host_parts = settings.SPECTRUMX_HOST.split(":")
+            host = host_parts[0]
+            port = int(host_parts[1]) if len(host_parts) > 1 else 8000
+
+            # Create the SDS client with localhost to get HTTP protocol
+            sds = SDSClient(
+                host="localhost",  # Use localhost to get HTTP protocol
+                env_config={"SDS_SECRET_TOKEN": self.sds_token},
+            )
+
+            # Override the host and port in the gateway for local development
+            sds._gateway.host = host  # noqa: SLF001
+            sds._gateway.port = port  # noqa: SLF001
+        else:
+            # Use standard configuration for production/remote SDS
+            sds = SDSClient(
+                host=settings.SDS_CLIENT_URL,
+                env_config={"SDS_SECRET_TOKEN": self.sds_token},
+            )
+
         sds.dry_run = False
         sds.authenticate()
         return sds

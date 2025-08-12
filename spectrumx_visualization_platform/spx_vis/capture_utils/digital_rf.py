@@ -1,8 +1,6 @@
-import base64
 import logging
 import mimetypes
 import re
-import tempfile
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC
@@ -10,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 
 import h5py
-import numpy as np
 from digital_rf import DigitalRFReader
 from django.core.files.uploadedfile import UploadedFile
 
@@ -300,186 +297,6 @@ class DigitalRFUtility(CaptureUtility):
         return metadata
 
     @staticmethod
-    def to_waterfall_file(
-        drf_data_path: str,
-        fft_size: int = 1024,
-        start_idx: int | None = None,
-        end_idx: int | None = None,
-        samples_per_slice: int = SAMPLES_PER_SLICE,
-    ) -> list[dict]:
-        """Convert DigitalRF data to WaterfallFile format.
-
-        This method reads DigitalRF data, performs FFT processing, and converts
-        it to the standardized WaterfallFile format used by the frontend.
-
-        Args:
-            drf_data_path: Path to the DigitalRF data directory
-            fft_size: FFT size for processing (default: 1024)
-            start_idx: Start index for the sliding window (default: None, uses 0)
-            end_idx: End index for the sliding window (default: None, uses last available slice)
-            samples_per_slice: Number of samples per waterfall slice (default: 1024)
-
-        Returns:
-            list[dict]: List of WaterfallFile objects (may contain single item for single slice)
-
-        Raises:
-            ValueError: If required fields are missing or invalid
-        """
-        try:
-            # Create context and configuration
-            context = DigitalRFUtility._create_context(drf_data_path)
-            config = ProcessingConfig(
-                fft_size=fft_size,
-                samples_per_slice=samples_per_slice,
-                start_idx=start_idx,
-                end_idx=end_idx,
-            )
-
-            # Calculate frequency range
-            freq_range = FrequencyRange.from_sample_rate_and_center(
-                context.sample_rate, context.center_freq
-            )
-
-            # Calculate total slices and set defaults
-            total_samples = context.end_sample - context.start_sample
-            total_slices = total_samples // config.samples_per_slice
-
-            if config.start_idx is None:
-                config.start_idx = 0
-            if config.end_idx is None:
-                config.end_idx = total_slices - 1
-
-            # Process the specified slice range
-            return DigitalRFUtility._process_window_slices(context, config, freq_range)
-
-        except Exception as e:
-            error_message = (
-                f"Error converting DigitalRF data to WaterfallFile format: {e}"
-            )
-            logger.error(error_message)
-            raise ValueError(error_message)
-
-    @staticmethod
-    def _process_window_slices(
-        context: DigitalRFContext,
-        config: ProcessingConfig,
-        freq_range: FrequencyRange,
-    ) -> list[dict]:
-        """Process multiple slices of DigitalRF data for a sliding window.
-
-        Args:
-            context: DigitalRF context object
-            config: Processing configuration
-            freq_range: Frequency range information
-
-        Returns:
-            list[dict]: List of WaterfallFile format data
-        """
-        waterfall_files = []
-
-        # Calculate the number of slices to process
-        num_slices = config.end_idx - config.start_idx + 1
-
-        for i in range(num_slices):
-            # Calculate the sample range for this slice
-            slice_start_sample = (
-                context.start_sample + (config.start_idx + i) * config.samples_per_slice
-            )
-            slice_num_samples = min(
-                config.samples_per_slice,
-                context.end_sample - slice_start_sample,
-            )
-
-            if slice_num_samples <= 0:
-                break
-
-            # Process this slice
-            waterfall_file = DigitalRFUtility._process_single_slice(
-                context,
-                config,
-                freq_range,
-                slice_start_sample,
-                slice_num_samples,
-            )
-
-            waterfall_files.append(waterfall_file)
-
-        return waterfall_files
-
-    @staticmethod
-    def _process_single_slice(
-        context: DigitalRFContext,
-        config: ProcessingConfig,
-        freq_range: FrequencyRange,
-        slice_start_sample: int,
-        slice_num_samples: int,
-    ) -> dict:
-        """Process a single slice of DigitalRF data.
-
-        Args:
-            context: DigitalRF context object
-            config: Processing configuration
-            freq_range: Frequency range information
-            slice_start_sample: Starting sample index for this slice
-            slice_num_samples: Number of samples to process for this slice
-
-        Returns:
-            dict: WaterfallFile format data
-        """
-        # Read the data
-        data_array = context.reader.read_vector(
-            slice_start_sample, slice_num_samples, context.channel, 0
-        )
-
-        # Perform FFT processing
-        fft_data = np.fft.fft(data_array, n=config.fft_size)
-        power_spectrum = np.abs(fft_data) ** 2
-
-        # Convert to dB
-        power_spectrum_db = 10 * np.log10(power_spectrum + 1e-12)
-
-        # Convert power spectrum to binary string for transmission
-        data_bytes = power_spectrum_db.astype(np.float32).tobytes()
-        data_string = base64.b64encode(data_bytes).decode("utf-8")
-
-        # Create timestamp from sample index
-        timestamp = datetime.fromtimestamp(
-            slice_start_sample / context.sample_rate, tz=UTC
-        ).isoformat()
-
-        # Build WaterfallFile format with enhanced metadata
-        waterfall_file = {
-            "data": data_string,
-            "data_type": "float32",
-            "timestamp": timestamp,
-            "min_frequency": freq_range.min_frequency,
-            "max_frequency": freq_range.max_frequency,
-            "num_samples": slice_num_samples,
-            "sample_rate": context.sample_rate,
-            "center_frequency": freq_range.center_frequency,
-        }
-
-        # Build custom fields with all available metadata
-        custom_fields = {
-            "channel_name": context.channel,
-            "start_sample": slice_start_sample,
-            "num_samples": slice_num_samples,
-            "fft_size": config.fft_size,
-            "scan_time": slice_num_samples / context.sample_rate,
-        }
-
-        # Add metadata fields that match RadioHound format
-        if context.device_name is not None:
-            waterfall_file["device_name"] = context.device_name
-        if context.gain is not None:
-            custom_fields["gain"] = context.gain
-        if context.comments:
-            custom_fields["comments"] = context.comments
-
-        waterfall_file["custom_fields"] = custom_fields
-        return waterfall_file
-
-    @staticmethod
     def get_total_slices_from_zip(
         zip_file: zipfile.ZipFile,
         capture_ids: list[str],
@@ -556,93 +373,69 @@ class DigitalRFUtility(CaptureUtility):
 
     @staticmethod
     def get_total_slices(
-        user, capture_ids: list[str], samples_per_slice: int = SAMPLES_PER_SLICE
+        user,
+        capture_ids: list[str],
+        samples_per_slice: int = SAMPLES_PER_SLICE,  # noqa: ARG004
     ) -> int:
-        """Calculate total slices for DigitalRF captures from SDS.
+        """Get total slices for DigitalRF captures from SDS post-processed metadata.
 
-        This method handles the entire process of downloading files from SDS
-        and calculating total slices.
+        This method gets the total slice count from the SDS post-processed waterfall
+        metadata.
 
         Args:
             user: The user object
             capture_ids: List of capture IDs to process (only one capture supported)
-            samples_per_slice: Number of samples per slice
+            samples_per_slice: Number of samples per slice (unused, for compatibility)
 
         Returns:
             int: Total number of slices available
 
         Raises:
-            ValueError: If capture is not found or has no files
+            ValueError: If capture is not found, has no post-processed data, or API call fails
         """
-        import io
-        import zipfile
-
-        from spectrumx_visualization_platform.spx_vis.source_utils.sds import (
-            get_sds_captures,
-        )
-
-        # Get SDS captures info
-        sds_captures, sds_errors = get_sds_captures(user, capture_ids)
-        if sds_errors:
-            raise ValueError(f"Error getting SDS captures: {sds_errors}")
+        import requests
+        from django.conf import settings
 
         # We only support one capture per visualization
         capture_id = capture_ids[0]
-        capture = next(
-            (c for c in sds_captures if str(c["uuid"]) == str(capture_id)), None
-        )
 
-        if capture is None:
-            raise ValueError(f"Capture ID {capture_id} not found in SDS")
+        try:
+            # Get the user's SDS token
+            token = user.sds_token
 
-        files = capture.get("files", [])
-        if not files:
-            raise ValueError(f"No files found for capture ID {capture_id}")
+            # Make HTTP request to the new SDS metadata endpoint
+            protocol = "http" if settings.USE_LOCAL_SDS else "https"
+            sds_url = f"{protocol}://{settings.SDS_CLIENT_URL}/api/latest/assets/captures/{capture_id}/get_post_processed_metadata/?processing_type=waterfall"
 
-        # For DigitalRF, we need to download files to calculate total slices
-        # Create a BytesIO object to store the ZIP file
-        zip_buffer = io.BytesIO()
-
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            # Download and add files to ZIP
-            sds_client = user.sds_client()
-            seen_filenames: set[str] = set()
-
-            for file in files:
-                file_uuid = file["uuid"]
-
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    local_path = Path(temp_dir) / file["name"]
-                    sds_file = sds_client.download_file(
-                        file_uuid=file_uuid, to_local_path=local_path
-                    )
-                    if not sds_file.local_path.exists():
-                        raise ValueError(f"Failed to download file {file_uuid}")
-
-                    filename = sds_file.name
-
-                    # Use the file's directory path from SDS (preserve structure)
-                    file_directory = sds_file.directory
-                    # Remove leading slash and create path relative to capture
-                    relative_path = str(file_directory).lstrip("/")
-                    zip_path = f"{capture_id}/{relative_path}/{filename}"
-
-                    # Check for duplicate filename
-                    if zip_path in seen_filenames:
-                        raise ValueError(
-                            f"Duplicate filename found for capture with ID {capture_id}. "
-                            f"File name: {zip_path}"
-                        )
-                    seen_filenames.add(zip_path)
-
-                    # Add file to ZIP
-                    zip_file.write(sds_file.local_path, arcname=zip_path)
-
-        # Reset buffer position to start
-        zip_buffer.seek(0)
-
-        # Use the DigitalRF utility to calculate total slices from ZIP
-        with zipfile.ZipFile(zip_buffer, "r") as zip_file:
-            return DigitalRFUtility.get_total_slices_from_zip(
-                zip_file, capture_ids, samples_per_slice
+            response = requests.get(
+                sds_url,
+                headers={"Authorization": f"Api-Key: {token}"},
+                timeout=10,
             )
+
+            if response.status_code == requests.codes.not_found:
+                raise ValueError(
+                    f"No post-processed waterfall data found for capture {capture_id}. "
+                    "Please ensure post-processing has been completed."
+                )
+            if response.status_code != requests.codes.ok:
+                raise ValueError(
+                    f"Failed to get post-processed metadata: {response.status_code} - {response.text}"
+                )
+
+            # Parse the response and extract total_slices from metadata
+            metadata_response = response.json()
+            metadata = metadata_response.get("metadata", {})
+            total_slices = metadata.get("total_slices")
+
+            if total_slices is None:
+                raise ValueError(
+                    f"No total_slices found in post-processed metadata for capture {capture_id}"
+                )
+
+            return int(total_slices)
+
+        except requests.RequestException as e:
+            raise ValueError(f"Failed to fetch post-processed metadata from SDS: {e}")
+        except (KeyError, AttributeError) as e:
+            raise ValueError(f"Invalid response format from SDS metadata endpoint: {e}")
