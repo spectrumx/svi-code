@@ -13,7 +13,9 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from spectrumx import Client as SDSClient
 
-if settings.DEBUG:
+if settings.USE_LOCAL_SDS:
+    # Workaround to avoid the SSL certificate check when using
+    # the SDK client with a self-signed certificate (e.g. localhost).
     os.environ["PYTEST_CURRENT_TEST"] = "1"
 
 
