@@ -30,8 +30,12 @@ export const useFetchSessionInfo = async () => {
         if (response.ok) {
           const data = await response.json();
 
-          localStorage.setItem('authToken', data.auth_token);
-          localStorage.setItem('csrfToken', data.csrf_token);
+          // Only store auth token if it exists (don't create unnecessary tokens)
+          if (data.auth_token) {
+            localStorage.setItem('authToken', data.auth_token);
+          } else {
+            localStorage.removeItem('authToken');
+          }
 
           const username = data.user.username;
           setUsername(username);
@@ -41,7 +45,6 @@ export const useFetchSessionInfo = async () => {
       } catch (error) {}
 
       localStorage.removeItem('authToken');
-      localStorage.removeItem('csrfToken');
       // Null means the user isn't logged in
       setUsername(null);
     };
@@ -51,6 +54,28 @@ export const useFetchSessionInfo = async () => {
   }, [setUsername]);
 };
 
+/**
+ * Create an authentication token for API access.
+ * This should be called when the user needs to access protected API endpoints.
+ */
+export const createAuthToken = async (): Promise<string | null> => {
+  try {
+    const response = await fetch(API_HOST + '/api/create-auth-token/', {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      localStorage.setItem('authToken', data.auth_token);
+      return data.auth_token;
+    }
+  } catch (error) {
+    console.error('Failed to create auth token:', error);
+  }
+  return null;
+};
+
 const apiClient = axios.create({
   baseURL: API_HOST,
   headers: { 'Content-Type': 'application/json' },
@@ -58,15 +83,13 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const authToken = localStorage.getItem('authToken');
-  const csrfToken = localStorage.getItem('csrfToken');
 
   if (authToken) {
     config.headers.Authorization = `Token ${authToken}`;
   }
 
-  if (csrfToken) {
-    config.headers['X-CSRFToken'] = csrfToken;
-  }
+  // CSRF tokens are automatically handled by Django's middleware via HTTP-only cookies
+  // No need to manually set X-CSRFToken header
 
   return config;
 });
